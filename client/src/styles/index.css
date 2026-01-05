@@ -1,0 +1,9 @@
+/* src/styles/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* add this block (if not present) */
+@layer base {
+  body { @apply bg-gradient-to-b from-[#a8dadc] to-[#c0e5e7] } /* subtle light grey */
+}
