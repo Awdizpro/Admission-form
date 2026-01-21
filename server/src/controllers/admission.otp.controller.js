@@ -269,7 +269,7 @@ export async function verifyAdmission(req, res) {
       return res.status(400).json({ message: "Invalid channel" });
     }
 
-    const pending = await PendingAdmission.findById(pendingId);
+    const pending = await PendingAdmission.findOne({ _id: pendingId });
     if (!pending || pending.status !== "PENDING") {
       return res.status(404).json({ message: "Session not found/expired" });
     }
@@ -333,10 +333,10 @@ export async function verifyAdmission(req, res) {
         payload?.counselorKey || payload?.meta?.counselorKey || "counselor1";
 
       // ✅ Create PENDING PDFs
-      const studentPdf = await generateAdmissionPDF({
-        ...payload,
-        status: "pending",
-      });
+      // const studentPdf = await generateAdmissionPDF({
+      //   ...payload,
+      //   status: "pending",
+      // });
       const counselorPdf = await generateAdmissionPDF({
         ...payload,
         status: "pending",
@@ -398,7 +398,6 @@ export async function verifyAdmission(req, res) {
       return res.status(201).json({
         message: "Verified & Submitted (Pending Approval)",
         id: saved._id,
-        pdfUrl: pendingStudentUrl,
       });
     }
   } catch (e) {
