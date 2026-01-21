@@ -21,6 +21,7 @@ export default function OtpVerify() {
 
   const [phase, setPhase] = useState("enter-mobile");
   const [loading, setLoading] = useState(false);
+  const [emailVerifying, setEmailVerifying] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -159,14 +160,15 @@ By signing this document, you acknowledge that you have received and agreed to l
     if (!mobileVerified) return setErr("Please verify Mobile OTP first.");
 
     try {
-      setLoading(true);
+  setEmailVerifying(true);   // ✅ START FULL PAGE LOADER
+  setLoading(true);          // button disable ke liye
 
-      // 1️⃣ Verify EMAIL OTP
-      const { data } = await api.post("/admissions/verify", {
-        pendingId,
-        otp: emailOtp,
-        channel: "email",
-      });
+  const { data } = await api.post("/admissions/verify", {
+    pendingId,
+    otp: emailOtp,
+    channel: "email",
+  });
+
 
       // ✅ IMPORTANT:
       // Google Sheet call yaha se REMOVE kiya, kyunki route 404 aa raha hai.
@@ -184,11 +186,30 @@ By signing this document, you acknowledge that you have received and agreed to l
       );
       setErr(e?.response?.data?.message || "Email OTP verification failed");
     } finally {
-      setLoading(false);
-    }
+  setLoading(false);
+  setEmailVerifying(false);  // ✅ STOP FULL PAGE LOADER
+}
   };
+  function FullPageSpinner() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70">
+      <div
+        className="w-24 h-24 rounded-full animate-spin
+          border-[8px]
+          border-t-red-500
+          border-r-yellow-400
+          border-b-green-500
+          border-l-blue-500
+        "
+      />
+    </div>
+  );
+}
+
 
   return (
+    <> 
+     {emailVerifying && <FullPageSpinner />}
     <div className="max-w-md mx-auto p-6 space-y-4 bg-white rounded border">
       <h1 className="text-2xl font-semibold">Mobile & Email Authentication</h1>
 
@@ -250,13 +271,7 @@ By signing this document, you acknowledge that you have received and agreed to l
               >
                 {mobileVerified ? "Mobile Verified ✓" : "Verify Mobile OTP"}
               </button>
-              <button
-                type="button"
-                className="px-4 py-2 border rounded text-sm"
-                onClick={() => nav("/admission-form")}
-              >
-                Change Number (Edit Form)
-              </button>
+             
             </div>
           </form>
 
@@ -291,5 +306,6 @@ By signing this document, you acknowledge that you have received and agreed to l
         </>
       )}
     </div>
+    </>
   );
 }

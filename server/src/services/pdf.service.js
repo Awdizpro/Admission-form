@@ -1,9 +1,8 @@
 // server/src/services/pdf.service.js
-
 import PDFDocument from "pdfkit";
-import { promises as fs } from "fs";
-import path from "path";
 import sharp from "sharp"; // ✅ for webp/other → png/jpeg conversion
+import { uploadPDFStream } from "./storage.service.js";
+
 
 /* ---------------------- image helpers ---------------------- */
 // ✅ Accept PNG/JPEG directly; convert WEBP/others → PNG so pdfkit can embed them
@@ -715,19 +714,21 @@ if (parentSignBuf) {
      .text("Addresses: Vashi Plaza (Navi Mumbai) • Bandra (West) Mumbai");
 
   doc.end();
-  const pdfBuffer = await done;
-  const dir = path.resolve("storage/pdfs");
-  await fs.mkdir(dir, { recursive: true });
-  const filename = `admission-${Date.now()}.pdf`;
-  const filePath = path.join(dir, filename);
-  await fs.writeFile(filePath, pdfBuffer);
+const pdfBuffer = await done;
 
-  const base = process.env.PUBLIC_BASE_URL || "http://localhost:5000";
-  const url  = `${base}/files/${filename}`;
+/* ✅ UPLOAD PDF TO CLOUDINARY */
+const upload = await uploadPDFStream(pdfBuffer, {
+  folder: "awdiz/admissions/pdfs",
+  publicId: `admission-${Date.now()}`,
+});
 
-  return { buffer: pdfBuffer, url, public_id: filename, localPath: filePath };
+/* ✅ RETURN CLOUDINARY URL */
+return {
+  buffer: pdfBuffer,
+  url: upload.secure_url,
+  public_id: upload.public_id,
+};
 }
-
 export async function buildAdmissionPdf(payload, opts = {}) {
   const { url } = await generateAdmissionPDF(payload, opts);
   return url;

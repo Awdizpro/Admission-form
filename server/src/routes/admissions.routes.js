@@ -8,12 +8,14 @@ import {
   dummyVerifyAdmissionOtp,
   approveAdmission,
   reviewAdmissionPage,
+  adminReviewAdmissionPage, 
+  requestEditToCounselor,  
   requestEditAdmission,
   getAdmissionForEdit,
   applyAdmissionEdit,
 
   // ✅ NEW: counselor submits to admin (fees + mode)
-  submitToAdmin,
+  submitToAdmin,  
 } from "../controllers/admission.controller.js";
 
 const router = express.Router();
@@ -36,6 +38,7 @@ router.post("/verify", express.json(), dummyVerifyAdmissionOtp);
 
 // ⭐ NEW: COUNSELOR REVIEW PAGE (HTML with PDF + buttons)
 router.get("/:id/review", reviewAdmissionPage);
+router.get("/:id/admin-review", adminReviewAdmissionPage);
 
 // ⭐ NEW: REQUEST EDIT (HTML form submit from counselor review)
 router.post(
@@ -52,12 +55,16 @@ router.post(
 );
 
 // ✅ APPROVE endpoint (this is the one your email button hits)
-router.get("/:id/approve", approveAdmission);
+// router.get("/:id/approve", approveAdmission);
+router.post("/:id/approve", approveAdmission);
 
 // 🔹 Student edit ke liye data fetch
 router.get("/:id/edit-data", getAdmissionForEdit);
 
 // 🔹 Student ne edit submit kiya
 router.post("/:id/apply-edit", express.json(), applyAdmissionEdit);
+
+
+router.post("/:id/request-edit-counselor", requestEditToCounselor);
 
 export default router;

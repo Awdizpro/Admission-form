@@ -1,8 +1,8 @@
 // // server/src/controllers/admission.controller.js
 
 // import sharp from "sharp";
-// import Admission from "../models/Admission.js";
 // import { uploadBuffer } from "../services/storage.service.js";
+// import Admission from "../models/Admission.js";
 // import { generateAdmissionPDF } from "../services/pdf.service.js"; // returns { buffer, url, ... }
 // import {
 //   sendAdmissionEmails,
@@ -19,7 +19,11 @@
 // import { generateOtp, hashOtp, verifyOtp } from "../services/otp.service.js"; // 🔹 NEW: OTP utils
 
 // // normalize any pdf-service return into a URL string
-// const asUrl = (x) => (typeof x === "string" ? x : x?.secure_url || x?.url || "");
+// const asUrl = (x) =>
+//   typeof x === "string"
+//     ? x
+//     : x?.url || x?.secure_url || "";
+
 
 // // in-memory pending OTP store
 // // pendingId -> { payload, mobile, email, mobileOtpHash, emailOtpHash, mobileVerified, emailVerified, createdAt, expiresAt }
@@ -412,6 +416,145 @@
 // }
 
 // /* ==================== APPROVE (ADMIN/COUNSELOR) ==================== */
+
+// /**
+//  * NEW FLOW:
+//  * Counselor reviews admission and submits to Admin (with fees amount + mode).
+//  * - Updates admission.meta.feeAmount / meta.feeMode (no PDF changes)
+//  * - Tries to update Google Sheet row (if row exists)
+//  * - Sends email ONLY to admin(s) with PDF attachment + Approve button link
+//  */
+// async function submitToAdmin(req, res) {
+//   try {
+//     const { id } = req.params;
+
+//     // required inputs from counselor
+//     const feeAmountRaw = req.body?.feeAmount;
+//     const feeModeRaw = req.body?.feeMode;
+
+//     const feeAmount = Number(feeAmountRaw);
+//     const feeMode = String(feeModeRaw || "").trim().toLowerCase();
+
+//     if (!Number.isFinite(feeAmount) || feeAmount < 0) {
+//       return res
+//         .status(400)
+//         .send("Invalid fee amount. Please enter a valid number.");
+//     }
+//     if (!["cash", "online"].includes(feeMode)) {
+//       return res
+//         .status(400)
+//         .send("Invalid payment mode. Please choose Cash or Online.");
+//     }
+
+//     const doc = await Admission.findById(id);
+//     if (!doc) return res.status(404).send("Admission not found");
+
+//     // store on admission document (keep schema-safe by using meta)
+//     doc.meta = doc.meta || {};
+//     doc.meta.feeAmount = feeAmount;
+//     doc.meta.feeMode = feeMode;
+//     doc.meta.submittedToAdminAt = new Date().toISOString();
+
+//     // Keep status pending — admin will approve later
+//     doc.status = doc.status || "Pending";
+
+//     await doc.save();
+
+//     // update row in sheets (if supported)
+//     try {
+//       const courseName = doc?.course?.name || "General";
+//       await updateAdmissionRow(courseName, doc);
+//     } catch (err) {
+//       console.log("❌ Google Sheet (update on submitToAdmin) failed:", err.message);
+//     }
+
+//     // Generate a fresh PENDING pdf buffer for admin attachment (pdf content unchanged)
+//     let pdfBuffer = null;
+//     let pdfUrl = "";
+//     try {
+//       const pdfRes = await generateAdmissionPDF(doc);
+//       pdfBuffer = pdfRes?.buffer || null;
+//       pdfUrl =
+//   asUrl(pdfRes) ||
+//   doc?.pdf?.pendingCounselorUrl ||
+//   doc?.pdf?.pendingStudentUrl ||
+//   "";
+
+//     } catch (err) {
+//       console.log("❌ PDF generation failed (submitToAdmin):", err.message);
+//       pdfUrl = doc?.pdfUrl || "";
+//     }
+
+//     // admin emails
+//     const adminEmails = String(process.env.ADMIN_EMAILS || "")
+//       .split(",")
+//       .map((x) => x.trim())
+//       .filter(Boolean);
+
+//     if (!adminEmails.length) {
+//       return res
+//         .status(500)
+//         .send("ADMIN_EMAILS missing in env. Please set ADMIN_EMAILS.");
+//     }
+
+//     const BASE_URL =
+//       process.env.PUBLIC_BASE_URL || process.env.BASE_URL || "http://localhost:5002";
+
+//     const approveUrl = `${BASE_URL}/api/admissions/${doc._id}/approve`;
+
+//     const html = `
+//       <div style="font-family:Arial,sans-serif;line-height:1.5">
+//         <h2 style="margin:0 0 8px">Admission Pending — Admin Approval Required</h2>
+//         <p style="margin:0 0 8px"><b>Student:</b> ${doc?.personal?.name || "-"}</p>
+//         <p style="margin:0 0 8px"><b>Course:</b> ${doc?.course?.name || "-"}</p>
+//         <p style="margin:0 0 8px"><b>Center:</b> ${doc?.center?.placeOfAdmission || "-"}</p>
+
+//         <p style="margin:0 0 8px"><b>Fees:</b> ₹${feeAmount} &nbsp; <b>Mode:</b> ${feeMode}</p>
+
+//         <p style="margin:12px 0 0">
+//           <a href="${approveUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700">
+//             ✅ Approve Admission
+//           </a>
+//         </p>
+
+//         ${pdfUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${pdfUrl}">Open PDF</a></p>` : ``}
+//       </div>
+//     `;
+
+//     const mail = {
+//       to: adminEmails,
+//       subject: `Pending Admission for Approval: ${doc?.personal?.name || "Student"}`,
+//       html,
+//       attachments: [],
+//     };
+
+//     if (pdfBuffer) {
+//       mail.attachments.push({
+//         filename: `admission-${doc._id}.pdf`,
+//         content: pdfBuffer,
+//         contentType: "application/pdf",
+//       });
+//     }
+
+//     await transporter.sendMail(mail);
+
+//     // simple success page for counselor
+//     return res.send(`
+//       <html>
+//         <head><meta charset="utf-8"/><title>Submitted</title></head>
+//         <body style="font-family:Arial,sans-serif;padding:24px">
+//           <h2>✅ Submitted to Admin</h2>
+//           <p>Fees: ₹${feeAmount} | Mode: ${feeMode}</p>
+//           <p>Admin has received the email with approval button.</p>
+//         </body>
+//       </html>
+//     `);
+//   } catch (err) {
+//     console.error("submitToAdmin error:", err);
+//     return res.status(500).send("Submit to Admin failed.");
+//   }
+// }
+
 // async function approveAdmission(req, res) {
 //   try {
 //     const { id } = req.params;
@@ -783,7 +926,39 @@
 //       .grid-2 { grid-template-columns:1fr; }
 //       .pdf-frame { height:380px; }
 //     }
-//   </style>
+  
+//       .fee-row{
+//         display:flex;
+//         gap:10px;
+//         align-items:center;
+//         flex-wrap:wrap;
+//       }
+//       .fee-input{
+//         flex:1;
+//         min-width:160px;
+//         padding:10px 12px;
+//         border:1px solid #e5e7eb;
+//         border-radius:10px;
+//         outline:none;
+//       }
+//       .fee-select{
+//         min-width:140px;
+//         padding:10px 12px;
+//         border:1px solid #e5e7eb;
+//         border-radius:10px;
+//         outline:none;
+//         background:#fff;
+//       }
+//       .submit-admin-form{ margin:0; }
+//       /* live review states */
+// .field-ok {
+//   border-color: #93c5fd;      /* blue */
+//   background: #eff6ff;
+//   color: #1e3a8a;
+// }
+
+
+// </style>
 // </head>
 // <body>
 //   <div class="page">
@@ -810,7 +985,10 @@
 //       </div>
 //       ${
 //         pdfUrl
-//           ? `<iframe class="pdf-frame" src="${pdfUrl}"></iframe>`
+//           ? `<iframe
+//   class="pdf-frame"
+//   src="${pdfUrl}#toolbar=0&navpanes=0"
+// ></iframe>`
 //           : `<div style="padding:18px;font-size:13px;color:#9ca3af;">PDF not available.</div>`
 //       }
 //     </div>
@@ -837,9 +1015,9 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Full Name</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("pf_fullName") ? " field-flagged" : ""
-//               }">${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
+//               <div data-field="pf_fullName"
+//   class="field-value${flaggedFields.includes("pf_fullName") ? " field-flagged" : "field-ok"}">
+// ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
 //             </div>
 //             <div class="field-flags">
 //               <label class="mini-badge">
@@ -856,7 +1034,7 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Father / Guardian Name</div>
-//               <div class="field-value${
+//               <div data-field="pf_guardian" class="field-value${
 //                 flaggedFields.includes("pf_guardian") ? " field-flagged" : ""
 //               }">${p.personal?.fatherOrGuardianName || "-"}</div>
 //             </div>
@@ -875,8 +1053,8 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Address</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("pf_address") ? " field-flagged" : ""
+//               <div data-field="pf_address" class="field-value${
+//                 flaggedFields.includes("pf_address") ? " field-flagged" : "field-ok"
 //               }">${p.personal?.address || "-"}</div>
 //             </div>
 //             <div class="field-flags">
@@ -894,8 +1072,8 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Student Mobile</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("pf_studentMobile") ? " field-flagged" : ""
+//               <div data-field="pf_studentMobile" class="field-value${
+//                 flaggedFields.includes("pf_studentMobile") ? " field-flagged" : "field-ok"
 //               }">${p.personal?.studentMobile || "-"}</div>
 //             </div>
 //             <div class="field-flags">
@@ -913,8 +1091,8 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">WhatsApp Mobile</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("pf_whatsapp") ? " field-flagged" : ""
+//               <div data-field="pf_whatsapp" class="field-value${
+//                 flaggedFields.includes("pf_whatsapp") ? " field-flagged" : "field-ok"
 //               }">${p.personal?.whatsappMobile || "-"}</div>
 //             </div>
 //             <div class="field-flags">
@@ -932,8 +1110,8 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Parent Mobile</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("pf_parentMobile") ? " field-flagged" : ""
+//               <div data-field="pf_parentMobile" class="field-value${
+//                 flaggedFields.includes("pf_parentMobile") ? " field-flagged" : "field-ok"
 //               }">${p.personal?.parentMobile || "-"}</div>
 //             </div>
 //             <div class="field-flags">
@@ -951,8 +1129,8 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Email</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("pf_email") ? " field-flagged" : ""
+//               <div data-field="pf_email" class="field-value${
+//                 flaggedFields.includes("pf_email") ? " field-flagged" : "field-ok"
 //               }">${p.personal?.email || "-"}</div>
 //             </div>
 //             <div class="field-flags">
@@ -1056,9 +1234,19 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Passport Photo</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("up_photo") ? " field-flagged" : ""
-//               }">${p.uploads?.photoUrl || "-"}</div>
+//               <div data-field="up_photo" class="field-value${
+//   flaggedFields.includes("up_photo") ? " field-flagged" : ""
+// }">
+//   ${
+//     p.uploads?.photoUrl
+//       ? `<img 
+//            src="${p.uploads.photoUrl}" 
+//            alt="Passport Photo"
+//            style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid #e5e7eb"
+//          />`
+//       : "-"
+//   }
+// </div>
 //             </div>
 //             <div class="field-flags">
 //               <label class="mini-badge">
@@ -1075,9 +1263,18 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">PAN</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("up_pan") ? " field-flagged" : ""
-//               }">${p.uploads?.panUrl || "-"}</div>
+//               <div data-field="up_pan" class="field-value${
+//   flaggedFields.includes("up_pan") ? " field-flagged" : ""
+// }">
+//   ${
+//     p.uploads?.panUrl
+//       ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.panUrl)
+//           ? `<img src="${p.uploads.panUrl}" alt="PAN" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
+//           : `<a href="${p.uploads.panUrl}" target="_blank">📄 View PAN Document</a>`)
+//       : "-"
+//   }
+// </div>
+
 //             </div>
 //             <div class="field-flags">
 //               <label class="mini-badge">
@@ -1094,9 +1291,18 @@
 //           <div class="field-row">
 //             <div class="field-main">
 //               <div class="field-label">Aadhaar</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("up_aadhaar") ? " field-flagged" : ""
-//               }">${p.uploads?.aadhaarUrl || "-"}</div>
+//               <div data-field="up_aadhaar" class="field-value${
+//   flaggedFields.includes("up_aadhaar") ? " field-flagged" : ""
+// }">
+//   ${
+//     p.uploads?.aadhaarUrl
+//       ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.aadhaarUrl)
+//           ? `<img src="${p.uploads.aadhaarUrl}" alt="Aadhaar" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
+//           : `<a href="${p.uploads.aadhaarUrl}" target="_blank">📄 View Aadhaar Document</a>`)
+//       : "-"
+//   }
+// </div>
+
 //             </div>
 //             <div class="field-flags">
 //               <label class="mini-badge">
@@ -1147,44 +1353,86 @@
 //           class="hidden-section-checkbox"
 //         />
 
-//         <div class="grid-2">
-//           <div class="field-row">
-//             <div class="field-main">
-//               <div class="field-label">Student Name</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("sg_student") ? " field-flagged" : ""
-//               }">${p.signatures?.student?.fullName || "-"}</div>
-//             </div>
-//             <div class="field-flags">
-//               <label class="mini-badge">
-//                 <input type="radio" name="sg_student" value="ok" checked />
-//                 ✅
-//               </label>
-//               <label class="mini-badge">
-//                 <input type="radio" name="sg_student" value="fix" data-section="signatures" />
-//                 ❌
-//               </label>
-//             </div>
-//           </div>
+//         <div class="field-row">
+//   <div class="field-main">
+//     <div class="field-label">Student Name</div>
 
-//           <div class="field-row">
-//             <div class="field-main">
-//               <div class="field-label">Parent / Guardian Name</div>
-//               <div class="field-value${
-//                 flaggedFields.includes("sg_parent") ? " field-flagged" : ""
-//               }">${p.signatures?.parent?.fullName || "-"}</div>
-//             </div>
-//             <div class="field-flags">
-//               <label class="mini-badge">
-//                 <input type="radio" name="sg_parent" value="ok" checked />
-//                 ✅
-//               </label>
-//               <label class="mini-badge">
-//                 <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
-//                 ❌
-//               </label>
-//             </div>
-//           </div>
+//     <div
+//       data-field="sg_student"
+//       class="field-value${
+//         flaggedFields.includes("sg_student") ? " field-flagged" : "field-ok"
+//       }"
+//     >
+//       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+//         <div style="font-weight:600;">
+//           ${p.signatures?.student?.fullName || "-"}
+//         </div>
+
+//         ${
+//           (p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
+//             ? `<img 
+//                  src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" 
+//                  alt="Student Signature"
+//                  style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
+//                />`
+//             : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+//         }
+//       </div>
+//     </div>
+//   </div>
+
+//   <div class="field-flags">
+//     <label class="mini-badge">
+//       <input type="radio" name="sg_student" value="ok" checked />
+//       ✅
+//     </label>
+//     <label class="mini-badge">
+//       <input type="radio" name="sg_student" value="fix" data-section="signatures" />
+//       ❌
+//     </label>
+//   </div>
+// </div>
+
+// <div class="field-row">
+//   <div class="field-main">
+//     <div class="field-label">Parent / Guardian Name</div>
+
+//     <div
+//       data-field="sg_parent"
+//       class="field-value${
+//         flaggedFields.includes("sg_parent") ? " field-flagged" : "field-ok"
+//       }"
+//     >
+//       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+//         <div style="font-weight:600;">
+//           ${p.signatures?.parent?.fullName || "-"}
+//         </div>
+
+//         ${
+//           (p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
+//             ? `<img 
+//                  src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" 
+//                  alt="Parent Signature"
+//                  style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
+//                />`
+//             : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+//         }
+//       </div>
+//     </div>
+//   </div>
+
+//   <div class="field-flags">
+//     <label class="mini-badge">
+//       <input type="radio" name="sg_parent" value="ok" checked />
+//       ✅
+//     </label>
+//     <label class="mini-badge">
+//       <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
+//       ❌
+//     </label>
+//   </div>
+// </div>
+
 //         </div>
 //       </div>
 
@@ -1201,24 +1449,47 @@
 //       </div>
 
 //       <div class="actions-row">
-//         <button type="submit" class="btn-primary">
-//           <span>✏️ Request Edit from Student</span>
-//         </button>
+//   <button type="submit" class="btn-primary">
+//     <span>✏️ Request Edit from Student</span>
+//   </button>
 
-//         <a href="/api/admissions/${doc._id}/approve" class="btn-success">
-//           <span>✅ Admission Approved</span>
-//         </a>
+//   <div class="fee-row">
+//     <input
+//       class="fee-input"
+//       type="number"
+//       name="feeAmount"
+//       min="0"
+//       step="1"
+//       placeholder="Fees amount (required)"
+//       required
+//     />
+//     <select class="fee-select" name="feeMode" required>
+//       <option value="" disabled selected>Cash / Online</option>
+//       <option value="cash">Cash</option>
+//       <option value="online">Online</option>
+//     </select>
 
-//         ${
-//           pdfUrl
-//             ? `<a href="${pdfUrl}" target="_blank" class="btn-ghost"><span>📄</span><span>Open PDF in new tab</span></a>`
-//             : ""
-//         }
-//       </div>
+//     <button
+//       type="submit"
+//       class="btn-success"
+//       formaction="/api/admissions/${doc._id}/submit-to-admin"
+//       formmethod="POST"
+//     >
+//       <span>📤 Submit to Admin</span>
+//     </button>
+//   </div>
+
+//   ${
+//     pdfUrl
+//       ? `<a href="${pdfUrl}" target="_blank" class="btn-ghost"><span>📄</span><span>Open PDF in new tab</span></a>`
+//       : ""
+//   }
+// </div>
+
 //     </form>
 //   </div>
 
-//   <script>
+//  <!-- <script>
 //     document.addEventListener("DOMContentLoaded", function () {
 //       // ==== 1) Section master auto-toggle (existing logic) ====
 //       const radios = document.querySelectorAll('input[type="radio"][data-section]');
@@ -1249,7 +1520,7 @@
 //         update();
 //       });
 
-//       // ==== 2) Auto-notes generation in "notes" textarea ====
+//      //  ==== 2) Auto-notes generation in "notes" textarea ====
 //       const notesBox = document.querySelector('textarea[name="notes"]');
 //       if (!notesBox) return;
 
@@ -1280,10 +1551,130 @@
 //               notesBox.value = Array.from(autoNotes).join("\\n");
 //             }
 //           }
+            
 //         });
 //       });
 //     });
-//   </script>
+//   </script> -->
+
+// <script>
+// document.addEventListener("DOMContentLoaded", function () {
+
+//   /* ===============================
+//      1) FIELD-LEVEL (RADIO ❌ / ✅)
+//   =============================== */
+//   var radios = document.querySelectorAll('input[type="radio"][data-section]');
+//   var sectionToRadios = {};
+
+//   radios.forEach(function (r) {
+//     var sec = r.getAttribute("data-section");
+//     if (!sectionToRadios[sec]) sectionToRadios[sec] = [];
+//     sectionToRadios[sec].push(r);
+//   });
+
+//   Object.keys(sectionToRadios).forEach(function (sec) {
+//     var master = document.querySelector(
+//       'input[data-section-master="' + sec + '"]'
+//     );
+//     if (!master) return;
+
+//     function update() {
+//       var anyBad = sectionToRadios[sec].some(function (r) {
+//         return r.checked && r.value === "fix";
+//       });
+//       master.checked = anyBad;
+//     }
+
+//     sectionToRadios[sec].forEach(function (r) {
+//       r.addEventListener("change", update);
+//     });
+
+//     update();
+//   });
+
+//   /* ===============================
+//      2) AUTO NOTES – FIELD LEVEL
+//   =============================== */
+//   var notesBox = document.querySelector('textarea[name="notes"]');
+//   if (!notesBox) return;
+
+//   var autoNotes = new Set();
+
+//   radios.forEach(function (radio) {
+//     radio.addEventListener("change", function () {
+//       var fieldKey = radio.name;
+
+//       var fieldLabel = fieldKey
+//         .replace("pf_", "Personal: ")
+//         .replace("up_", "Upload: ")
+//         .replace("sg_", "Signature: ")
+//         .replace(/_/g, " ");
+
+//       var note = "• " + fieldLabel + " is missing or incorrect.";
+
+//       var valueBox = document.querySelector(
+//         '.field-value[data-field="' + fieldKey + '"]'
+//       );
+
+//       if (radio.value === "fix") {
+//         autoNotes.add(note);
+//         if (valueBox) {
+//           valueBox.classList.remove("field-ok");
+//           valueBox.classList.add("field-flagged");
+//         }
+//       }
+
+//       if (radio.value === "ok") {
+//         autoNotes.delete(note);
+//         if (valueBox) {
+//           valueBox.classList.remove("field-flagged");
+//           valueBox.classList.add("field-ok");
+//         }
+//       }
+
+//       notesBox.value = Array.from(autoNotes).join("\\n");
+//     });
+//   });
+
+//   /* ===============================
+//      3) SECTION-LEVEL ❌ CHECKBOX
+//      ✅ THIS IS THE FIX
+//   =============================== */
+//   var sectionFixCheckboxes = document.querySelectorAll(
+//     'input[type="checkbox"][name="sections"]:not([disabled])'
+//   );
+
+//   function sectionHeading(section) {
+//     var map = {
+//       personal: "• Personal Information",
+//       course: "• Course Details",
+//       education: "• Educational Details",
+//       ids: "• ID Details",
+//       uploads: "• Uploads",
+//       center: "• Center Details",
+//       signatures: "• Signatures",
+//       other: "• Other Issues"
+//     };
+//     return map[section] || "• " + section;
+//   }
+
+//   sectionFixCheckboxes.forEach(function (chk) {
+//     chk.addEventListener("change", function () {
+//       var note = sectionHeading(chk.value);
+
+//       if (chk.checked) {
+//         autoNotes.add(note);
+//       } else {
+//         autoNotes.delete(note);
+//       }
+
+//       notesBox.value = Array.from(autoNotes).join("\\n");
+//     });
+//   });
+
+// });
+// </script>
+
 // </body>
 // </html>`;
 
@@ -1346,7 +1737,7 @@
 //     /* ======================
 //        1. Generate EDIT LINK
 //     ======================= */
-//     const base = (process.env.APP_BASE_URL || "http://localhost:5173").replace(
+//     const base = (process.env.APP_BASE_URL || "http://localhost:3002").replace(
 //       /\/+$/,
 //       ""
 //     );
@@ -1598,17 +1989,30 @@
 //       const base = (
 //         process.env.PUBLIC_BASE_URL ||
 //         process.env.APP_BASE_URL ||
-//         "http://localhost:5000"
+//         "http://localhost:5002"
 //       ).replace(/\/+$/, "");
 
 //       const reviewUrl = `${base}/api/admissions/${doc._id}/review`;
 
-//       const counselorList = (process.env.COUNSELOR_EMAILS || "")
-//         .split(",")
-//         .map((e) => e.trim())
-//         .filter(Boolean);
+//       // const counselorList = (process.env.COUNSELOR_EMAILS || "")
+//       //   .split(",")
+//       //   .map((e) => e.trim())
+//       //   .filter(Boolean);
 
-//       const to = counselorList.length ? counselorList : [process.env.FROM_EMAIL];
+//       // const to = counselorList.length ? counselorList : [process.env.FROM_EMAIL];
+
+//       await sendCounselorMail({
+//   payload: {
+//     ...doc.toObject(),
+//     originalCounselorKey: doc.meta?.counselorKey,
+//   },
+
+//   // 🔥 LOCAL = NO PDF URL (avoid 404 fetch)
+//   counselorPdfUrl: process.env.CLOUDINARY_CLOUD_NAME
+//     ? doc?.pdf?.pendingCounselorUrl
+//     : null,
+// });
+
 
 //       const studentName = doc.personal?.name || "Student";
 //       const courseName = doc.course?.name || "Course";
@@ -1637,18 +2041,19 @@
 //         </div>
 //       `.trim();
 
-//       const mail = {
-//         from: {
-//           name: "Awdiz Admissions",
-//           address: process.env.FROM_EMAIL,
-//         },
-//         to,
-//         subject: `Edited Admission – ${studentName} (${courseName})`,
-//         html,
-//       };
+//       // const mail = {
+//       //   from: {
+//       //     name: "Awdiz Admissions",
+//       //     address: process.env.FROM_EMAIL,
+//       //   },
+//       //   to,
+//       //   subject: `Edited Admission – ${studentName} (${courseName})`,
+//       //   html,
+//       // };
 
-//       await transporter.sendMail(mail);
-//       console.log("📧 Counselor EDIT notification mail sent →", to);
+//       // await transporter.sendMail(mail);
+//       // console.log("📧 Counselor EDIT notification mail sent →", to);
+//       console.log("📧 Counselor EDIT notification mail sent via sendCounselorMail()");
 //     } catch (mailErr) {
 //       console.error("send counselor EDIT mail failed:", mailErr);
 //     }
@@ -1673,19 +2078,22 @@
 //   dummyVerifyAdmissionOtp,
 //   reviewAdmissionPage,
 //   requestEditAdmission,
+//   submitToAdmin,
 //   approveAdmission,
 //   getAdmissionForEdit,
 //   applyAdmissionEdit,
 // };
 
 
-//try 
+
+//try date 16-01-2026
+
 
 // server/src/controllers/admission.controller.js
 
 import sharp from "sharp";
-import Admission from "../models/Admission.js";
 import { uploadBuffer } from "../services/storage.service.js";
+import Admission from "../models/Admission.js";
 import { generateAdmissionPDF } from "../services/pdf.service.js"; // returns { buffer, url, ... }
 import {
   sendAdmissionEmails,
@@ -1702,7 +2110,11 @@ import { sendOtpSms } from "../services/sms.service.js"; // 🔹 NEW: SMS OTP
 import { generateOtp, hashOtp, verifyOtp } from "../services/otp.service.js"; // 🔹 NEW: OTP utils
 
 // normalize any pdf-service return into a URL string
-const asUrl = (x) => (typeof x === "string" ? x : x?.secure_url || x?.url || "");
+const asUrl = (x) =>
+  typeof x === "string"
+    ? x
+    : x?.url || x?.secure_url || "";
+
 
 // in-memory pending OTP store
 // pendingId -> { payload, mobile, email, mobileOtpHash, emailOtpHash, mobileVerified, emailVerified, createdAt, expiresAt }
@@ -2107,7 +2519,7 @@ async function submitToAdmin(req, res) {
   try {
     const { id } = req.params;
 
-    // required inputs from counselor
+    // 1️⃣ READ + VALIDATE FEES (ONLY ONCE)
     const feeAmountRaw = req.body?.feeAmount;
     const feeModeRaw = req.body?.feeMode;
 
@@ -2115,27 +2527,23 @@ async function submitToAdmin(req, res) {
     const feeMode = String(feeModeRaw || "").trim().toLowerCase();
 
     if (!Number.isFinite(feeAmount) || feeAmount < 0) {
-      return res
-        .status(400)
-        .send("Invalid fee amount. Please enter a valid number.");
-    }
-    if (!["cash", "online"].includes(feeMode)) {
-      return res
-        .status(400)
-        .send("Invalid payment mode. Please choose Cash or Online.");
+      return res.status(400).send("Invalid fee amount");
     }
 
+    if (!["cash", "online"].includes(feeMode)) {
+      return res.status(400).send("Invalid payment mode");
+    }
+
+    // 2️⃣ FETCH DOCUMENT
     const doc = await Admission.findById(id);
     if (!doc) return res.status(404).send("Admission not found");
 
-    // store on admission document (keep schema-safe by using meta)
-    doc.meta = doc.meta || {};
-    doc.meta.feeAmount = feeAmount;
-    doc.meta.feeMode = feeMode;
-    doc.meta.submittedToAdminAt = new Date().toISOString();
-
-    // Keep status pending — admin will approve later
-    doc.status = doc.status || "Pending";
+    // 3️⃣ SAVE FEES IN DB
+    doc.fees = doc.fees || {};
+doc.fees.amount = feeAmount;
+doc.fees.paymentMode = feeMode;
+    doc.workflow = doc.workflow || {};
+doc.workflow.counselorSubmittedToAdminAt = new Date();
 
     await doc.save();
 
@@ -2153,7 +2561,12 @@ async function submitToAdmin(req, res) {
     try {
       const pdfRes = await generateAdmissionPDF(doc);
       pdfBuffer = pdfRes?.buffer || null;
-      pdfUrl = asUrl(pdfRes) || doc?.pdfUrl || "";
+      pdfUrl =
+  asUrl(pdfRes) ||
+  doc?.pdf?.pendingCounselorUrl ||
+  doc?.pdf?.pendingStudentUrl ||
+  "";
+
     } catch (err) {
       console.log("❌ PDF generation failed (submitToAdmin):", err.message);
       pdfUrl = doc?.pdfUrl || "";
@@ -2174,7 +2587,8 @@ async function submitToAdmin(req, res) {
     const BASE_URL =
       process.env.PUBLIC_BASE_URL || process.env.BASE_URL || "http://localhost:5002";
 
-    const approveUrl = `${BASE_URL}/api/admissions/${doc._id}/approve`;
+    const reviewUrl = `${BASE_URL}/api/admissions/${doc._id}/admin-review`;
+
 
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.5">
@@ -2186,9 +2600,13 @@ async function submitToAdmin(req, res) {
         <p style="margin:0 0 8px"><b>Fees:</b> ₹${feeAmount} &nbsp; <b>Mode:</b> ${feeMode}</p>
 
         <p style="margin:12px 0 0">
-          <a href="${approveUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700">
-            ✅ Approve Admission
-          </a>
+          <a href="${reviewUrl}"
+   style="display:inline-block;background:#2563eb;color:#fff;
+          padding:10px 14px;border-radius:10px;
+          text-decoration:none;font-weight:700">
+  🔍 Review Admission
+</a>
+
         </p>
 
         ${pdfUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${pdfUrl}">Open PDF</a></p>` : ``}
@@ -2218,7 +2636,7 @@ async function submitToAdmin(req, res) {
         <head><meta charset="utf-8"/><title>Submitted</title></head>
         <body style="font-family:Arial,sans-serif;padding:24px">
           <h2>✅ Submitted to Admin</h2>
-          <p>Fees: ₹${feeAmount} | Mode: ${feeMode}</p>
+          <p>Student Registration Fees : ₹${feeAmount} | Mode : ${feeMode}</p>
           <p>Admin has received the email with approval button.</p>
         </body>
       </html>
@@ -2229,77 +2647,229 @@ async function submitToAdmin(req, res) {
   }
 }
 
+// async function approveAdmission(req, res) {
+//   if (req.method === "GET") {
+//     return res
+//       .status(403)
+//       .send("<h3>Approval is only allowed from Admin Review Page.</h3>");
+//   }
+
+//   try {
+//     const { id } = req.params;
+
+//     const doc = await Admission.findById(id);
+//     if (!doc) return res.status(404).send("<h2>Admission not found</h2>");
+
+//     /* =========================
+//        1️⃣ ADMIN FEES OVERRIDE
+//        ========================= */
+//     doc.fees = doc.fees || {};
+
+//     if (req.body?.feeAmount !== undefined) {
+//       const amt = Number(req.body.feeAmount);
+//       if (!Number.isFinite(amt) || amt < 0) {
+//         return res.status(400).send("Invalid fee amount");
+//       }
+//       doc.fees.amount = amt;
+//     }
+
+//     if (req.body?.feeMode) {
+//       const mode = String(req.body.feeMode).toLowerCase();
+//       if (!["cash", "online"].includes(mode)) {
+//         return res.status(400).send("Invalid payment mode");
+//       }
+//       doc.fees.paymentMode = mode;
+//     }
+
+//     /* =========================
+//        2️⃣ MARK APPROVED (DB)
+//        ========================= */
+//     doc.status = "approved";
+//     doc.workflow = doc.workflow || {};
+//     doc.workflow.adminApprovedAt = new Date();
+
+//     /* =========================
+//        3️⃣ GENERATE APPROVED PDF
+//        ========================= */
+//     const approvedPdf = await generateAdmissionPDF({
+//       ...doc.toObject(),
+//       status: "approved",
+//     });
+
+//     const approvedUrl = asUrl(approvedPdf);
+//     if (!approvedUrl) {
+//       throw new Error("Approved PDF URL missing");
+//     }
+
+//     doc.pdf = { ...(doc.pdf || {}), approvedUrl };
+
+//     /* =========================
+//        4️⃣ SAVE DB (ONCE)
+//        ========================= */
+//     await doc.save();
+
+//     /* =========================
+//        5️⃣ UPDATE GOOGLE SHEET
+//        ========================= */
+//     try {
+//       // 🔥 FULL ROW UPDATE (fees + mode + pdf + status)
+//       await updateAdmissionRow(doc.course.name, doc);
+
+//       // 🔥 STATUS FLIP (ApprovedAt + Approved PDF URL)
+//       await setAdmissionStatus(
+//         doc.center?.placeOfAdmission || "",
+//         doc.course?.name || "Admissions",
+//         String(doc._id),
+//         "approved",
+//         {
+//           approvedPdfUrl: approvedUrl,
+//           counselorKey: doc?.meta?.counselorKey || "c1",
+//         }
+//       );
+//     } catch (err) {
+//       console.error("❌ Google Sheet update failed:", err.message);
+//     }
+
+//     /* =========================
+//        6️⃣ STUDENT APPROVAL MAIL
+//        ========================= */
+//     await sendAdmissionEmails({
+//       studentEmail: doc.personal.email,
+//       pdfBuffer: approvedPdf.buffer,
+//       pdfFileName: `Awdiz-Admission-Approved-${doc._id}.pdf`,
+//       pdfUrl: approvedUrl,
+//       payload: doc.toObject(), // fees already inside
+//     });
+
+//     return res.status(200).send("Admission Approved Successfully ✅");
+
+//   } catch (err) {
+//     console.error("approveAdmission failed:", err);
+//     return res.status(500).send("<h2>Server error</h2>");
+//   }
+// }
+
+
 async function approveAdmission(req, res) {
+  if (req.method === "GET") {
+    return res
+      .status(403)
+      .send("<h3>Approval is only allowed from Admin Review Page.</h3>");
+  }
+
   try {
     const { id } = req.params;
+
     const doc = await Admission.findById(id);
-    if (!doc) return res.status(404).send("<h2>Not found</h2>");
+    if (!doc) return res.status(404).send("<h2>Admission not found</h2>");
 
-    // ✅ ALWAYS use counselorKey stored in DB (reliable)
-    const counselorKey =
-      String(doc?.meta?.counselorKey || "c1").trim().toLowerCase() === "c2"
-        ? "c2"
-        : "c1";
+    /* =========================
+       1️⃣ ADMIN FEES OVERRIDE
+       ========================= */
+    doc.fees = doc.fees || {};
 
-    // Generate Approved PDF
+    if (req.body?.feeAmount !== undefined) {
+      const amt = Number(req.body.feeAmount);
+      if (!Number.isFinite(amt) || amt < 0) {
+        return res.status(400).send("Invalid fee amount");
+      }
+      doc.fees.amount = amt;
+    }
+
+    if (req.body?.feeMode) {
+      const mode = String(req.body.feeMode).toLowerCase();
+      if (!["cash", "online"].includes(mode)) {
+        return res.status(400).send("Invalid payment mode");
+      }
+      doc.fees.paymentMode = mode;
+    }
+
+    /* =========================
+       2️⃣ VALIDATE counselorKey (🔥 IMPORTANT FIX)
+       ========================= */
+    const counselorKey = String(doc?.meta?.counselorKey || "")
+      .trim()
+      .toLowerCase();
+
+    if (!["c1", "c2"].includes(counselorKey)) {
+      console.error("❌ counselorKey missing/invalid:", counselorKey, doc._id);
+      return res
+        .status(400)
+        .send("Counselor key missing. Cannot approve admission.");
+    }
+
+    /* =========================
+       3️⃣ MARK APPROVED (DB)
+       ========================= */
+    doc.status = "approved";
+    doc.workflow = doc.workflow || {};
+    doc.workflow.adminApprovedAt = new Date();
+
+    /* =========================
+       4️⃣ GENERATE APPROVED PDF
+       ========================= */
     const approvedPdf = await generateAdmissionPDF({
       ...doc.toObject(),
       status: "approved",
     });
+
     const approvedUrl = asUrl(approvedPdf);
     if (!approvedUrl) {
-      throw new Error("PDF service did not return URL for approved PDF.");
+      throw new Error("Approved PDF URL missing");
     }
 
-    // Update DB
-    doc.status = "approved";
     doc.pdf = { ...(doc.pdf || {}), approvedUrl };
+
+    /* =========================
+       5️⃣ SAVE DB (ONCE)
+       ========================= */
     await doc.save();
 
-    // ✅ Flip Google Sheet row (same AdmissionID = Mongo _id)
+    /* =========================
+       6️⃣ UPDATE GOOGLE SHEETS (🔥 SAFE)
+       ========================= */
     try {
+      // ✅ FULL ROW UPDATE (fees + mode + pdf)
+      await updateAdmissionRow(doc.course.name, {
+        ...doc.toObject(),
+        counselorKey, // 🔥 explicitly pass
+      });
+
+      // ✅ STATUS + APPROVED PDF
       await setAdmissionStatus(
-        doc?.center?.placeOfAdmission || "",
-        doc?.course?.name || "Admissions",
+        doc.center?.placeOfAdmission || "",
+        doc.course?.name || "Admissions",
         String(doc._id),
-        "Approved",
-        { approvedPdfUrl: approvedUrl, counselorKey } // ✅ NEW (clean)
+        "approved",
+        {
+          approvedPdfUrl: approvedUrl,
+          counselorKey, // 🔥 NO fallback
+        }
       );
     } catch (err) {
-      console.error("❌ Google Sheet status flip failed:", err?.message);
+      console.error("❌ Google Sheet update failed:", err.message);
     }
 
-    // Mail student with Approved PDF attached
+    /* =========================
+       7️⃣ STUDENT APPROVAL MAIL
+       ========================= */
     await sendAdmissionEmails({
       studentEmail: doc.personal.email,
       pdfBuffer: approvedPdf.buffer,
       pdfFileName: `Awdiz-Admission-Approved-${doc._id}.pdf`,
       pdfUrl: approvedUrl,
-      payload: { ...doc.toObject(), status: "approved" },
+      payload: doc.toObject(),
     });
 
-    // Success Page for Counselor
-    const logo =
-      process.env.AWDIZ_LOGO_URL ||
-      "https://res.cloudinary.com/www-awdiz-in/image/upload/v1675932002/logo/awdiz.png";
-    const studentName = doc.personal?.name || "Student";
-    const courseName = doc.course?.name || "Course";
-
-    res.status(200).send(`
-      <div style="font-family:system-ui,Arial,sans-serif;max-width:640px;margin:50px auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;text-align:center;">
-        <img src="${logo}" alt="Awdiz" style="height:48px;margin-bottom:16px"/>
-        <h2 style="color:#16a34a;margin:8px 0;">✅ Admission Approved Successfully</h2>
-        <p style="font-size:16px;margin:12px 0 8px;">The admission for <b>${studentName}</b> (${courseName}) has been approved.</p>
-        <p style="margin:0 0 16px;">A confirmation email with the approved PDF has been sent to the student.</p>
-        <p><a href="${approvedUrl}" target="_blank" style="background:#2563eb;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;">📄 Open Approved PDF</a></p>
-        <p style="font-size:13px;color:#6b7280;margin-top:20px;">You can safely close this window after verifying the email delivery.</p>
-      </div>
-    `);
-  } catch (e) {
-    console.error("approveAdmission failed:", e);
-    res.status(500).send("<h2>Server error</h2>");
+    return res.status(200).send("Admission Approved Successfully ✅");
+  } catch (err) {
+    console.error("approveAdmission failed:", err);
+    return res.status(500).send("<h2>Server error</h2>");
   }
 }
+
+
+
 
 /* ==================== COUNSELOR REVIEW PAGE (HTML) ==================== */
 async function reviewAdmissionPage(req, res) {
@@ -2478,8 +3048,8 @@ async function reviewAdmissionPage(req, res) {
       min-height:26px;
     }
     .field-flagged {
-      border-color:#ef4444;
-      background:#fef2f2;
+      border-color:#ef4444 !important;
+      background:#fef2f2 !important;
       color:#b91c1c;
     }
     table.edu {
@@ -2624,6 +3194,14 @@ async function reviewAdmissionPage(req, res) {
         background:#fff;
       }
       .submit-admin-form{ margin:0; }
+      /* live review states */
+.field-ok {
+  border-color: #93c5fd;      /* blue */
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+
 </style>
 </head>
 <body>
@@ -2651,7 +3229,10 @@ async function reviewAdmissionPage(req, res) {
       </div>
       ${
         pdfUrl
-          ? `<iframe class="pdf-frame" src="${pdfUrl}"></iframe>`
+          ? `<iframe
+  class="pdf-frame"
+  src="${pdfUrl}#toolbar=0&navpanes=0"
+></iframe>`
           : `<div style="padding:18px;font-size:13px;color:#9ca3af;">PDF not available.</div>`
       }
     </div>
@@ -2678,9 +3259,9 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Full Name</div>
-              <div class="field-value${
-                flaggedFields.includes("pf_fullName") ? " field-flagged" : ""
-              }">${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
+              <div data-field="pf_fullName"
+  class="field-value${flaggedFields.includes("pf_fullName") ? " field-flagged" : ""}">
+${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             </div>
             <div class="field-flags">
               <label class="mini-badge">
@@ -2697,7 +3278,7 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Father / Guardian Name</div>
-              <div class="field-value${
+              <div data-field="pf_guardian" class="field-value${
                 flaggedFields.includes("pf_guardian") ? " field-flagged" : ""
               }">${p.personal?.fatherOrGuardianName || "-"}</div>
             </div>
@@ -2716,7 +3297,7 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Address</div>
-              <div class="field-value${
+              <div data-field="pf_address" class="field-value${
                 flaggedFields.includes("pf_address") ? " field-flagged" : ""
               }">${p.personal?.address || "-"}</div>
             </div>
@@ -2735,7 +3316,7 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Student Mobile</div>
-              <div class="field-value${
+              <div data-field="pf_studentMobile" class="field-value${
                 flaggedFields.includes("pf_studentMobile") ? " field-flagged" : ""
               }">${p.personal?.studentMobile || "-"}</div>
             </div>
@@ -2754,7 +3335,7 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">WhatsApp Mobile</div>
-              <div class="field-value${
+              <div data-field="pf_whatsapp" class="field-value${
                 flaggedFields.includes("pf_whatsapp") ? " field-flagged" : ""
               }">${p.personal?.whatsappMobile || "-"}</div>
             </div>
@@ -2773,7 +3354,7 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Parent Mobile</div>
-              <div class="field-value${
+              <div data-field="pf_parentMobile" class="field-value${
                 flaggedFields.includes("pf_parentMobile") ? " field-flagged" : ""
               }">${p.personal?.parentMobile || "-"}</div>
             </div>
@@ -2792,7 +3373,7 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Email</div>
-              <div class="field-value${
+              <div data-field="pf_email" class="field-value${
                 flaggedFields.includes("pf_email") ? " field-flagged" : ""
               }">${p.personal?.email || "-"}</div>
             </div>
@@ -2897,9 +3478,19 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Passport Photo</div>
-              <div class="field-value${
-                flaggedFields.includes("up_photo") ? " field-flagged" : ""
-              }">${p.uploads?.photoUrl || "-"}</div>
+              <div data-field="up_photo" class="field-value${
+  flaggedFields.includes("up_photo") ? " field-flagged" : ""
+}">
+  ${
+    p.uploads?.photoUrl
+      ? `<img 
+           src="${p.uploads.photoUrl}" 
+           alt="Passport Photo"
+           style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid #e5e7eb"
+         />`
+      : "-"
+  }
+</div>
             </div>
             <div class="field-flags">
               <label class="mini-badge">
@@ -2916,9 +3507,18 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">PAN</div>
-              <div class="field-value${
-                flaggedFields.includes("up_pan") ? " field-flagged" : ""
-              }">${p.uploads?.panUrl || "-"}</div>
+              <div data-field="up_pan" class="field-value${
+  flaggedFields.includes("up_pan") ? " field-flagged" : ""
+}">
+  ${
+    p.uploads?.panUrl
+      ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.panUrl)
+          ? `<img src="${p.uploads.panUrl}" alt="PAN" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
+          : `<a href="${p.uploads.panUrl}" target="_blank">📄 View PAN Document</a>`)
+      : "-"
+  }
+</div>
+
             </div>
             <div class="field-flags">
               <label class="mini-badge">
@@ -2935,9 +3535,18 @@ async function reviewAdmissionPage(req, res) {
           <div class="field-row">
             <div class="field-main">
               <div class="field-label">Aadhaar</div>
-              <div class="field-value${
-                flaggedFields.includes("up_aadhaar") ? " field-flagged" : ""
-              }">${p.uploads?.aadhaarUrl || "-"}</div>
+              <div data-field="up_aadhaar" class="field-value${
+  flaggedFields.includes("up_aadhaar") ? " field-flagged" : ""
+}">
+  ${
+    p.uploads?.aadhaarUrl
+      ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.aadhaarUrl)
+          ? `<img src="${p.uploads.aadhaarUrl}" alt="Aadhaar" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
+          : `<a href="${p.uploads.aadhaarUrl}" target="_blank">📄 View Aadhaar Document</a>`)
+      : "-"
+  }
+</div>
+
             </div>
             <div class="field-flags">
               <label class="mini-badge">
@@ -2988,44 +3597,86 @@ async function reviewAdmissionPage(req, res) {
           class="hidden-section-checkbox"
         />
 
-        <div class="grid-2">
-          <div class="field-row">
-            <div class="field-main">
-              <div class="field-label">Student Name</div>
-              <div class="field-value${
-                flaggedFields.includes("sg_student") ? " field-flagged" : ""
-              }">${p.signatures?.student?.fullName || "-"}</div>
-            </div>
-            <div class="field-flags">
-              <label class="mini-badge">
-                <input type="radio" name="sg_student" value="ok" checked />
-                ✅
-              </label>
-              <label class="mini-badge">
-                <input type="radio" name="sg_student" value="fix" data-section="signatures" />
-                ❌
-              </label>
-            </div>
-          </div>
+        <div class="field-row">
+  <div class="field-main">
+    <div class="field-label">Student Name</div>
 
-          <div class="field-row">
-            <div class="field-main">
-              <div class="field-label">Parent / Guardian Name</div>
-              <div class="field-value${
-                flaggedFields.includes("sg_parent") ? " field-flagged" : ""
-              }">${p.signatures?.parent?.fullName || "-"}</div>
-            </div>
-            <div class="field-flags">
-              <label class="mini-badge">
-                <input type="radio" name="sg_parent" value="ok" checked />
-                ✅
-              </label>
-              <label class="mini-badge">
-                <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
-                ❌
-              </label>
-            </div>
-          </div>
+    <div
+      data-field="sg_student"
+      class="field-value${
+        flaggedFields.includes("sg_student") ? " field-flagged" : ""
+      }"
+    >
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="font-weight:600;">
+          ${p.signatures?.student?.fullName || "-"}
+        </div>
+
+        ${
+          (p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
+            ? `<img 
+                 src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" 
+                 alt="Student Signature"
+                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
+               />`
+            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="field-flags">
+    <label class="mini-badge">
+      <input type="radio" name="sg_student" value="ok" checked />
+      ✅
+    </label>
+    <label class="mini-badge">
+      <input type="radio" name="sg_student" value="fix" data-section="signatures" />
+      ❌
+    </label>
+  </div>
+</div>
+
+<div class="field-row">
+  <div class="field-main">
+    <div class="field-label">Parent / Guardian Name</div>
+
+    <div
+      data-field="sg_parent"
+      class="field-value${
+        flaggedFields.includes("sg_parent") ? " field-flagged" : ""
+      }"
+    >
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="font-weight:600;">
+          ${p.signatures?.parent?.fullName || "-"}
+        </div>
+
+        ${
+          (p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
+            ? `<img 
+                 src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" 
+                 alt="Parent Signature"
+                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
+               />`
+            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="field-flags">
+    <label class="mini-badge">
+      <input type="radio" name="sg_parent" value="ok" checked />
+      ✅
+    </label>
+    <label class="mini-badge">
+      <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
+      ❌
+    </label>
+  </div>
+</div>
+
         </div>
       </div>
 
@@ -3053,7 +3704,7 @@ async function reviewAdmissionPage(req, res) {
       name="feeAmount"
       min="0"
       step="1"
-      placeholder="Fees amount (required)"
+      placeholder="Student Registration Fees (required)"
       required
     />
     <select class="fee-select" name="feeMode" required>
@@ -3082,7 +3733,7 @@ async function reviewAdmissionPage(req, res) {
     </form>
   </div>
 
-  <script>
+ <!-- <script>
     document.addEventListener("DOMContentLoaded", function () {
       // ==== 1) Section master auto-toggle (existing logic) ====
       const radios = document.querySelectorAll('input[type="radio"][data-section]');
@@ -3113,7 +3764,7 @@ async function reviewAdmissionPage(req, res) {
         update();
       });
 
-      // ==== 2) Auto-notes generation in "notes" textarea ====
+     //  ==== 2) Auto-notes generation in "notes" textarea ====
       const notesBox = document.querySelector('textarea[name="notes"]');
       if (!notesBox) return;
 
@@ -3144,10 +3795,127 @@ async function reviewAdmissionPage(req, res) {
               notesBox.value = Array.from(autoNotes).join("\\n");
             }
           }
+            
         });
       });
     });
-  </script>
+  </script> -->
+
+<script>
+ document.addEventListener("DOMContentLoaded", function () {
+      // ==== 1) Section master auto-toggle (existing logic) ====
+      const radios = document.querySelectorAll('input[type="radio"][data-section]');
+      const sectionToRadios = {};
+
+      radios.forEach(function (r) {
+        const sec = r.getAttribute("data-section");
+        if (!sectionToRadios[sec]) sectionToRadios[sec] = [];
+        sectionToRadios[sec].push(r);
+      });
+
+      Object.keys(sectionToRadios).forEach(function (sec) {
+        const master = document.querySelector('input[data-section-master="' + sec + '"]');
+        if (!master) return;
+
+        const update = function () {
+          const anyBad = sectionToRadios[sec].some(function (r) {
+            return r.checked && r.value === "fix";
+          });
+          master.checked = anyBad;
+        };
+
+        sectionToRadios[sec].forEach(function (r) {
+          r.addEventListener("change", update);
+        });
+
+        // initial state
+        update();
+      });
+
+  /* ===============================
+     2) AUTO NOTES – FIELD LEVEL
+  =============================== */
+  var notesBox = document.querySelector('textarea[name="notes"]');
+  if (!notesBox) return;
+
+  var autoNotes = new Set();
+
+  radios.forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      var fieldKey = radio.name;
+
+      var fieldLabel = fieldKey
+        .replace("pf_", "Personal: ")
+        .replace("up_", "Upload: ")
+        .replace("sg_", "Signature: ")
+        .replace(/_/g, " ");
+
+      var note = "• " + fieldLabel + " is missing or incorrect.";
+
+      var valueBox =
+  document.querySelector('.field-value[data-field="' + fieldKey + '"]') ||
+  document.querySelector('input[data-field="' + fieldKey + '"]') ||
+  document.querySelector('select[data-field="' + fieldKey + '"]');
+
+      if (radio.value === "fix") {
+        autoNotes.add(note);
+        if (valueBox) {
+          valueBox.classList.remove("field-ok");
+          valueBox.classList.add("field-flagged");
+        }
+      }
+
+      if (radio.value === "ok") {
+        autoNotes.delete(note);
+        if (valueBox) {
+          valueBox.classList.remove("field-flagged");
+          valueBox.classList.add("field-ok");
+        }
+      }
+
+      notesBox.value = Array.from(autoNotes).join("\\n");
+    });
+  });
+
+  /* ===============================
+     3) SECTION-LEVEL ❌ CHECKBOX
+     ✅ THIS IS THE FIX
+  =============================== */
+  var sectionFixCheckboxes = document.querySelectorAll(
+    'input[type="checkbox"][name="sections"]:not([disabled])'
+  );
+
+  function sectionHeading(section) {
+    var map = {
+      personal: "• Personal Information",
+      course: "• Course Details",
+      education: "• Educational Details",
+      ids: "• ID Details",
+      uploads: "• Uploads",
+      center: "• Center Details",
+      signatures: "• Signatures",
+      other: "• Other Issues"
+    };
+    return map[section] || "• " + section;
+  }
+
+  sectionFixCheckboxes.forEach(function (chk) {
+    chk.addEventListener("change", function () {
+      var note = sectionHeading(chk.value);
+
+      if (chk.checked) {
+        autoNotes.add(note);
+      } else {
+        autoNotes.delete(note);
+      }
+
+      notesBox.value = Array.from(autoNotes).join("\\n");
+    });
+  });
+
+});
+</script>
+
 </body>
 </html>`;
 
@@ -3155,8 +3923,1056 @@ async function reviewAdmissionPage(req, res) {
   } catch (e) {
     console.error("reviewAdmissionPage failed:", e);
     res.status(500).send("<h2>Server error</h2>");
+
+    
   }
 }
+
+/* ==================== ADMIN REVIEW PAGE (HTML) ==================== */
+async function adminReviewAdmissionPage(req, res) {
+  try {
+    const { id } = req.params;
+    const doc = await Admission.findById(id);
+    if (!doc) return res.status(404).send("<h2>Admission not found</h2>");
+
+    const p = doc.toObject();
+
+    const editReq = p.editRequest || {};
+    const flaggedFields = Array.isArray(editReq.fields) ? editReq.fields : [];
+    const lastNotes = editReq.notes || "";
+
+    const pdfUrl =
+      p?.pdf?.pendingCounselorUrl ||
+      p?.pdf?.pendingStudentUrl ||
+      p?.pdf?.approvedUrl ||
+      "";
+
+   const feeAmount =
+  p?.fees?.amount !== undefined && p?.fees?.amount !== null
+    ? p.fees.amount
+    : "";
+
+const feeMode =
+  typeof p?.fees?.paymentMode === "string"
+    ? p.fees.paymentMode
+    : "";
+
+   const eduRows =
+  (p.education || []).length > 0
+    ? (p.education || [])
+        .map(
+          (ed, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${ed.qualification || "-"}</td>
+        <td>${ed.school || "-"}</td>
+        <td>${ed.year || "-"}</td>
+        <td>${ed.percentage || "-"}</td>
+      </tr>`
+        )
+        .join("")
+    : `<tr>
+         <td colspan="5" style="padding:6px 8px;font-size:13px;color:#6b7280;">
+           No education details filled.
+         </td>
+       </tr>`;
+
+
+    const jobType = p?.course?.trainingOnly
+  ? "No Job Guarantee – Training only"
+  : "Job Guarantee Training";
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Awdiz Admission Review – ${p.personal?.name || ""}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:#e5e7eb;
+      margin:0;
+      padding:24px 12px;
+    }
+    .page {
+      max-width: 1080px;
+      margin:0 auto;
+      background:#f9fafb;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      padding:20px;
+    }
+    .header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:14px;
+    }
+    .title {
+      font-size:20px;
+      font-weight:600;
+      margin:0;
+    }
+    .subtitle {
+      font-size:13px;
+      color:#6b7280;
+      margin-top:4px;
+    }
+    .pdf-pane {
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      overflow:hidden;
+      background:#111827;
+      margin-bottom:16px;
+    }
+    .pdf-pane-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 14px;
+      background:#111827;
+      color:#f9fafb;
+      font-size:13px;
+    }
+    .pdf-frame {
+      width:100%;
+      height:480px;
+      border:0;
+      background:#111827;
+    }
+    .btn-inline {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:13px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #4b5563;
+      color:#e5e7eb;
+      text-decoration:none;
+      background:transparent;
+    }
+    .btn-inline span.icon { font-size:15px; }
+
+    form#review-form {
+      margin-top:4px;
+    }
+    .section-card {
+      background:#ffffff;
+      border-radius:10px;
+      border:1px solid #e5e7eb;
+      padding:14px 16px;
+      margin-top:10px;
+    }
+    .sec-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      margin-bottom:8px;
+      gap:8px;
+    }
+    .sec-title {
+      font-size:14px;
+      font-weight:600;
+      margin:0;
+    }
+    .sec-badges {
+      display:flex;
+      gap:8px;
+      font-size:12px;
+    }
+    .badge {
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid #d1d5db;
+      background:#f9fafb;
+      color:#374151;
+    }
+    .badge input {
+      margin:0;
+    }
+    .grid-2 {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px 16px;
+      font-size:13px;
+    }
+    .field-label {
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      color:#6b7280;
+      margin-bottom:2px;
+    }
+    .field-value {
+      font-size:13px;
+      color:#111827;
+      padding:4px 6px;
+      border-radius:6px;
+      background:#f9fafb;
+      border:1px dashed #e5e7eb;
+      min-height:26px;
+    }
+    .field-flagged {
+      border-color:#ef4444 !important;
+      background:#fef2f2 !important;
+      color:#b91c1c;
+    }
+    table.edu {
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+      margin-top:4px;
+    }
+    .edu th, .edu td {
+      border:1px solid #e5e7eb;
+      padding:4px 6px;
+      text-align:left;
+    }
+    .edu th {
+      background:#f3f4f6;
+      font-weight:600;
+    }
+    .notes-box {
+      width:100%;
+      min-height:70px;
+      border-radius:8px;
+      border:1px solid #d1d5db;
+      padding:8px 10px;
+      font-size:13px;
+      resize:vertical;
+    }
+    .actions-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+      align-items:center;
+    }
+    .btn-primary {
+      border:none;
+      border-radius:999px;
+      padding:10px 18px;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:#f97316;
+      color:#ffffff;
+    }
+    .btn-primary:hover { background:#ea580c; }
+    .btn-success {
+      border:none;
+      border-radius:999px;
+      padding:10px 18px;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:#16a34a;
+      color:#ffffff;
+      text-decoration:none;
+    }
+    .btn-success:hover { background:#15803d; }
+    .btn-ghost {
+      border-radius:999px;
+      padding:8px 14px;
+      font-size:13px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      color:#111827;
+      text-decoration:none;
+      cursor:pointer;
+    }
+    .helper {
+      margin-top:6px;
+      font-size:12px;
+      color:#6b7280;
+    }
+
+    /* ==== NEW for per-field flags ==== */
+    .field-row {
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .field-main {
+      flex:1 1 auto;
+    }
+    .field-flags {
+      display:flex;
+      flex-direction:row;
+      gap:4px;
+      align-items:center;
+      font-size:11px;
+      white-space:nowrap;
+    }
+    .mini-badge {
+      display:inline-flex;
+      align-items:center;
+      gap:2px;
+      padding:1px 6px;
+      border-radius:999px;
+      border:1px solid #d1d5db;
+      background:#f9fafb;
+      color:#374151;
+    }
+    .mini-badge input {
+      margin:0;
+    }
+    .hidden-section-checkbox {
+      display:none;
+    }
+      .admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap; /* mobile pe niche aa sake */
+}
+
+.admin-actions .fee-input {
+  width: 140px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-actions .fee-select {
+  width: 130px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+/* Buttons alignment fix */
+.admin-actions .btn-primary,
+.admin-actions .btn-success {
+  white-space: nowrap;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .admin-actions {
+    gap: 10px;
+  }
+
+  .admin-actions .fee-input,
+  .admin-actions .fee-select {
+    width: 100%;
+  }
+}
+
+
+    @media (max-width:768px){
+      .grid-2 { grid-template-columns:1fr; }
+      .pdf-frame { height:380px; }
+    }
+  
+      .fee-row{
+        display:flex;
+        gap:10px;
+        align-items:center;
+        flex-wrap:wrap;
+      }
+      .fee-input{
+        
+        min-width:160px;
+        padding:10px 12px;
+        border:1px solid #e5e7eb;
+        border-radius:10px;
+        outline:none;
+      }
+      .fee-select{
+        min-width:140px;
+        padding:10px 12px;
+        border:1px solid #e5e7eb;
+        border-radius:10px;
+        outline:none;
+        background:#fff;
+      }
+      .submit-admin-form{ margin:0; }
+      /* live review states */
+.field-ok {
+  border-color: #93c5fd;      /* blue */
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div>
+        <h1 class="title">Awdiz Admission Review</h1>
+        <p class="subtitle">
+          Student: <b>${p.personal?.name || "-"}</b> &middot; Course: <b>${p.course?.name || "-"}</b>
+        </p>
+      </div>
+    </div>
+
+    <!-- PDF preview -->
+    <div class="pdf-pane">
+      <div class="pdf-pane-header">
+        <div>Pending Admission PDF</div>
+        <div>
+          ${
+            pdfUrl
+              ? `<a class="btn-inline" href="${pdfUrl}" target="_blank"><span class="icon">📄</span><span>Open PDF in new tab</span></a>`
+              : `<span style="font-size:12px;color:#9ca3af;">No PDF URL found</span>`
+          }
+        </div>
+      </div>
+      ${
+        pdfUrl
+          ? `<iframe
+  class="pdf-frame"
+  src="${pdfUrl}#toolbar=0&navpanes=0"
+></iframe>`
+          : `<div style="padding:18px;font-size:13px;color:#9ca3af;">PDF not available.</div>`
+      }
+    </div>
+
+    <!-- REVIEW FORM -->
+    <form id="review-form" method="POST" action="/api/admissions/${doc._id}/request-edit">
+
+      <!-- PERSONAL (field-wise flags) -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Personal Information</p>
+        </div>
+
+        <!-- hidden master checkbox for backend -->
+        <input
+          type="checkbox"
+          name="sections"
+          value="personal"
+          data-section-master="personal"
+          class="hidden-section-checkbox"
+        />
+
+        <div class="grid-2">
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Full Name</div>
+              <div data-field="pf_fullName"
+  class="field-value${flaggedFields.includes("pf_fullName") ? " field-flagged" : ""}">
+${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_fullName" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_fullName" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Father / Guardian Name</div>
+              <div data-field="pf_guardian" class="field-value${
+                flaggedFields.includes("pf_guardian") ? " field-flagged" : ""
+              }">${p.personal?.fatherOrGuardianName || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_guardian" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_guardian" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Address</div>
+              <div data-field="pf_address" class="field-value${
+                flaggedFields.includes("pf_address") ? " field-flagged" : ""
+              }">${p.personal?.address || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_address" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_address" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Student Mobile</div>
+              <div data-field="pf_studentMobile" class="field-value${
+                flaggedFields.includes("pf_studentMobile") ? " field-flagged" : ""
+              }">${p.personal?.studentMobile || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_studentMobile" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_studentMobile" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">WhatsApp Mobile</div>
+              <div data-field="pf_whatsapp" class="field-value${
+                flaggedFields.includes("pf_whatsapp") ? " field-flagged" : ""
+              }">${p.personal?.whatsappMobile || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_whatsapp" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_whatsapp" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Parent Mobile</div>
+              <div data-field="pf_parentMobile" class="field-value${
+                flaggedFields.includes("pf_parentMobile") ? " field-flagged" : ""
+              }">${p.personal?.parentMobile || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_parentMobile" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_parentMobile" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Email</div>
+              <div data-field="pf_email" class="field-value${
+                flaggedFields.includes("pf_email") ? " field-flagged" : ""
+              }">${p.personal?.email || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="pf_email" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="pf_email" value="fix" data-section="personal" />
+                ❌
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COURSE (same as before) -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Course Details</p>
+          <div class="sec-badges">
+            <label class="badge"><input type="checkbox" disabled /> ✅ Correct</label>
+            <label class="badge"><input type="checkbox" name="sections" value="course" /> ❌ Needs correction</label>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="field-label">Course Name</div>
+            <div class="field-value">${p.course?.name || "-"}</div>
+          </div>
+          <div>
+            <div class="field-label">Reference</div>
+            <div class="field-value">${p.course?.reference || "-"}</div>
+          </div>
+          <div>
+            <div class="field-label">Plan Type</div>
+            <div class="field-value">${jobType}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDUCATION (same) -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Educational Details</p>
+          <div class="sec-badges">
+            <label class="badge"><input type="checkbox" disabled /> ✅ Correct</label>
+            <label class="badge"><input type="checkbox" name="sections" value="education" /> ❌ Needs correction</label>
+          </div>
+        </div>
+        <table class="edu">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Qualification</th>
+              <th>School / College</th>
+              <th>Year</th>
+              <th>% Marks</th>
+            </tr>
+          </thead>
+          <tbody>${eduRows}</tbody>
+        </table>
+      </div>
+
+      <!-- IDS (same) -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">ID Details</p>
+          <div class="sec-badges">
+            <label class="badge"><input type="checkbox" disabled /> ✅ Correct</label>
+            <label class="badge"><input type="checkbox" name="sections" value="ids" /> ❌ Needs correction</label>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="field-label">PAN Number</div>
+            <div class="field-value">${p.ids?.pan || "-"}</div>
+          </div>
+          <div>
+            <div class="field-label">Aadhaar / Driving</div>
+            <div class="field-value">${p.ids?.aadhaarOrDriving || "-"}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPLOADS (field-wise flags, master = "uploads") -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Uploads</p>
+        </div>
+
+        <input
+          type="checkbox"
+          name="sections"
+          value="uploads"
+          data-section-master="uploads"
+          class="hidden-section-checkbox"
+        />
+
+        <div class="grid-2">
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Passport Photo</div>
+              <div data-field="up_photo" class="field-value${
+  flaggedFields.includes("up_photo") ? " field-flagged" : ""
+}">
+  ${
+    p.uploads?.photoUrl
+      ? `<img 
+           src="${p.uploads.photoUrl}" 
+           alt="Passport Photo"
+           style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid #e5e7eb"
+         />`
+      : "-"
+  }
+</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="up_photo" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="up_photo" value="fix" data-section="uploads" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">PAN</div>
+              <div data-field="up_pan" class="field-value${
+  flaggedFields.includes("up_pan") ? " field-flagged" : ""
+}">
+  ${
+    p.uploads?.panUrl
+      ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.panUrl)
+          ? `<img src="${p.uploads.panUrl}" alt="PAN" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
+          : `<a href="${p.uploads.panUrl}" target="_blank">📄 View PAN Document</a>`)
+      : "-"
+  }
+</div>
+
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="up_pan" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="up_pan" value="fix" data-section="uploads" />
+                ❌
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Aadhaar</div>
+              <div data-field="up_aadhaar" class="field-value${
+  flaggedFields.includes("up_aadhaar") ? " field-flagged" : ""
+}">
+  ${
+    p.uploads?.aadhaarUrl
+      ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.aadhaarUrl)
+          ? `<img src="${p.uploads.aadhaarUrl}" alt="Aadhaar" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
+          : `<a href="${p.uploads.aadhaarUrl}" target="_blank">📄 View Aadhaar Document</a>`)
+      : "-"
+  }
+</div>
+
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge">
+                <input type="radio" name="up_aadhaar" value="ok" checked />
+                ✅
+              </label>
+              <label class="mini-badge">
+                <input type="radio" name="up_aadhaar" value="fix" data-section="uploads" />
+                ❌
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER (same) -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Center Details</p>
+          <div class="sec-badges">
+            <label class="badge"><input type="checkbox" disabled /> ✅ Correct</label>
+            <label class="badge"><input type="checkbox" name="sections" value="center" /> ❌ Needs correction</label>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="field-label">Place of Admission</div>
+            <div class="field-value">${p.center?.placeOfAdmission || "-"}</div>
+          </div>
+          <div>
+            <div class="field-label">Mode</div>
+            <div class="field-value">${p.center?.mode || "-"}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIGNATURES (field-wise flags) -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Signatures</p>
+        </div>
+
+        <input
+          type="checkbox"
+          name="sections"
+          value="signatures"
+          data-section-master="signatures"
+          class="hidden-section-checkbox"
+        />
+
+        <div class="field-row">
+  <div class="field-main">
+    <div class="field-label">Student Name</div>
+
+    <div
+      data-field="sg_student"
+      class="field-value${
+        flaggedFields.includes("sg_student") ? " field-flagged" : ""
+      }"
+    >
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="font-weight:600;">
+          ${p.signatures?.student?.fullName || "-"}
+        </div>
+
+        ${
+          (p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
+            ? `<img 
+                 src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" 
+                 alt="Student Signature"
+                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
+               />`
+            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="field-flags">
+    <label class="mini-badge">
+      <input type="radio" name="sg_student" value="ok" checked />
+      ✅
+    </label>
+    <label class="mini-badge">
+      <input type="radio" name="sg_student" value="fix" data-section="signatures" />
+      ❌
+    </label>
+  </div>
+</div>
+
+<div class="field-row">
+  <div class="field-main">
+    <div class="field-label">Parent / Guardian Name</div>
+
+    <div
+      data-field="sg_parent"
+      class="field-value${
+        flaggedFields.includes("sg_parent") ? " field-flagged" : ""
+      }"
+    >
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="font-weight:600;">
+          ${p.signatures?.parent?.fullName || "-"}
+        </div>
+
+        ${
+          (p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
+            ? `<img 
+                 src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" 
+                 alt="Parent Signature"
+                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
+               />`
+            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="field-flags">
+    <label class="mini-badge">
+      <input type="radio" name="sg_parent" value="ok" checked />
+      ✅
+    </label>
+    <label class="mini-badge">
+      <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
+      ❌
+    </label>
+  </div>
+</div>
+
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="section-card">
+        <div class="sec-header">
+          <p class="sec-title">Notes to Student (optional)</p>
+          <div class="sec-badges">
+            <label class="badge"><input type="checkbox" name="sections" value="other" /> ❌ Other issue</label>
+          </div>
+        </div>
+        <textarea name="notes" class="notes-box" placeholder="Example: Please correct spelling of your name and upload a clearer Aadhaar scan.">${lastNotes}</textarea>
+        <p class="helper">Jo sections yahan ❌ select karenge, unhi ko baad me student ke form me editable rakha jaa sakta hai.</p>
+      </div>
+
+      <div class="actions-row admin-actions">
+
+  <button
+    type="submit"
+    class="btn-primary"
+    formaction="/api/admissions/${doc._id}/request-edit-counselor"
+    formmethod="POST"
+  >
+    ✏️ Request Edit from Counselor
+  </button>
+
+  <input
+    type="number"
+    name="feeAmount"
+    class="fee-input"
+    min="0"
+    step="1"
+    placeholder="Registration Fees"
+    value="${feeAmount !== "" ? feeAmount : ""}"
+    required
+  />
+
+  <select name="feeMode" class="fee-select" required>
+    <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
+    <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
+  </select>
+
+  <button
+    type="submit"
+    class="btn-success"
+    formaction="/api/admissions/${doc._id}/approve"
+    formmethod="POST"
+  >
+    ✅ Approve Admission
+  </button>
+
+</div>
+
+
+
+    </form>
+  </div>
+
+
+<script>
+ document.addEventListener("DOMContentLoaded", function () {
+      // ==== 1) Section master auto-toggle (existing logic) ====
+      const radios = document.querySelectorAll('input[type="radio"][data-section]');
+      const sectionToRadios = {};
+
+      radios.forEach(function (r) {
+        const sec = r.getAttribute("data-section");
+        if (!sectionToRadios[sec]) sectionToRadios[sec] = [];
+        sectionToRadios[sec].push(r);
+      });
+
+      Object.keys(sectionToRadios).forEach(function (sec) {
+        const master = document.querySelector('input[data-section-master="' + sec + '"]');
+        if (!master) return;
+
+        const update = function () {
+          const anyBad = sectionToRadios[sec].some(function (r) {
+            return r.checked && r.value === "fix";
+          });
+          master.checked = anyBad;
+        };
+
+        sectionToRadios[sec].forEach(function (r) {
+          r.addEventListener("change", update);
+        });
+
+        // initial state
+        update();
+      });
+
+  /* ===============================
+     2) AUTO NOTES – FIELD LEVEL
+  =============================== */
+  var notesBox = document.querySelector('textarea[name="notes"]');
+  if (!notesBox) return;
+
+  var autoNotes = new Set();
+
+  radios.forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      var fieldKey = radio.name;
+
+      var fieldLabel = fieldKey
+        .replace("pf_", "Personal: ")
+        .replace("up_", "Upload: ")
+        .replace("sg_", "Signature: ")
+        .replace(/_/g, " ");
+
+      var note = "• " + fieldLabel + " is missing or incorrect.";
+
+      var valueBox =
+  document.querySelector('.field-value[data-field="' + fieldKey + '"]') ||
+  document.querySelector('input[data-field="' + fieldKey + '"]') ||
+  document.querySelector('select[data-field="' + fieldKey + '"]');
+
+      if (radio.value === "fix") {
+        autoNotes.add(note);
+        if (valueBox) {
+          valueBox.classList.remove("field-ok");
+          valueBox.classList.add("field-flagged");
+        }
+      }
+
+      if (radio.value === "ok") {
+        autoNotes.delete(note);
+        if (valueBox) {
+          valueBox.classList.remove("field-flagged");
+          valueBox.classList.add("field-ok");
+        }
+      }
+
+      notesBox.value = Array.from(autoNotes).join("\\n");
+    });
+  });
+
+  /* ===============================
+     3) SECTION-LEVEL ❌ CHECKBOX
+     ✅ THIS IS THE FIX
+  =============================== */
+  var sectionFixCheckboxes = document.querySelectorAll(
+    'input[type="checkbox"][name="sections"]:not([disabled])'
+  );
+
+  function sectionHeading(section) {
+    var map = {
+      personal: "• Personal Information",
+      course: "• Course Details",
+      education: "• Educational Details",
+      ids: "• ID Details",
+      uploads: "• Uploads",
+      center: "• Center Details",
+      signatures: "• Signatures",
+      other: "• Other Issues"
+    };
+    return map[section] || "• " + section;
+  }
+
+  sectionFixCheckboxes.forEach(function (chk) {
+    chk.addEventListener("change", function () {
+      var note = sectionHeading(chk.value);
+
+      if (chk.checked) {
+        autoNotes.add(note);
+      } else {
+        autoNotes.delete(note);
+      }
+
+      notesBox.value = Array.from(autoNotes).join("\\n");
+    });
+  });
+
+});
+</script>
+
+</body>
+</html>`;
+
+    res.status(200).send(html);
+  } catch (e) {
+    console.error("reviewAdmissionPage failed:", e);
+    res.status(500).send("<h2>Server error</h2>");
+
+    
+  }
+}
+
 
 /* ==================== REQUEST EDIT HANDLER (field-level) ==================== */
 async function requestEditAdmission(req, res) {
@@ -3283,6 +5099,45 @@ async function requestEditAdmission(req, res) {
     res.status(500).send("<h2>Server error</h2>");
   }
 }
+/* ==================== ADMIN → COUNSELOR EDIT REQUEST ==================== */
+async function requestEditToCounselor(req, res) {
+  const { id } = req.params;
+  const { sections, notes, ...rest } = req.body;
+
+  const doc = await Admission.findById(id);
+  if (!doc) return res.status(404).send("Admission not found");
+
+  const sectionsArray = Array.isArray(sections)
+    ? sections.filter(Boolean)
+    : sections ? [sections] : [];
+
+  const fieldFixKeys = Object.entries(rest)
+    .filter(([_, v]) => v === "fix")
+    .map(([k]) => k);
+
+  // reuse SAME editRequest object
+  doc.editRequest = {
+    sections: sectionsArray,
+    fields: fieldFixKeys,
+    notes: notes || "",
+    status: "admin-requested",
+    createdAt: new Date(),
+  };
+
+  await doc.save();
+
+  // 🔥 SEND MAIL TO ORIGINAL COUNSELOR
+  await sendCounselorMail({
+    payload: doc.toObject(),
+    counselorPdfUrl: doc?.pdf?.pendingCounselorUrl,
+  });
+
+  return res.send(`
+    <h2>Edit Request Sent to Counselor</h2>
+    <p>The counselor has been notified to fix the issues.</p>
+  `);
+}
+
 
 /* ==================== GET DATA FOR EDIT ==================== */
 async function getAdmissionForEdit(req, res) {
@@ -3467,12 +5322,25 @@ async function applyAdmissionEdit(req, res) {
 
       const reviewUrl = `${base}/api/admissions/${doc._id}/review`;
 
-      const counselorList = (process.env.COUNSELOR_EMAILS || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
+      // const counselorList = (process.env.COUNSELOR_EMAILS || "")
+      //   .split(",")
+      //   .map((e) => e.trim())
+      //   .filter(Boolean);
 
-      const to = counselorList.length ? counselorList : [process.env.FROM_EMAIL];
+      // const to = counselorList.length ? counselorList : [process.env.FROM_EMAIL];
+
+      await sendCounselorMail({
+  payload: {
+    ...doc.toObject(),
+    originalCounselorKey: doc.meta?.counselorKey,
+  },
+
+  // 🔥 LOCAL = NO PDF URL (avoid 404 fetch)
+  counselorPdfUrl: process.env.CLOUDINARY_CLOUD_NAME
+    ? doc?.pdf?.pendingCounselorUrl
+    : null,
+});
+
 
       const studentName = doc.personal?.name || "Student";
       const courseName = doc.course?.name || "Course";
@@ -3501,18 +5369,19 @@ async function applyAdmissionEdit(req, res) {
         </div>
       `.trim();
 
-      const mail = {
-        from: {
-          name: "Awdiz Admissions",
-          address: process.env.FROM_EMAIL,
-        },
-        to,
-        subject: `Edited Admission – ${studentName} (${courseName})`,
-        html,
-      };
+      // const mail = {
+      //   from: {
+      //     name: "Awdiz Admissions",
+      //     address: process.env.FROM_EMAIL,
+      //   },
+      //   to,
+      //   subject: `Edited Admission – ${studentName} (${courseName})`,
+      //   html,
+      // };
 
-      await transporter.sendMail(mail);
-      console.log("📧 Counselor EDIT notification mail sent →", to);
+      // await transporter.sendMail(mail);
+      // console.log("📧 Counselor EDIT notification mail sent →", to);
+      console.log("📧 Counselor EDIT notification mail sent via sendCounselorMail()");
     } catch (mailErr) {
       console.error("send counselor EDIT mail failed:", mailErr);
     }
@@ -3536,7 +5405,9 @@ export {
   initAdmission,
   dummyVerifyAdmissionOtp,
   reviewAdmissionPage,
+  adminReviewAdmissionPage,
   requestEditAdmission,
+  requestEditToCounselor,
   submitToAdmin,
   approveAdmission,
   getAdmissionForEdit,

@@ -9,6 +9,8 @@ import TermsAndConditions from "../components/TermsAndConditions.jsx";
 import { TERMS_TEXT } from "../components/termsText";
 import { api } from "../lib/api"; // 🔁 for edit-mode API calls
 
+
+
 // Short T&C for Training-only users
 const TRAINING_ONLY_TNC = `Fees once paid will not be refunded or adjusted under any circumstances.
 By signing this document, you acknowledge that you have received and agreed to learn the syllabus shared by Awdiz.`;
@@ -40,7 +42,10 @@ if (!allowed.has(rawC)) {
 const counselorKey =
   rawC === "c2" || rawC === "2" || rawC === "counselor2" ? "c2" : "c1";
 
+  // 🔐 LocalStorage key (counselor-wise)
+const LS_KEY = `awdiz_admission_draft_${counselorKey}`;
   // 🔁 EDIT MODE STATE (based on query params)
+  const [restored, setRestored] = useState(false);
   const editMode = searchParams.get("edit") === "1";
   const admissionId = searchParams.get("id") || "";
   const [allowedSections, setAllowedSections] = useState([]); // e.g. ["personal","course"]
@@ -82,6 +87,24 @@ const counselorKey =
     tcText: "",
   });
 
+  // 💾 AUTO SAVE FORM TO LOCAL STORAGE (NEW ADMISSION ONLY)
+useEffect(() => {
+ if (editMode || !restored) return;
+
+  try {
+    localStorage.setItem(
+      LS_KEY,
+      JSON.stringify({
+        form,
+        savedAt: Date.now(),
+      })
+    );
+  } catch (e) {
+    console.warn("LocalStorage save failed:", e);
+  }
+}, [form, editMode, LS_KEY]);
+
+
   // 🆕 original snapshot for edit-mode comparison
   const [originalForm, setOriginalForm] = useState(null);
 
@@ -115,26 +138,112 @@ const counselorKey =
   }
 
   // 🔁 EDIT-MODE: field-level helper – ✅ / ❌ ke hisaab se
+  // function isFieldEditable(sectionKey, fieldKey) {
+  //   if (!editMode) return true; // normal mode me sab editable
+
+  //   // agar section hi allowed nahi hai, to field bhi nahi
+  //   if (!allowedSections.includes(sectionKey)) return false;
+
+  //   // agar backend ne allowedFields nahi bheja, to pura section editable rakho
+  //   if (!allowedFields.length) return true;
+
+  //   // sirf wohi field editable jiska key list me hai (❌ wale)
+  //   return allowedFields.includes(fieldKey);
+  // }
+
   function isFieldEditable(sectionKey, fieldKey) {
-    if (!editMode) return true; // normal mode me sab editable
+  if (!editMode) return true;
 
-    // agar section hi allowed nahi hai, to field bhi nahi
-    if (!allowedSections.includes(sectionKey)) return false;
+  // ✅ agar section ❌ hai → poora section editable
+  if (allowedSections.includes(sectionKey)) {
+    // agar field-level ❌ aaye hain → sirf wahi editable
+    if (allowedFields.length > 0) {
+      return allowedFields.includes(fieldKey);
+    }
 
-    // agar backend ne allowedFields nahi bheja, to pura section editable rakho
-    if (!allowedFields.length) return true;
-
-    // sirf wohi field editable jiska key list me hai (❌ wale)
-    return allowedFields.includes(fieldKey);
+    // ❌ sirf section-level case
+    return true;
   }
+
+  // ❌ section allowed nahi
+  return false;
+}
+
 
   // 🔴 NEW – ❌ fields ko red highlight dene ke liye
+  // function isFieldHighlighted(sectionKey, fieldKey) {
+  //   if (!editMode) return false;
+  //   if (!allowedSections.includes(sectionKey)) return false;
+  //   if (!allowedFields.length) return false;
+  //   return allowedFields.includes(fieldKey);
+  // }
+
   function isFieldHighlighted(sectionKey, fieldKey) {
-    if (!editMode) return false;
-    if (!allowedSections.includes(sectionKey)) return false;
-    if (!allowedFields.length) return false;
-    return allowedFields.includes(fieldKey);
+  if (!editMode) return false;
+
+  // ❌ section-level cross → full section red
+  if (allowedSections.includes(sectionKey) && allowedFields.length === 0) {
+    return true;
   }
+
+  // ❌ field-level cross → only specific fields red
+  if (
+    allowedSections.includes(sectionKey) &&
+    allowedFields.length > 0 &&
+    allowedFields.includes(fieldKey)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+
+  // 🔁 RESTORE FORM FROM LOCAL STORAGE (NEW ADMISSION ONLY)
+useEffect(() => {
+  if (editMode) return;
+
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) {
+      setRestored(true); // ⬅️ nothing to restore
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!parsed?.form) {
+      setRestored(true);
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      personal: { ...prev.personal, ...parsed.form.personal },
+      course: { ...prev.course, ...parsed.form.course },
+      education: parsed.form.education || prev.education,
+      ids: { ...prev.ids, ...parsed.form.ids },
+      center: { ...prev.center, ...parsed.form.center },
+      signatures: {
+        student: {
+          ...prev.signatures.student,
+          ...parsed.form.signatures?.student,
+        },
+        parent: {
+          ...prev.signatures.parent,
+          ...parsed.form.signatures?.parent,
+        },
+      },
+      termsAccepted: parsed.form.termsAccepted || false,
+      dataConsentAccepted: parsed.form.dataConsentAccepted || false,
+      tcVersion: parsed.form.tcVersion || prev.tcVersion,
+      tcText: parsed.form.tcText || prev.tcText,
+    }));
+  } catch (e) {
+    console.warn("LocalStorage restore failed:", e);
+  } finally {
+    setRestored(true); // ✅ restore finished
+  }
+}, [editMode, LS_KEY]);
 
   // 🔁 EDIT-MODE: existing admission load
   useEffect(() => {
@@ -438,6 +547,23 @@ const counselorKey =
     e.preventDefault();
     setError("");
 
+    // 🔴 SECTION-LEVEL ❌ VALIDATION
+if (editMode && admissionId && allowedSections.length && allowedFields.length === 0) {
+  if (!originalForm) return;
+
+  const sectionChanged = allowedSections.some((section) => {
+    return JSON.stringify(originalForm[section]) !== JSON.stringify(form[section]);
+  });
+
+  if (!sectionChanged) {
+    setError(
+      "Please make at least one change in the highlighted section before submitting."
+    );
+    return;
+  }
+}
+
+
     // 🔁 EDIT-MODE: existing admission update → no OTP / no file upload
     if (editMode && admissionId) {
       // 🆕 Counselor ne jis jis field ko ❌ mark kiya,
@@ -545,6 +671,17 @@ const counselorKey =
       return;
     }
 
+    if (!panFile) {
+  setError("PAN card document is required.");
+  return;
+}
+
+if (!aadhaarFile) {
+  setError("Aadhaar / Driving License document is required.");
+  return;
+}
+
+
     if (!hasSign(form.signatures.student.signDataUrl)) {
       setError("Student signature is required.");
       return;
@@ -586,7 +723,7 @@ const counselorKey =
         parentSign: form?.signatures?.parent?.signDataUrl || "",
       },
     });
-
+   
     nav(`/admission-otp?c=${counselorKey}`);
   };
 
@@ -700,7 +837,7 @@ const counselorKey =
                     ? "border-red-500 bg-red-50"
                     : "")
                 }
-                placeholder="Son/Daughter/Wife of Mr"
+                placeholder="Son/Daughter/Wife of Mr*"
                 value={form.personal.fatherOrGuardianName}
                 disabled={!isFieldEditable("personal", "pf_guardian")}
                 onChange={(e) =>
@@ -712,6 +849,7 @@ const counselorKey =
                     },
                   })
                 }
+                required
               />
 
               <input
@@ -721,7 +859,7 @@ const counselorKey =
                     ? "border-red-500 bg-red-50"
                     : "")
                 }
-                placeholder="Address"
+                placeholder="Address*"
                 value={form.personal.address}
                 disabled={!isFieldEditable("personal", "pf_address")}
                 onChange={(e) =>
@@ -730,36 +868,47 @@ const counselorKey =
                     personal: { ...form.personal, address: e.target.value },
                   })
                 }
-              />
-
-              <input
-                className={
-                  "border p-2 rounded w-full " +
-                  (isFieldHighlighted("personal", "pf_studentMobile")
-                    ? "border-red-500 bg-red-50"
-                    : "")
-                }
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]{10}"
-                placeholder="Student’s Mobile*"
-                value={form.personal.studentMobile}
-                disabled={!isFieldEditable("personal", "pf_studentMobile")}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    personal: {
-                      ...form.personal,
-                      studentMobile: e.target.value,
-                    },
-                  })
-                }
                 required
               />
 
+              <div className="relative">
+  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+    +91
+  </span>
+
+  <input
+    className={
+      "border p-2 pl-12 rounded w-full " +
+      (isFieldHighlighted("personal", "pf_studentMobile")
+        ? "border-red-500 bg-red-50"
+        : "")
+    }
+    type="tel"
+    inputMode="numeric"
+    pattern="[0-9]{10}"
+    placeholder="Enter 10 digit mobile number*"
+    value={form.personal.studentMobile}
+    disabled={!isFieldEditable("personal", "pf_studentMobile")}
+    onChange={(e) =>
+      setForm({
+        ...form,
+        personal: {
+          ...form.personal,
+          studentMobile: e.target.value.replace(/\D/g, "").slice(0, 10),
+        },
+      })
+    }
+    required
+  />
+</div>
+
+<div className="relative">
+  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+    +91
+  </span>
               <input
                 className={
-                  "border p-2 rounded w-full " +
+                  "border p-2 pl-12 rounded w-full " +
                   (isFieldHighlighted("personal", "pf_whatsapp")
                     ? "border-red-500 bg-red-50"
                     : "")
@@ -775,13 +924,13 @@ const counselorKey =
                     ...form,
                     personal: {
                       ...form.personal,
-                      whatsappMobile: e.target.value,
+                      whatsappMobile: e.target.value.replace(/\D/g, "").slice(0, 10),
                     },
                   })
                 }
                 required
               />
-
+</div>
               <input
                 className={
                   "border p-2 rounded w-full " +
@@ -801,11 +950,16 @@ const counselorKey =
                 }
                 required
               />
+              <div className="relative">
+  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+    +91
+  </span>
+
 
               {/* Parent mobile */}
               <input
                 className={
-                  "border p-2 rounded sm:col-span-2 w-full " +
+                  "border p-2 pl-12 rounded sm:col-span-2 w-full " +
                   (isFieldHighlighted("personal", "pf_parentMobile")
                     ? "border-red-500 bg-red-50"
                     : "")
@@ -827,6 +981,7 @@ const counselorKey =
                 }
                 required
               />
+              </div>
             </div>
           </section>
 
@@ -945,7 +1100,7 @@ const counselorKey =
                   }
                 />
                 <span className="min-w-0">
-                  <b>No Job Guarantee – Training only</b>
+                  <b>Training only</b>
                 </span>
               </label>
             </div>
@@ -1095,7 +1250,7 @@ const counselorKey =
 
           {/* ---------- IDS ---------- */}
           <section className="space-y-2">
-            <h2 className="text-lg sm:text-xl font-semibold">ID Details</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">ID Details*</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input
                 className={
@@ -1104,13 +1259,15 @@ const counselorKey =
                     ? "border-red-500 bg-red-50"
                     : "")
                 }
-                placeholder="Permanent Account Number (PAN)"
+                placeholder="Permanent Account Number (PAN) *"
                 value={form.ids.pan}
+                required={!editMode}
                 disabled={!isFieldEditable("ids", "id_pan")}
                 onChange={(e) =>
                   setForm({
                     ...form,
                     ids: { ...form.ids, pan: e.target.value },
+                    
                   })
                 }
               />
@@ -1121,8 +1278,9 @@ const counselorKey =
                     ? "border-red-500 bg-red-50"
                     : "")
                 }
-                placeholder="Aadhaar Card / Driving License Number"
+                placeholder="Aadhaar Card / Driving License Number *"
                 value={form.ids.aadhaarOrDriving}
+                required={!editMode}
                 disabled={!isFieldEditable("ids", "id_aadhaar")}
                 onChange={(e) =>
                   setForm({
@@ -1153,7 +1311,7 @@ const counselorKey =
                     onChange={onPhotoOptionChange}
                     disabled={!isFieldEditable("uploads", "up_photo")}
                   >
-                    <option value="">Student Photo</option>
+                    <option value="upload">Choose Image</option>
                     <option value="upload">Choose file</option>
                     <option value="camera">Take photo</option>
                   </select>
@@ -1168,6 +1326,7 @@ const counselorKey =
                     required={!editMode}
                     className="hidden"
                     disabled={!isFieldEditable("uploads", "up_photo")}
+                    
                   />
                 </div>
 
@@ -1194,7 +1353,7 @@ const counselorKey =
               </div>
 
               <div className="min-w-0">
-                <label className="block text-sm mb-1">PAN (image/pdf)</label>
+                <label className="block text-sm mb-1">PAN (image/pdf)*</label>
                 <input
                   type="file"
                   accept="image/*,.pdf"
@@ -1206,11 +1365,12 @@ const counselorKey =
                       : "")
                   }
                   disabled={!isFieldEditable("uploads", "up_pan")}
+                  required={!editMode} 
                 />
               </div>
               <div className="min-w-0">
                 <label className="block text-sm mb-1">
-                  Aadhaar/Driving (image/pdf)
+                  Aadhaar/Driving (image/pdf)*
                 </label>
                 <input
                   type="file"
@@ -1225,6 +1385,7 @@ const counselorKey =
                       : "")
                   }
                   disabled={!isFieldEditable("uploads", "up_aadhaar")}
+                  required={!editMode} 
                 />
               </div>
             </div>
@@ -1338,6 +1499,7 @@ const counselorKey =
                         },
                       });
                     }}
+                    required
                   />
                   {hasSign(form.signatures.student.signDataUrl) && (
                     <span className="text-xs text-green-700">
@@ -1348,7 +1510,7 @@ const counselorKey =
               </div>
               <div className="min-w-0">
                 <label className="block text-sm mb-1">
-                  PARENT/GUARDIAN FULL NAME
+                  PARENT/GUARDIAN FULL NAME*
                 </label>
                 <input
                   className={
@@ -1371,6 +1533,7 @@ const counselorKey =
                       },
                     })
                   }
+                  required
                 />
                 <div className="mt-2">
                   <SignaturePad
@@ -1388,6 +1551,7 @@ const counselorKey =
                         },
                       });
                     }}
+                    required
                   />
                 </div>
               </div>

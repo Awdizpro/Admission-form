@@ -22,7 +22,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/admissions", admissionsRoutes);
 
 // Static PDFs
-app.use("/files", express.static("storage/pdfs"));
+// app.use("/files", express.static("storage/pdfs"));
 
 // (Optional) test endpoints you already had...
 app.get("/api/test-email", async (_req, res) => {
