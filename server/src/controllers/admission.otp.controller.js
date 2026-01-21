@@ -337,17 +337,19 @@ export async function verifyAdmission(req, res) {
       //   ...payload,
       //   status: "pending",
       // });
-      const counselorPdf = await generateAdmissionPDF({
-        ...payload,
-        status: "pending",
-      });
+      // ✅ Create PENDING PDF (ONLY ONCE)
+const counselorPdf = await generateAdmissionPDF({
+  ...payload,
+  status: "pending",
+});
 
-      const pendingStudentUrl = asUrl(studentPdf);
-      const pendingCounselorUrl = asUrl(counselorPdf) || pendingStudentUrl;
+// ✅ same PDF used for db + counselor
+const pendingStudentUrl = asUrl(counselorPdf);
+const pendingCounselorUrl = pendingStudentUrl;
 
-      if (!pendingStudentUrl) {
-        return res.status(500).json({ message: "PDF generation failed" });
-      }
+if (!pendingStudentUrl) {
+  return res.status(500).json({ message: "PDF generation failed" });
+}
 
       // ✅ Save final Admission as PENDING (and persist counselorKey at root too)
       const saved = await Admission.create({
