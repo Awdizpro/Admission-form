@@ -364,14 +364,16 @@ export async function verifyAdmission(req, res) {
       pending.finalAdmissionId = saved._id;
       await pending.save();
 
-      // ✅ Student mail
+      // // ✅ Student mail
       await sendAdmissionEmails({
         studentEmail: payload?.personal?.email,
-        pdfBuffer: studentPdf?.buffer, // if exists
-        pdfFileName: `Awdiz-Admission-${saved._id}.pdf`,
-        pdfUrl: pendingStudentUrl,
+        // pdfBuffer: studentPdf?.buffer, // if exists
+        // pdfFileName: `Awdiz-Admission-${saved._id}.pdf`,
+        // pdfUrl: pendingStudentUrl,
         payload: { ...payload, status: "pending", _id: saved._id },
       });
+
+ 
 
       // ✅ Counselor mail (AUTO ROUTE by counselorKey + admin BCC)
       // email.service.js v3 will route:

@@ -343,20 +343,19 @@ async function dummyVerifyAdmissionOtp(req, res) {
       const p = { ...item.payload, status: "pending" };
 
       // PDFs (buffer + url)
-      const studentPdf = await generateAdmissionPDF({ ...p, status: "pending" });
+  
       const counselorPdf = await generateAdmissionPDF({ ...p, status: "pending" });
 
-      const pendingStudentUrl = asUrl(studentPdf);
       const pendingCounselorUrl = asUrl(counselorPdf);
 
-      if (!pendingStudentUrl || !pendingCounselorUrl) {
+      if (!pendingCounselorUrl) {
         throw new Error("PDF service did not return URL for pending PDFs.");
       }
 
       // Save PENDING in DB
       const saved = await Admission.create({
         ...p,
-        pdf: { pendingStudentUrl, pendingCounselorUrl },
+        pdf: { pendingCounselorUrl },
         education: (p.education || []).map((ed) => ({
           qualification: ed.qualification || "",
           school: ed.school || "",
@@ -370,7 +369,7 @@ async function dummyVerifyAdmissionOtp(req, res) {
         const courseName = p?.course?.name || "Admissions";
         await appendAdmissionRow(courseName, {
           ...p,
-          pdfUrl: pendingStudentUrl,
+          pdfUrl: pendingCounselorUrl,
           admissionId: String(saved._id),
           status: "Pending",
           counselorKey: p?.meta?.counselorKey, // ✅ NEW
@@ -379,12 +378,12 @@ async function dummyVerifyAdmissionOtp(req, res) {
         console.error("❌ Google Sheet (pending append) failed:", err?.message);
       }
 
-      // Mail student (attachment + link)
+      // // Mail student (attachment + link)
       await sendAdmissionEmails({
         studentEmail: p.personal.email,
-        pdfBuffer: studentPdf.buffer,
-        pdfFileName: `Awdiz-Admission-${saved._id}.pdf`,
-        pdfUrl: pendingStudentUrl,
+        // pdfBuffer: studentPdf.buffer,
+        // pdfFileName: `Awdiz-Admission-${saved._id}.pdf`,
+        // pdfUrl: pendingStudentUrl,
         payload: p,
       });
 
@@ -396,13 +395,11 @@ async function dummyVerifyAdmissionOtp(req, res) {
         pdfFileName: `Awdiz-Admission-Pending-${saved._id}.pdf`,
       });
 
-      pending.delete(pendingId);
       return res.status(200).json({
-        message: "Admission Submitted – Pending Approval",
-        id: saved._id,
-        pdfUrl: pendingStudentUrl,
-        step: "completed",
-      });
+  message: "Admission Submitted – Pending Approval",
+  id: saved._id,
+  step: "completed",
+});
     }
 
     // If both already verified:
