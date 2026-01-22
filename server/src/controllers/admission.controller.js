@@ -123,7 +123,8 @@ async function initAdmission(req, res) {
           buffer: req.files.pan[0].buffer,
           folder: "awdiz/admissions/pan",
           publicId: `pan-${Date.now()}`,
-          resource_type: "raw",
+          resource_type: "image",
+          extra: { format: "pdf" },
         });
         panUrl = up?.secure_url;
       }
@@ -137,7 +138,8 @@ async function initAdmission(req, res) {
           buffer: req.files.aadhaar[0].buffer,
           folder: "awdiz/admissions/aadhaar",
           publicId: `aadhaar-${Date.now()}`,
-          resource_type: "raw",
+          resource_type: "image",
+          extra: { format: "pdf" },
         });
         aadhaarUrl = up?.secure_url;
       }
@@ -2830,17 +2832,27 @@ async function requestEditAdmission(req, res) {
     /* ======================
        1. Generate EDIT LINK
     ======================= */
-    const base = (process.env.APP_BASE_URL || "http://localhost:3002").replace(
-      /\/+$/,
-      ""
-    );
+  
+const counselorKey = doc?.meta?.counselorKey === "c2" ? "c2" : "c1";
 
-    const sectionsParam = encodeURIComponent(JSON.stringify(sectionsArray));
-    const fieldsParam = encodeURIComponent(JSON.stringify(fieldFixKeys));
+// base frontend url
+const base = (process.env.APP_BASE_URL || "http://localhost:3002").replace(/\/+$/, "");
 
-    const editLink = `${base}/admission-form?edit=1&id=${doc._id}&sections=${sectionsParam}&fields=${fieldsParam}`;
+// params
+const sectionsParam = encodeURIComponent(JSON.stringify(sectionsArray));
+const fieldsParam = encodeURIComponent(JSON.stringify(fieldFixKeys));
 
-    console.log("✏️ Edit Link:", editLink);
+// ✅ FINAL EDIT LINK (c1 / c2 auto)
+const editLink =
+  `${base}/admission-form` +
+  `?edit=1` +
+  `&id=${doc._id}` +
+  `&c=${counselorKey}` +
+  `&sections=${sectionsParam}` +
+  `&fields=${fieldsParam}`;
+
+console.log("✏️ Student Edit Link:", editLink);
+
 
     /* ===================================
        2. Send EMAIL to the Student

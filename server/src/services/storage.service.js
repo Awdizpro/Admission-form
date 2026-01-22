@@ -62,5 +62,5 @@ export function uploadBuffer({ buffer, folder, publicId, resource_type = "auto",
  * Convenience: upload a PDF (buffer/stream/etc) as resource_type 'raw'.
  */
 export function uploadPDFStream(source, { folder, publicId, extra = {} } = {}) {
-  return uploadStream({ source, folder, publicId, resource_type: "raw", extra: { format: "pdf", ...extra } });
+  return uploadStream({ source, folder, publicId, resource_type: "image", extra: { format: "pdf", ...extra } });
 }

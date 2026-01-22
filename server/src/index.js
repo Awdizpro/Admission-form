@@ -44,21 +44,17 @@ app.get("/api/test-email", async (_req, res) => {
 });
 
 app.get("/api/test-cloudinary", async (_req, res) => {
-  try {
-    const buf = Buffer.from("hello awdiz");
-    const result = await uploadBuffer({
-      buffer: buf,
-      folder: "awdiz/test",
-      publicId: `ping-${Date.now()}`,
-      resource_type: "raw",
-      extra: { format: "txt" },
-    });
-    res.json({ ok: true, url: result.secure_url });
-  } catch (e) {
-    console.error("Cloudinary test failed:", e);
-    res.status(500).json({ ok: false, error: String(e?.message || e) });
-  }
+  const buf = Buffer.from("hello awdiz");
+  const result = await uploadBuffer({
+    buffer: buf,
+    folder: "awdiz/test",
+    publicId: `ping-${Date.now()}`,
+    resource_type: "image",
+    extra: { format: "txt" },
+  });
+  res.json({ ok: true, url: result.secure_url });
 });
+
 
 (async () => {
   try {

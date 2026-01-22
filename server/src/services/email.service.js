@@ -179,7 +179,7 @@ export async function sendAdmissionEmails({
 
   const leadLine = isApproved
     ? `Your admission has been <b>Approved</b>.`
-    : `Your admission form is <b>Pending Approval</b>.`;
+    : `✅ Your application has been successfully received and shared with our admissions team for review`;
 
   const linkLabel = isApproved
     ? "📄 Download your Approved PDF"
@@ -211,7 +211,7 @@ const paymentMode =
       !isApproved
         ? `
         <p style="font-size:13px;color:#6b7280">
-          Your admission is under review. Approved admission PDF will be shared once confirmed.
+          After the review is completed, we will update you with the next steps.
         </p>
         `
         : ""
@@ -251,13 +251,16 @@ if (isApproved) {
       content: pdfBuffer,
       contentType: "application/pdf",
     });
-  } else if (pdfUrl) {
-    attachments.push({
-      filename: pdfFileName,
-      path: pdfUrl,
-      contentType: "application/pdf",
-    });
-  }
+  } else if (
+  pdfUrl &&
+  !pdfUrl.includes("dummy.cloudinary.com")
+) {
+  attachments.push({
+    filename: pdfFileName,
+    path: pdfUrl,
+    contentType: "application/pdf",
+  });
+ }
 }
 
 
