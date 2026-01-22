@@ -109,7 +109,8 @@ async function initAdmission(req, res) {
           buffer: req.files.photo[0].buffer,
           folder: "awdiz/admissions/photos",
           publicId: `photo-${Date.now()}`,
-          resource_type: "image",
+          resource_type: "raw",
+          extra: { format: "pdf" },
         });
         photoUrl = up?.secure_url;
       }
@@ -123,7 +124,7 @@ async function initAdmission(req, res) {
           buffer: req.files.pan[0].buffer,
           folder: "awdiz/admissions/pan",
           publicId: `pan-${Date.now()}`,
-          resource_type: "image",
+          resource_type: "raw",
           extra: { format: "pdf" },
         });
         panUrl = up?.secure_url;
@@ -138,7 +139,7 @@ async function initAdmission(req, res) {
           buffer: req.files.aadhaar[0].buffer,
           folder: "awdiz/admissions/aadhaar",
           publicId: `aadhaar-${Date.now()}`,
-          resource_type: "image",
+          resource_type: "raw",
           extra: { format: "pdf" },
         });
         aadhaarUrl = up?.secure_url;
@@ -2836,7 +2837,12 @@ async function requestEditAdmission(req, res) {
 const counselorKey = doc?.meta?.counselorKey === "c2" ? "c2" : "c1";
 
 // base frontend url
-const base = (process.env.APP_BASE_URL || "http://localhost:3002").replace(/\/+$/, "");
+const base = (
+  process.env.PUBLIC_BASE_URL ||
+  process.env.CLIENT_ORIGIN ||
+  process.env.APP_BASE_URL ||
+  "http://localhost:3002"
+).replace(/\/+$/, "");
 
 // params
 const sectionsParam = encodeURIComponent(JSON.stringify(sectionsArray));

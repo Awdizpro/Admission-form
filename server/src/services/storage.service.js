@@ -28,13 +28,42 @@ function toNodeReadable(input) {
  * @param {Object} [opts.extra]                 // extra Cloudinary options (e.g., format)
  * @returns {Promise<object>} full Cloudinary result
  */
-export function uploadStream({ source, folder, publicId, resource_type = "auto", extra = {} }) {
+// export function uploadStream({ source, folder, publicId, resource_type = "auto", extra = {} }) {
+//   if (isDummy) {
+//     const ext =
+//       extra?.format
+//         ? extra.format
+//         : resource_type === "raw"
+//         ? "pdf"  // default nice extension for raw in our tests; adjust if needed
+//         : "webp";
+//     const secure_url = `https://dummy.cloudinary.com/${folder}/${publicId || "file"}.${ext}`;
+//     console.log("🧪 Mock uploadStream:", { folder, publicId, resource_type, ext });
+//     return Promise.resolve({ secure_url, public_id: publicId || "file" });
+//   }
+
+//   return new Promise((resolve, reject) => {
+//     const upload = cloudinary.uploader.upload_stream(
+//       { folder, public_id: publicId, resource_type, ...extra },
+//       (err, result) => (err ? reject(err) : resolve(result))
+//     );
+//     const readable = toNodeReadable(source);
+//     readable.pipe(upload);
+//   });
+// }
+
+export function uploadStream({
+  source,
+  folder,
+  publicId,
+  resource_type = "auto",
+  extra = {},
+}) {
   if (isDummy) {
     const ext =
       extra?.format
         ? extra.format
         : resource_type === "raw"
-        ? "pdf"  // default nice extension for raw in our tests; adjust if needed
+        ? "pdf"
         : "webp";
     const secure_url = `https://dummy.cloudinary.com/${folder}/${publicId || "file"}.${ext}`;
     console.log("🧪 Mock uploadStream:", { folder, publicId, resource_type, ext });
@@ -43,9 +72,21 @@ export function uploadStream({ source, folder, publicId, resource_type = "auto",
 
   return new Promise((resolve, reject) => {
     const upload = cloudinary.uploader.upload_stream(
-      { folder, public_id: publicId, resource_type, ...extra },
+      {
+        folder,
+        public_id: publicId,
+        resource_type,
+
+        // 🔥 THIS FIXES 401
+        type: "upload",
+        access_mode: "public",
+        overwrite: true,
+
+        ...extra,
+      },
       (err, result) => (err ? reject(err) : resolve(result))
     );
+
     const readable = toNodeReadable(source);
     readable.pipe(upload);
   });
@@ -62,5 +103,5 @@ export function uploadBuffer({ buffer, folder, publicId, resource_type = "auto",
  * Convenience: upload a PDF (buffer/stream/etc) as resource_type 'raw'.
  */
 export function uploadPDFStream(source, { folder, publicId, extra = {} } = {}) {
-  return uploadStream({ source, folder, publicId, resource_type: "image", extra: { format: "pdf", ...extra } });
+  return uploadStream({ source, folder, publicId, resource_type: "raw", extra: { format: "pdf", ...extra } });
 }
