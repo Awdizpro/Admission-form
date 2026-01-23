@@ -1320,7 +1320,7 @@ if (!aadhaarFile) {
                   <input
                     ref={photoInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     capture="environment"
                     onChange={(e) => setPhoto(e.target.files?.[0] || null)}
                     required={!editMode}
