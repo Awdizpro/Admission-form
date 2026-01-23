@@ -40,9 +40,320 @@ const toBool = (v, d = true) => {
   return d;
 };
 
-// Convert uploaded image -> compact JPEG data URL
+// // Convert uploaded image -> compact JPEG data URL
+// async function compressToJpegDataUrl(file, maxW = 600, maxH = 600, q = 80) {
+//   if (!file) return null;
+//   try {
+//     let buf = await sharp(file.buffer)
+//       .resize({
+//         width: maxW,
+//         height: maxH,
+//         fit: "inside",
+//         withoutEnlargement: true,
+//       })
+//       .jpeg({ quality: q })
+//       .toBuffer();
+
+//     if (buf.length > 2 * 1024 * 1024) {
+//       buf = await sharp(buf).jpeg({ quality: 60 }).toBuffer();
+//     }
+
+//     return `data:image/jpeg;base64,${buf.toString("base64")}`;
+//   } catch (e) {
+//     console.error("compressToJpegDataUrl failed:", e?.message);
+//     return null;
+//   }
+// }
+
+// const tryPickDataUrl = (v) =>
+//   typeof v === "string" && v.startsWith("data:image") ? v : null;
+
+// /* ==================== INIT ADMISSION ==================== */
+// async function initAdmission(req, res) {
+//   try {
+//     const body = JSON.parse(req.body.payload || "{}");
+
+//     // ✅ NEW: counselorKey resolve here (req/body available here only)
+//     const counselorKey =
+//       String(
+//         req.query?.c ||
+//           body?.counselorKey ||
+//           body?.meta?.counselorKey ||
+//           body?.course?.counselorKey ||
+//           "c1"
+//       )
+//         .trim()
+//         .toLowerCase() === "c2"
+//         ? "c2"
+//         : "c1";
+
+//     if (
+//       !body?.personal?.name ||
+//       !body?.personal?.studentMobile ||
+//       !body?.personal?.email ||
+//       (!body?.course?.name && !body?.course?.trainingOnlyCourse) ||
+//       body?.termsAccepted !== true
+//     ) {
+//       return res.status(400).json({
+//         message:
+//           "Please complete all required fields and accept Terms & Conditions.",
+//       });
+//     }
+
+//     // Upload files
+//     let photoUrl, panUrl, aadhaarUrl;
+
+//     try {
+//       if (req.files?.photo?.[0]) {
+//         const up = await uploadBuffer({
+//           buffer: req.files.photo[0].buffer,
+//           folder: "awdiz/admissions/photos",
+//           publicId: `photo-${Date.now()}`,
+//           resource_type: "image",
+//           extra: { format: "jpg" },
+//         });
+//         photoUrl = up?.secure_url;
+//       }
+//     } catch (e) {
+//       console.log("photo upload skipped:", e?.message);
+//     }
+
+//     try {
+//       if (req.files?.pan?.[0]) {
+//         const up = await uploadBuffer({
+//           buffer: req.files.pan[0].buffer,
+//           folder: "awdiz/admissions/pan",
+//           publicId: `pan-${Date.now()}`,
+//           resource_type: "raw",
+//           extra: { format: "pdf" },
+//         });
+//         panUrl = up?.secure_url;
+//       }
+//     } catch (e) {
+//       console.log("pan upload skipped:", e?.message);
+//     }
+
+//     try {
+//       if (req.files?.aadhaar?.[0]) {
+//         const up = await uploadBuffer({
+//           buffer: req.files.aadhaar[0].buffer,
+//           folder: "awdiz/admissions/aadhaar",
+//           publicId: `aadhaar-${Date.now()}`,
+//           resource_type: "raw",
+//           extra: { format: "pdf" },
+//         });
+//         aadhaarUrl = up?.secure_url;
+//       }
+//     } catch (e) {
+//       console.log("aadhaar upload skipped:", e?.message);
+//     }
+
+//     // Data URLs for PDF (photo/pan/aadhaar)
+//     const photoDataUrl = await compressToJpegDataUrl(req.files?.photo?.[0]);
+//     const panDataUrl = await compressToJpegDataUrl(req.files?.pan?.[0]);
+//     const aadhaarDataUrl = await compressToJpegDataUrl(req.files?.aadhaar?.[0]);
+
+//     /* ---------- Signatures (data URLs only; NO student->parent fallback) ---------- */
+//     const studentSignDataUrl =
+//       tryPickDataUrl(req.body?.studentSignDataUrl) ||
+//       tryPickDataUrl(body?.files?.studentSign) ||
+//       tryPickDataUrl(body?.signatures?.student?.signDataUrl) ||
+//       null;
+
+//     const parentSignDataUrl =
+//       tryPickDataUrl(req.body?.parentSignDataUrl) ||
+//       tryPickDataUrl(body?.files?.parentSign) ||
+//       tryPickDataUrl(body?.signatures?.parent?.signDataUrl) ||
+//       null;
+
+//     // Quick debug
+//     const _studLen = (studentSignDataUrl || "").length;
+//     const _parLen = (parentSignDataUrl || "").length;
+//     console.log("[SIG] student(len):", _studLen, " parent(len):", _parLen);
+
+//     // STRICT: Parent/Guardian sign is mandatory (no fallback)
+//     if (!_parLen) {
+//       return res.status(400).json({
+//         message:
+//           "Parent/Guardian signature is required (data URL missing or too large).",
+//         hint: "Ensure field name is 'parentSignDataUrl' and increase multer fieldSize to 10MB.",
+//       });
+//     }
+
+//     const payload = {
+//       ...body,
+//       personal: {
+//         ...body.personal,
+//         name: String(body.personal.name || "").trim(),
+//         studentMobile: String(body.personal.studentMobile || "").trim(),
+//         email: String(body.personal.email || "").trim(),
+//       },
+//       course: { ...body.course, enrolled: toBool(body?.course?.enrolled, true) },
+//       uploads: {
+//         photoUrl,
+//         panUrl,
+//         aadhaarUrl,
+//         photoDataUrl,
+//         panDataUrl,
+//         aadhaarDataUrl,
+//       },
+//       signatures: {
+//         ...body.signatures,
+//         student: {
+//           ...(body.signatures?.student || {}),
+//           signDataUrl:
+//             body.signatures?.student?.signDataUrl || studentSignDataUrl || null,
+//           signUrl: body.signatures?.student?.signUrl || studentSignDataUrl || null,
+//         },
+//         parent: {
+//           ...(body.signatures?.parent || {}),
+//           signDataUrl:
+//             body.signatures?.parent?.signDataUrl || parentSignDataUrl || null,
+//           signUrl: body.signatures?.parent?.signUrl || parentSignDataUrl || null,
+//         },
+//       },
+//       tc: {
+//         accepted: true,
+//         version: body.tcVersion || "",
+//         text: body.tcText || "",
+//         type: body.course.trainingOnly ? "training-only" : "job-guarantee",
+//       },
+//       meta: {
+//         planType: body.course.trainingOnly ? "training" : "job",
+//         counselorKey, // ✅ NEW (stored in DB)
+//       },
+//     };
+
+//     /* ==================== 2-OTP GENERATION ==================== */
+//     // (ENV OTP_ALWAYS ho to dono me wahi use hoga)
+//     const mobileOtpRaw = process.env.OTP_ALWAYS || generateOtp(6);
+//     const emailOtpRaw = process.env.OTP_ALWAYS || generateOtp(6);
+
+//     const mobileOtpHash = hashOtp(mobileOtpRaw);
+//     const emailOtpHash = hashOtp(emailOtpRaw);
+
+//     const pendingId = `p_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+//     const now = Date.now();
+//     const ttlMs = 15 * 60 * 1000; // 15 minutes
+
+//     pending.set(pendingId, {
+//       payload,
+//       mobile: payload.personal.studentMobile,
+//       email: payload.personal.email,
+//       mobileOtpHash,
+//       emailOtpHash,
+//       mobileVerified: false,
+//       emailVerified: false,
+//       createdAt: now,
+//       expiresAt: now + ttlMs,
+//     });
+
+//     // 📨 SEND MOBILE OTP (SMS)
+//     try {
+//       await sendOtpSms(payload.personal.studentMobile, mobileOtpRaw);
+//     } catch (err) {
+//       console.error("sendOtpSms failed:", err?.message || err);
+//     }
+
+//     // 📨 SEND EMAIL OTP
+//     try {
+//       await sendOtpEmail({
+//         to: payload.personal.email,
+//         name: payload.personal.name,
+//         otp: emailOtpRaw,
+//       });
+//     } catch (err) {
+//       console.error("sendOtpEmail failed:", err?.message || err);
+//     }
+
+//     // DEV log
+//     if (String(process.env.SMS_DUMMY || "true") === "true") {
+//       console.log("🧪 DEV Mobile OTP:", mobileOtpRaw);
+//       console.log("🧪 DEV Email  OTP:", emailOtpRaw);
+//     }
+
+//     return res.status(200).json({
+//       pendingId,
+//       message: "Mobile & Email OTP sent.",
+//     });
+//   } catch (e) {
+//     console.error("initAdmission failed:", e);
+//     return res.status(500).json({ message: "Server error" });
+//   }
+// }
+
+// Helper: is PDF?
+const isPdf = (file) =>
+  !!file &&
+  (file.mimetype === "application/pdf" ||
+    /\.pdf$/i.test(file.originalname || ""));
+
+// Helper: is image?
+const isImage = (file) => !!file && /^image\//i.test(file.mimetype || "");
+
+// Helper: make a preview image URL for PDFs uploaded as resource_type:"image"
+// pg_1 => first page, f_jpg => render as jpg
+const pdfFirstPageJpgUrl = (pdfUrl) => {
+  if (!pdfUrl || typeof pdfUrl !== "string") return "";
+  return pdfUrl
+    .replace("/upload/", "/upload/pg_1,f_jpg/")
+    .replace(/\.pdf(\?.*)?$/i, ".jpg$1");
+};
+
+// ✅ Unified uploader for photo/pan/aadhaar
+// - If PDF: upload as resource_type:"image" + format:"pdf" (served via /image/upload/...pdf)
+// - If image: upload as resource_type:"image" + format:"jpg"
+async function uploadStudentDoc({ file, folder, publicIdPrefix }) {
+  if (!file) return { url: "", kind: "", previewUrl: "" };
+
+  // PDF → upload as image-type PDF
+  if (isPdf(file)) {
+    const up = await uploadBuffer({
+      buffer: file.buffer,
+      folder,
+      publicId: `${publicIdPrefix}-${Date.now()}`,
+      resource_type: "image",
+      extra: { format: "pdf" },
+    });
+
+    const url = up?.secure_url || "";
+    return {
+      url,
+      kind: "pdf",
+      previewUrl: pdfFirstPageJpgUrl(url),
+    };
+  }
+
+  // Image → upload as image/jpg
+  if (isImage(file)) {
+    const up = await uploadBuffer({
+      buffer: file.buffer,
+      folder,
+      publicId: `${publicIdPrefix}-${Date.now()}`,
+      resource_type: "image",
+      extra: { format: "jpg" },
+    });
+
+    const url = up?.secure_url || "";
+    return {
+      url,
+      kind: "image",
+      previewUrl: url,
+    };
+  }
+
+  // Unsupported type
+  return { url: "", kind: "unsupported", previewUrl: "" };
+}
+
+// Convert uploaded image -> compact JPEG data URL (SKIPS PDFs)
 async function compressToJpegDataUrl(file, maxW = 600, maxH = 600, q = 80) {
   if (!file) return null;
+
+  // ✅ Only images should be processed by sharp
+  if (!/^image\//i.test(file.mimetype || "")) return null;
+
   try {
     let buf = await sharp(file.buffer)
       .resize({
@@ -69,11 +380,11 @@ const tryPickDataUrl = (v) =>
   typeof v === "string" && v.startsWith("data:image") ? v : null;
 
 /* ==================== INIT ADMISSION ==================== */
-async function initAdmission(req, res) {
+ async function initAdmission(req, res) {
   try {
     const body = JSON.parse(req.body.payload || "{}");
 
-    // ✅ NEW: counselorKey resolve here (req/body available here only)
+    // counselorKey resolve
     const counselorKey =
       String(
         req.query?.c ||
@@ -100,19 +411,23 @@ async function initAdmission(req, res) {
       });
     }
 
-    // Upload files
+    // ===============================
+    // ✅ UPLOAD FILES (PDF/IMAGE/MIX)
+    // ===============================
     let photoUrl, panUrl, aadhaarUrl;
+    let photoKind, panKind, aadhaarKind;
+    let photoPreviewUrl, panPreviewUrl, aadhaarPreviewUrl;
 
     try {
       if (req.files?.photo?.[0]) {
-        const up = await uploadBuffer({
-          buffer: req.files.photo[0].buffer,
+        const r = await uploadStudentDoc({
+          file: req.files.photo[0],
           folder: "awdiz/admissions/photos",
-          publicId: `photo-${Date.now()}`,
-          resource_type: "image",
-          extra: { format: "jpg" },
+          publicIdPrefix: "photo",
         });
-        photoUrl = up?.secure_url;
+        photoUrl = r.url;
+        photoKind = r.kind;
+        photoPreviewUrl = r.previewUrl;
       }
     } catch (e) {
       console.log("photo upload skipped:", e?.message);
@@ -120,14 +435,14 @@ async function initAdmission(req, res) {
 
     try {
       if (req.files?.pan?.[0]) {
-        const up = await uploadBuffer({
-          buffer: req.files.pan[0].buffer,
+        const r = await uploadStudentDoc({
+          file: req.files.pan[0],
           folder: "awdiz/admissions/pan",
-          publicId: `pan-${Date.now()}`,
-          resource_type: "raw",
-          extra: { format: "pdf" },
+          publicIdPrefix: "pan",
         });
-        panUrl = up?.secure_url;
+        panUrl = r.url;
+        panKind = r.kind;
+        panPreviewUrl = r.previewUrl;
       }
     } catch (e) {
       console.log("pan upload skipped:", e?.message);
@@ -135,20 +450,24 @@ async function initAdmission(req, res) {
 
     try {
       if (req.files?.aadhaar?.[0]) {
-        const up = await uploadBuffer({
-          buffer: req.files.aadhaar[0].buffer,
+        const r = await uploadStudentDoc({
+          file: req.files.aadhaar[0],
           folder: "awdiz/admissions/aadhaar",
-          publicId: `aadhaar-${Date.now()}`,
-          resource_type: "raw",
-          extra: { format: "pdf" },
+          publicIdPrefix: "aadhaar",
         });
-        aadhaarUrl = up?.secure_url;
+        aadhaarUrl = r.url;
+        aadhaarKind = r.kind;
+        aadhaarPreviewUrl = r.previewUrl;
       }
     } catch (e) {
       console.log("aadhaar upload skipped:", e?.message);
     }
 
-    // Data URLs for PDF (photo/pan/aadhaar)
+    // ===============================
+    // ✅ DATA URLs FOR PDF EMBED
+    // - only for images
+    // - if user uploads PDFs for pan/aadhaar, these become null (safe)
+    // ===============================
     const photoDataUrl = await compressToJpegDataUrl(req.files?.photo?.[0]);
     const panDataUrl = await compressToJpegDataUrl(req.files?.pan?.[0]);
     const aadhaarDataUrl = await compressToJpegDataUrl(req.files?.aadhaar?.[0]);
@@ -193,6 +512,18 @@ async function initAdmission(req, res) {
         photoUrl,
         panUrl,
         aadhaarUrl,
+
+        // ✅ NEW meta
+        photoKind, // "image" | "pdf"
+        panKind,
+        aadhaarKind,
+
+        // ✅ NEW previews
+        photoPreviewUrl,
+        panPreviewUrl,
+        aadhaarPreviewUrl,
+
+        // ✅ For embedding in generated admission PDF
         photoDataUrl,
         panDataUrl,
         aadhaarDataUrl,
@@ -203,13 +534,15 @@ async function initAdmission(req, res) {
           ...(body.signatures?.student || {}),
           signDataUrl:
             body.signatures?.student?.signDataUrl || studentSignDataUrl || null,
-          signUrl: body.signatures?.student?.signUrl || studentSignDataUrl || null,
+          signUrl:
+            body.signatures?.student?.signUrl || studentSignDataUrl || null,
         },
         parent: {
           ...(body.signatures?.parent || {}),
           signDataUrl:
             body.signatures?.parent?.signDataUrl || parentSignDataUrl || null,
-          signUrl: body.signatures?.parent?.signUrl || parentSignDataUrl || null,
+          signUrl:
+            body.signatures?.parent?.signUrl || parentSignDataUrl || null,
         },
       },
       tc: {
@@ -220,19 +553,20 @@ async function initAdmission(req, res) {
       },
       meta: {
         planType: body.course.trainingOnly ? "training" : "job",
-        counselorKey, // ✅ NEW (stored in DB)
+        counselorKey,
       },
     };
 
     /* ==================== 2-OTP GENERATION ==================== */
-    // (ENV OTP_ALWAYS ho to dono me wahi use hoga)
     const mobileOtpRaw = process.env.OTP_ALWAYS || generateOtp(6);
     const emailOtpRaw = process.env.OTP_ALWAYS || generateOtp(6);
 
     const mobileOtpHash = hashOtp(mobileOtpRaw);
     const emailOtpHash = hashOtp(emailOtpRaw);
 
-    const pendingId = `p_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const pendingId = `p_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}`;
 
     const now = Date.now();
     const ttlMs = 15 * 60 * 1000; // 15 minutes
@@ -282,6 +616,8 @@ async function initAdmission(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
+
+
 
 /* ==================== VERIFY (2-STEP OTP) ==================== */
 async function dummyVerifyAdmissionOtp(req, res) {
