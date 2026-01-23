@@ -109,8 +109,8 @@ async function initAdmission(req, res) {
           buffer: req.files.photo[0].buffer,
           folder: "awdiz/admissions/photos",
           publicId: `photo-${Date.now()}`,
-          resource_type: "raw",
-          extra: { format: "pdf" },
+          resource_type: "image",
+          extra: { format: "jpg" },
         });
         photoUrl = up?.secure_url;
       }
@@ -1029,7 +1029,7 @@ async function reviewAdmissionPage(req, res) {
         <div>
           ${
             pdfUrl
-              ? `<a class="btn-inline" href="${pdfUrl}" target="_blank"><span class="icon">📄</span><span>Open PDF in new tab</span></a>`
+              ? `<a class="btn-inline" href="/api/admissions/${doc._id}/file/pdf" target="_blank"><span class="icon">📄</span><span>Open PDF in new tab</span></a>`
               : `<span style="font-size:12px;color:#9ca3af;">No PDF URL found</span>`
           }
         </div>
@@ -1038,7 +1038,7 @@ async function reviewAdmissionPage(req, res) {
         pdfUrl
           ? `<iframe
   class="pdf-frame"
-  src="${pdfUrl}#toolbar=0&navpanes=0"
+  src="/api/admissions/${doc._id}/file/pdf#toolbar=0&navpanes=0"
 ></iframe>`
           : `<div style="padding:18px;font-size:13px;color:#9ca3af;">PDF not available.</div>`
       }
@@ -1321,7 +1321,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     p.uploads?.panUrl
       ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.panUrl)
           ? `<img src="${p.uploads.panUrl}" alt="PAN" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
-          : `<a href="${p.uploads.panUrl}" target="_blank">📄 View PAN Document</a>`)
+          : `<a href="/api/admissions/${doc._id}/file/pan" target="_blank">📄 View PAN Document</a>`)
       : "-"
   }
 </div>
@@ -1349,7 +1349,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     p.uploads?.aadhaarUrl
       ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.aadhaarUrl)
           ? `<img src="${p.uploads.aadhaarUrl}" alt="Aadhaar" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
-          : `<a href="${p.uploads.aadhaarUrl}" target="_blank">📄 View Aadhaar Document</a>`)
+          : `<a href="/api/admissions/${doc._id}/file/aadhaar" target="_blank">📄 View Aadhaar Document</a>`)
       : "-"
   }
 </div>
@@ -1532,7 +1532,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
 
   ${
     pdfUrl
-      ? `<a href="${pdfUrl}" target="_blank" class="btn-ghost"><span>📄</span><span>Open PDF in new tab</span></a>`
+      ? `<a href="/api/admissions/${doc._id}/file/pdf" target="_blank" class="btn-ghost"><span>📄</span><span>Open PDF in new tab</span></a>`
       : ""
   }
 </div>
@@ -2139,7 +2139,7 @@ const feeMode =
         <div>
           ${
             pdfUrl
-              ? `<a class="btn-inline" href="${pdfUrl}" target="_blank"><span class="icon">📄</span><span>Open PDF in new tab</span></a>`
+              ? `<a class="btn-inline" href="/api/admissions/${doc._id}/file/pdf" target="_blank"><span class="icon">📄</span><span>Open PDF in new tab</span></a>`
               : `<span style="font-size:12px;color:#9ca3af;">No PDF URL found</span>`
           }
         </div>
@@ -2148,7 +2148,7 @@ const feeMode =
         pdfUrl
           ? `<iframe
   class="pdf-frame"
-  src="${pdfUrl}#toolbar=0&navpanes=0"
+  src="/api/admissions/${doc._id}/file/pdf#toolbar=0&navpanes=0"
 ></iframe>`
           : `<div style="padding:18px;font-size:13px;color:#9ca3af;">PDF not available.</div>`
       }
@@ -2431,7 +2431,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     p.uploads?.panUrl
       ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.panUrl)
           ? `<img src="${p.uploads.panUrl}" alt="PAN" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
-          : `<a href="${p.uploads.panUrl}" target="_blank">📄 View PAN Document</a>`)
+          : `<a href="/api/admissions/${doc._id}/file/pan" target="_blank">📄 View PAN Document</a>`)
       : "-"
   }
 </div>
@@ -2459,7 +2459,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     p.uploads?.aadhaarUrl
       ? (/\.(png|jpg|jpeg|webp)$/i.test(p.uploads.aadhaarUrl)
           ? `<img src="${p.uploads.aadhaarUrl}" alt="Aadhaar" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid #e5e7eb" />`
-          : `<a href="${p.uploads.aadhaarUrl}" target="_blank">📄 View Aadhaar Document</a>`)
+          : `<a href="/api/admissions/${doc._id}/file/aadhaar" target="_blank">📄 View Aadhaar Document</a>`)
       : "-"
   }
 </div>
