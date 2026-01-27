@@ -284,6 +284,26 @@ const toBool = (v, d = true) => {
 // }
 
 // Helper: is PDF?
+
+function pickCounselorEmailsByKey(key) {
+  const k = String(key || "").trim().toLowerCase() === "c2" ? "c2" : "c1";
+
+  const envKey = k === "c2" ? "COUNSELOR2_EMAILS" : "COUNSELOR1_EMAILS";
+  const raw = String(process.env[envKey] || "");
+
+  const list = raw
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  return { counselorKey: k, list };
+}
+
+function getServerBaseUrl() {
+  // local me backend port wali url do
+  return String(process.env.SERVER_BASE_URL || "http://localhost:5002").replace(/\/+$/, "");
+}
+
 const isPdf = (file) =>
   !!file &&
   (file.mimetype === "application/pdf" ||
@@ -996,21 +1016,124 @@ async function approveAdmission(req, res) {
     /* =========================
        7️⃣ STUDENT APPROVAL MAIL
        ========================= */
-    await sendAdmissionEmails({
-      studentEmail: doc.personal.email,
-      pdfBuffer: approvedPdf.buffer,
-      pdfFileName: `Awdiz-Admission-Approved-${doc._id}.pdf`,
-      pdfUrl: approvedUrl,
-      payload: doc.toObject(),
-    });
+    // await sendAdmissionEmails({
+    //   studentEmail: doc.personal.email,
+    //   pdfBuffer: approvedPdf.buffer,
+    //   pdfFileName: `Awdiz-Admission-Approved-${doc._id}.pdf`,
+    //   pdfUrl: approvedUrl,
+    //   payload: doc.toObject(),
+    // });
 
+    // helpers
+const splitEmails = (v) =>
+  String(v || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+const pickFromEmail = () => process.env.FROM_EMAIL || process.env.SMTP_USER;
+
+// inside approveAdmission AFTER approvedPdf is ready (approvedPdf.buffer) and approvedUrl is ready
+
+/* =========================
+   7️⃣ SEND APPROVED EMAILS (Student + Admin + Counselor)
+   ========================= */
+try {
+  const fromEmail = pickFromEmail();
+  if (!fromEmail) {
+    console.warn("⚠️ FROM_EMAIL/SMTP_USER missing. Email may fail.");
+  }
+
+  const studentEmail = doc?.personal?.email;
+
+  // admin recipients
+  const adminEmails = splitEmails(process.env.ADMIN_EMAILS);
+
+  // counselor recipients (same counselor who submitted it to admin)
+  const { list: counselorEmails } = pickCounselorEmailsByKey(doc?.meta?.counselorKey);
+
+  const studentName = doc?.personal?.name || "Student";
+  const courseName = doc?.course?.name || "Course";
+  const centerName = doc?.center?.placeOfAdmission || "-";
+  const feeAmount = doc?.fees?.amount ?? "";
+  const feeMode = doc?.fees?.paymentMode || "";
+
+  const commonHtml = `
+    <div style="font-family:system-ui,Arial,sans-serif;line-height:1.6">
+      <h2 style="margin:0 0 10px;color:#16a34a">✅ Admission Approved</h2>
+
+      <p style="margin:0 0 6px"><b>Student:</b> ${studentName}</p>
+      <p style="margin:0 0 6px"><b>Course:</b> ${courseName}</p>
+      <p style="margin:0 0 6px"><b>Center:</b> ${centerName}</p>
+      <p style="margin:0 0 6px"><b>Registration Fees:</b> ₹${feeAmount} &nbsp; <b>Mode:</b> ${feeMode}</p>
+
+      ${approvedUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${approvedUrl}" target="_blank">Open Approved PDF</a></p>` : ``}
+
+      <p style="margin-top:14px;font-size:12px;color:#6b7280">
+        This email includes the approved admission PDF as an attachment.
+      </p>
+    </div>
+  `.trim();
+
+  const attachment = {
+    filename: `Awdiz-Admission-Approved-${doc._id}.pdf`,
+    content: approvedPdf.buffer,              // ✅ MUST be Buffer
+    contentType: "application/pdf",
+  };
+
+  // 1) Student mail
+  if (studentEmail) {
+    await transporter.sendMail({
+      from: `"Awdiz Admissions" <${fromEmail}>`,
+      to: studentEmail,
+      subject: `✅ Admission Approved – ${studentName}`,
+      html: commonHtml,
+      attachments: [attachment],
+    });
+    console.log("📨 Approved mail sent to STUDENT →", studentEmail);
+  } else {
+    console.warn("⚠️ Student email missing; skipping student approved mail.");
+  }
+
+  // 2) Admin mail
+  if (adminEmails.length) {
+    await transporter.sendMail({
+      from: `"Awdiz Admissions" <${fromEmail}>`,
+      to: adminEmails,
+      subject: `✅ Admission Approved (Admin Copy) – ${studentName} (${courseName})`,
+      html: commonHtml,
+      attachments: [attachment],
+    });
+    console.log("📨 Approved mail sent to ADMIN →", adminEmails);
+  } else {
+    console.warn("⚠️ ADMIN_EMAILS empty; skipping admin approved mail.");
+  }
+
+  // 3) Counselor mail
+  if (counselorEmails.length) {
+    await transporter.sendMail({
+      from: `"Awdiz Admissions" <${fromEmail}>`,
+      to: counselorEmails,
+      subject: `✅ Admission Approved (Counselor Copy) – ${studentName} (${courseName})`,
+      html: commonHtml,
+      attachments: [attachment],
+    });
+    console.log("📨 Approved mail sent to COUNSELOR →", counselorEmails);
+  } else {
+    console.warn("⚠️ Counselor email list empty; skipping counselor approved mail.");
+  }
+} catch (mailErr) {
+  console.error("❌ Approved email sending failed:", mailErr);
+  // NOTE: approval already done, so we don't crash approval response
+}
+
+    
     return res.status(200).send("Admission Approved Successfully ✅");
   } catch (err) {
     console.error("approveAdmission failed:", err);
     return res.status(500).send("<h2>Server error</h2>");
   }
 }
-
 
 
 
@@ -1034,6 +1157,17 @@ async function reviewAdmissionPage(req, res) {
       p?.pdf?.approvedUrl ||
       p?.pdfUrl ||
       "";
+
+      const feeAmount =
+  p?.fees?.amount !== undefined && p?.fees?.amount !== null
+    ? p.fees.amount
+    : "";
+
+const feeMode =
+  typeof p?.fees?.paymentMode === "string"
+    ? p.fees.paymentMode
+    : "";
+
 
     const eduRows =
       (p.education || []).length > 0
@@ -1836,25 +1970,28 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       </div>
 
       <div class="actions-row">
-  <button type="submit" class="btn-primary">
-    <span>✏️ Request Edit from Student</span>
-  </button>
+  <button type="submit" class="btn-primary" formnovalidate>
+  <span>✏️ Request Edit from Student</span>
+</button>
 
   <div class="fee-row">
     <input
-      class="fee-input"
-      type="number"
-      name="feeAmount"
-      min="0"
-      step="1"
-      placeholder="Student Registration Fees (required)"
-      required
-    />
-    <select class="fee-select" name="feeMode" required>
-      <option value="" disabled selected>Cash / Online</option>
-      <option value="cash">Cash</option>
-      <option value="online">Online</option>
-    </select>
+  class="fee-input"
+  type="number"
+  name="feeAmount"
+  min="0"
+  step="1"
+  placeholder="Student Registration Fees (required)"
+  value="${feeAmount !== "" ? feeAmount : ""}"
+  required
+/>
+
+<select class="fee-select" name="feeMode" required>
+  <option value="" disabled ${!feeMode ? "selected" : ""}>Cash / Online</option>
+  <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
+  <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
+</select>
+
 
     <button
       type="submit"
@@ -1943,6 +2080,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       });
     });
   </script> -->
+  
 
 <script>
  document.addEventListener("DOMContentLoaded", function () {
@@ -2058,6 +2196,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
 
 });
 </script>
+
 
 </body>
 </html>`;
@@ -3173,8 +3312,14 @@ async function requestEditAdmission(req, res) {
 const counselorKey = doc?.meta?.counselorKey === "c2" ? "c2" : "c1";
 
 // base frontend url
+// const base = (
+//   process.env.PUBLIC_BASE_URL ||
+//   process.env.CLIENT_ORIGIN ||
+//   process.env.APP_BASE_URL ||
+//   "http://localhost:3002"
+// ).replace(/\/+$/, "");
+
 const base = (
-  process.env.PUBLIC_BASE_URL ||
   process.env.CLIENT_ORIGIN ||
   process.env.APP_BASE_URL ||
   "http://localhost:3002"
@@ -3221,18 +3366,144 @@ console.log("✏️ Student Edit Link:", editLink);
       </div>
     `.trim();
 
-    const mail = {
-      from: {
-        name: "Awdiz Admissions",
-        address: process.env.FROM_EMAIL,
-      },
-      to: doc.personal?.email,
-      subject: "Awdiz Admission – Edit Required",
-      html: mailHtml,
-    };
+    // const mail = {
+    //   from: {
+    //     name: "Awdiz Admissions",
+    //     address: process.env.FROM_EMAIL,
+    //   },
+    //   to: doc.personal?.email,
+    //   subject: "Awdiz Admission – Edit Required",
+    //   html: mailHtml,
+    // };
 
-    await transporter.sendMail(mail);
-    console.log("📨 Edit request mail sent →", doc.personal?.email);
+    // ✅ counselor identity resolve (c1 / c2)
+
+
+/* ===================================
+   2. Send EMAIL to the Student (FINAL)
+==================================== */
+
+// ✅ counselor identity resolve (c1 / c2) + safe fallback
+// helper: comma separated se first valid email nikalna
+const pickFirstEmail = (val) =>
+  String(val || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)[0];
+
+// ✅ FROM email: FROM_EMAIL nahi hai to SMTP_USER use karo (industry standard)
+const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+
+// ✅ counselor resolve (ab EMAIL / EMAILS dono support)
+const counselor =
+  counselorKey === "c2"
+    ? {
+        name: process.env.COUNSELOR2_NAME || "NISHA",
+        email:
+          process.env.COUNSELOR2_EMAIL ||
+          pickFirstEmail(process.env.COUNSELOR2_EMAILS) ||
+          "", // blank allowed
+      }
+    : {
+        name: process.env.COUNSELOR1_NAME || "MUDASSIR",
+        email:
+          process.env.COUNSELOR1_EMAIL ||
+          pickFirstEmail(process.env.COUNSELOR1_EMAILS) ||
+          "", // blank allowed
+      };
+
+// ✅ safe notes (avoid html injection)
+const safeNotes = String(notes || "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;")
+  .replaceAll("\n", "<br/>");
+
+// ✅ FINAL MAIL HTML
+const finalMailHtml = `
+  <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
+    <h2 style="margin:0 0 8px;color:#dc2626">Awdiz – Edit Required</h2>
+    <p>Hi <b>${doc.personal?.name || ""}</b>,</p>
+    <p>Your admission form needs some corrections. Please update the highlighted fields.</p>
+
+    ${notes ? `<p><b>Notes from Counselor:</b><br/>${safeNotes}</p>` : ""}
+
+    <p>
+      <a href="${editLink}"
+         style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:600;"
+         target="_blank">
+         ✏️ Click here to Edit your Form
+      </a>
+    </p>
+
+    <p style="margin-top:12px;font-size:12px;color:#6b7280">
+      Only the fields marked with ❌ by the counselor will be editable.
+    </p>
+
+    <hr style="margin:16px 0;border:none;border-top:1px solid #e5e7eb"/>
+    <p style="font-size:13px;color:#374151;margin:0">
+      Counselor: <b>${counselor.name}</b><br/>
+      Email: ${counselor.email || "-"}<br/>
+      <span style="font-size:12px;color:#6b7280">(Reply to this email to reach your counselor directly)</span>
+    </p>
+  </div>
+`.trim();
+
+// ✅ admin cc list (ADMIN_EMAILS comma separated)
+const adminCcList = String(process.env.ADMIN_EMAILS || "")
+  .split(",")
+  .map((x) => x.trim())
+  .filter(Boolean);
+
+// ✅ cc: counselor + admins
+const ccList = [counselor.email, ...adminCcList].filter(Boolean);
+const ccValue = ccList.length ? ccList.join(",") : undefined;
+
+// ✅ guard: fromEmail must exist
+if (!fromEmail) {
+  console.warn("⚠️ FROM email missing. Set SMTP_USER (recommended) or FROM_EMAIL in .env");
+}
+
+// ✅ counselor email missing warn
+if (!counselor.email) {
+  console.warn(
+    "⚠️ Counselor email missing. Check COUNSELOR1_EMAIL/COUNSELOR1_EMAILS or COUNSELOR2_EMAIL/COUNSELOR2_EMAILS"
+  );
+}
+
+// ✅ build mail (NO undefined headers)
+const mail = {
+  from: `"${counselor.name} (Awdiz)" <${fromEmail}>`,
+  to: doc.personal?.email,
+
+  ...(ccValue ? { cc: ccValue } : {}),
+
+  ...(counselor.email
+    ? { replyTo: `"${counselor.name}" <${counselor.email}>` }
+    : {}),
+
+  subject: `Edit Required – ${doc.personal?.name || ""}`,
+  html: finalMailHtml,
+};
+
+console.log("📤 Mail meta:", {
+  to: mail.to,
+  cc: mail.cc,
+  replyTo: mail.replyTo,
+  from: mail.from,
+});
+
+
+
+
+await transporter.sendMail(mail);
+console.log("📨 Edit request mail sent →", doc.personal?.email, {
+  from: mail.from,
+  replyTo: mail.replyTo,
+});
+
 
     /* ===================================
        3. Return SUCCESS PAGE
@@ -3285,12 +3556,59 @@ async function requestEditToCounselor(req, res) {
   await doc.save();
 
   // 🔥 SEND MAIL TO ORIGINAL COUNSELOR
-  await sendCounselorMail({
-    payload: doc.toObject(),
-    counselorPdfUrl: doc?.pdf?.pendingCounselorUrl,
-  });
+  // await sendCounselorMail({
+  //   payload: doc.toObject(),
+  //   counselorPdfUrl: doc?.pdf?.pendingCounselorUrl,
+  // });
 
-  return res.send(`
+  // ✅ SEND "ADMIN REQUESTED EDIT" MAIL TO COUNSELOR
+try {
+  const { counselorKey, list: counselorEmails } = pickCounselorEmailsByKey(doc?.meta?.counselorKey);
+
+  if (!counselorEmails.length) {
+    console.warn("⚠️ No counselor emails found. Skipping admin edit request mail.");
+  } else {
+    const serverBase = getServerBaseUrl();
+    const reviewUrl = `${serverBase}/api/admissions/${doc._id}/review`;
+
+    const studentName = doc?.personal?.name || "Student";
+    const courseName  = doc?.course?.name || "Course";
+
+    const html = `
+      <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
+        <h2 style="margin:0 0 8px;color:#dc2626;">Admin Requested Corrections</h2>
+
+        <p>Admin has requested changes in <b>${studentName}</b>'s admission form for <b>${courseName}</b>.</p>
+
+        ${notes ? `<p><b>Admin Notes:</b><br/>${notes}</p>` : ""}
+
+        <p style="margin:14px 0;">
+          <a href="${reviewUrl}"
+             style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700"
+             target="_blank">
+            🔍 Open Admission (Fix & Resubmit)
+          </a>
+        </p>
+
+        <p style="margin-top:12px;font-size:12px;color:#6b7280;">
+          This is not a new admission — this is an admin edit request.
+        </p>
+      </div>
+    `.trim();
+
+    await transporter.sendMail({
+      ...(process.env.FROM_EMAIL ? { from: { name: "Awdiz Admissions", address: process.env.FROM_EMAIL } } : {}),
+      to: counselorEmails,
+      subject: `Admin Requested Edit – ${studentName} (${courseName})`,
+      html,
+    });
+
+    console.log("📧 Admin→Counselor edit request mail sent →", counselorEmails);
+  }
+} catch (e) {
+  console.error("Admin→Counselor edit request mail failed:", e);
+}
+ return res.send(`
     <h2>Edit Request Sent to Counselor</h2>
     <p>The counselor has been notified to fix the issues.</p>
   `);
@@ -3471,78 +3789,159 @@ async function applyAdmissionEdit(req, res) {
     /* ==============================
        ✉️ Counselor ko EDIT mail bhejo
     =============================== */
-    try {
-      const base = (
-        process.env.PUBLIC_BASE_URL ||
-        process.env.APP_BASE_URL ||
-        "http://localhost:5002"
-      ).replace(/\/+$/, "");
+//     try {
+//       // const base = (
+//       //   process.env.PUBLIC_BASE_URL ||
+//       //   process.env.APP_BASE_URL ||
+//       //   "http://localhost:5002"
+//       // ).replace(/\/+$/, "");
 
-      const reviewUrl = `${base}/api/admissions/${doc._id}/review`;
+//       // const reviewUrl = `${base}/api/admissions/${doc._id}/review`;
 
-      // const counselorList = (process.env.COUNSELOR_EMAILS || "")
-      //   .split(",")
-      //   .map((e) => e.trim())
-      //   .filter(Boolean);
+//       // ✅ EDIT ke baad counselor ko FRONTEND review page dena hai
+// const base = (
+//   process.env.APP_BASE_URL ||        // production frontend
+//   process.env.CLIENT_ORIGIN ||       // localhost:3002
+//   "http://localhost:3002"
+// ).replace(/\/+$/, "");
 
-      // const to = counselorList.length ? counselorList : [process.env.FROM_EMAIL];
-
-      await sendCounselorMail({
-  payload: {
-    ...doc.toObject(),
-    originalCounselorKey: doc.meta?.counselorKey,
-  },
-
-  // 🔥 LOCAL = NO PDF URL (avoid 404 fetch)
-  counselorPdfUrl: process.env.CLOUDINARY_CLOUD_NAME
-    ? doc?.pdf?.pendingCounselorUrl
-    : null,
-});
+// const reviewUrl = `${base}/admissions/${doc._id}/review`;
 
 
-      const studentName = doc.personal?.name || "Student";
-      const courseName = doc.course?.name || "Course";
+//       // const counselorList = (process.env.COUNSELOR_EMAILS || "")
+//       //   .split(",")
+//       //   .map((e) => e.trim())
+//       //   .filter(Boolean);
 
-      const html = `
-        <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
-          <h2 style="margin:0 0 8px;color:#16a34a;">Awdiz – Edited Admission Submitted</h2>
-          <p>
-            Student <b>${studentName}</b> has updated the admission form
-            for course <b>${courseName}</b>.
-          </p>
-          <p style="margin:8px 0;">
-            Please review the updated details and approve or request further changes if needed.
-          </p>
-          <p style="margin:14px 0;">
-            <a href="${reviewUrl}"
-               style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;
-                      text-decoration:none;font-weight:600;"
-               target="_blank">
-              🔍 Open Updated Admission
-            </a>
-          </p>
-          <p style="margin-top:12px;font-size:12px;color:#6b7280;">
-            This mail was sent automatically after the student clicked "Save changes" on the edit link.
-          </p>
-        </div>
-      `.trim();
+//       // const to = counselorList.length ? counselorList : [process.env.FROM_EMAIL];
 
-      // const mail = {
-      //   from: {
-      //     name: "Awdiz Admissions",
-      //     address: process.env.FROM_EMAIL,
-      //   },
-      //   to,
-      //   subject: `Edited Admission – ${studentName} (${courseName})`,
-      //   html,
-      // };
+//       await sendCounselorMail({
+//   payload: {
+//     ...doc.toObject(),
+//     originalCounselorKey: doc.meta?.counselorKey,
+//   },
 
-      // await transporter.sendMail(mail);
-      // console.log("📧 Counselor EDIT notification mail sent →", to);
-      console.log("📧 Counselor EDIT notification mail sent via sendCounselorMail()");
-    } catch (mailErr) {
-      console.error("send counselor EDIT mail failed:", mailErr);
-    }
+//   // 🔥 LOCAL = NO PDF URL (avoid 404 fetch)
+//   counselorPdfUrl: process.env.CLOUDINARY_CLOUD_NAME
+//     ? doc?.pdf?.pendingCounselorUrl
+//     : null,
+// });
+
+
+//       const studentName = doc.personal?.name || "Student";
+//       const courseName = doc.course?.name || "Course";
+
+//       const html = `
+//         <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
+//           <h2 style="margin:0 0 8px;color:#16a34a;">Awdiz – Edited Admission Submitted</h2>
+//           <p>
+//             Student <b>${studentName}</b> has updated the admission form
+//             for course <b>${courseName}</b>.
+//           </p>
+//           <p style="margin:8px 0;">
+//             Please review the updated details and approve or request further changes if needed.
+//           </p>
+//           <p style="margin:14px 0;">
+//             <a href="${reviewUrl}"
+//                style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;
+//                       text-decoration:none;font-weight:600;"
+//                target="_blank">
+//               🔍 Open Updated Admission
+//             </a>
+//           </p>
+//           <p style="margin-top:12px;font-size:12px;color:#6b7280;">
+//             This mail was sent automatically after the student clicked "Save changes" on the edit link.
+//           </p>
+//         </div>
+//       `.trim();
+
+//       const mail = {
+//         from: {
+//           name: "Awdiz Admissions",
+//           address: process.env.FROM_EMAIL,
+//         },
+//         to,
+//         subject: `Edited Admission – ${studentName} (${courseName})`,
+//         html,
+//       };
+
+//       await transporter.sendMail(mail);
+//       // console.log("📧 Counselor EDIT notification mail sent →", to);
+//       console.log("📧 Counselor EDIT notification mail sent via sendCounselorMail()");
+//     } catch (mailErr) {
+//       console.error("send counselor EDIT mail failed:", mailErr);
+//     }
+
+
+
+/* ==============================
+   ✉️ Counselor ko RESUBMISSION mail (EDITED)
+=============================== */
+try {
+  // ✅ same counselor who created admission (or who requested edit)
+  const key = doc?.meta?.counselorKey; // "c1" or "c2"
+  const { counselorKey, list: counselorEmails } = pickCounselorEmailsByKey(key);
+
+  // ✅ if no recipients, do NOT crash
+  if (!counselorEmails.length) {
+    console.warn(`⚠️ No counselor emails found for ${counselorKey}. Skipping resubmission mail.`);
+  } else {
+    const serverBase = getServerBaseUrl();
+
+    // ✅ backend review HTML route (always works)
+    const reviewUrl = `${serverBase}/api/admissions/${doc._id}/review`;
+
+    const studentName = doc.personal?.name || "Student";
+    const courseName = doc.course?.name || "Course";
+
+    const pdfUrl =
+      doc?.pdf?.pendingCounselorUrl ||
+      doc?.pdf?.pendingStudentUrl ||
+      "";
+
+    const html = `
+      <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
+        <h2 style="margin:0 0 8px;color:#16a34a;">Awdiz – Student Resubmitted After Corrections</h2>
+        <p>
+          Student <b>${studentName}</b> has <b>resubmitted</b> the admission form after making the requested corrections
+          for <b>${courseName}</b>.
+        </p>
+
+        <p style="margin:14px 0;">
+          <a href="${reviewUrl}"
+             style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;
+                    text-decoration:none;font-weight:600;"
+             target="_blank">
+            🔍 Open Updated Admission (Review)
+          </a>
+        </p>
+
+        ${pdfUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${pdfUrl}" target="_blank">Open PDF</a></p>` : ``}
+
+        <p style="margin-top:12px;font-size:12px;color:#6b7280;">
+          Counselor: <b>${counselorKey.toUpperCase()}</b> &nbsp;|&nbsp; Note: This is a resubmission (not a new admission).
+        </p>
+      </div>
+    `.trim();
+
+    const mail = {
+      // ✅ from optional (FROM_EMAIL remove kar diya to bhi chalega)
+      ...(process.env.FROM_EMAIL
+        ? { from: { name: "Awdiz Admissions", address: process.env.FROM_EMAIL } }
+        : {}),
+      to: counselorEmails,
+      subject: `Resubmitted Admission – ${studentName} (${courseName})`,
+      html,
+    };
+
+    await transporter.sendMail(mail);
+    console.log("📧 Counselor RESUBMISSION mail sent →", counselorEmails);
+  }
+} catch (mailErr) {
+  console.error("send counselor RESUBMISSION mail failed:", mailErr);
+}
+
+
 
     return res.status(200).json({
       success: true,
@@ -3557,6 +3956,8 @@ async function applyAdmissionEdit(req, res) {
       .json({ success: false, message: "Server error", error: e.message });
   }
 }
+
+
 
 /* ==================== NAMED EXPORTS ==================== */
 export {

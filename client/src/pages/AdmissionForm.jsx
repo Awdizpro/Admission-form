@@ -300,9 +300,15 @@ useEffect(() => {
                 ...(a.signatures?.parent || {}),
               },
             },
-            termsAccepted: true,
-            tcVersion: a.tcVersion || prev.tcVersion,
-            tcText: a.tcText || prev.tcText,
+            // termsAccepted: true,
+            // tcVersion: a.tcVersion || prev.tcVersion,
+            // tcText: a.tcText || prev.tcText,
+            termsAccepted: a?.termsAccepted ?? a?.tc?.accepted ?? true,
+dataConsentAccepted: a?.dataConsentAccepted ?? a?.tc?.dataConsentAccepted ?? true,
+
+tcVersion: a.tcVersion || prev.tcVersion,
+tcText: a.tcText || prev.tcText,
+
           };
 
           // 🆕 snapshot hold karo for diff check
@@ -594,7 +600,15 @@ if (editMode && admissionId && allowedSections.length && allowedFields.length ==
         setLoading(true);
         await api.post(`/admissions/${admissionId}/apply-edit`, {
           sections: allowedSections,
-          updated: form,
+          // updated: form,
+          updated: {
+    ...form,
+    tc: {
+      ...(form.tc || {}),
+      accepted: !!form.termsAccepted,
+      dataConsentAccepted: !!form.dataConsentAccepted,
+    },
+  },
         });
         setLoading(false);
         alert("Your changes have been submitted. Counselor will review.");
@@ -753,6 +767,17 @@ if (!aadhaarFile) {
     <div className="min-h-screen">
       {/* Page/container: 80% width on lg+ */}
       <main className="mx-auto w-full sm:w-[96%] md:w-[94%] lg:w-[80%] xl:w-[80%] 2xl:w-[80%] max-w-[1920px] p-3 sm:p-6">
+        {loading && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30">
+    <div className="bg-white px-6 py-5 rounded-lg shadow-xl flex items-center gap-4">
+      <span className="w-10 h-10 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin inline-block" />
+      <span className="text-base font-semibold text-gray-700">
+        {editMode ? "Saving changes…" : "Submitting…"}
+      </span>
+    </div>
+  </div>
+)}
+
         <form
           onSubmit={submit}
           className="w-full p-4 sm:p-6 space-y-6 border bg-white rounded-lg shadow break-words"
@@ -774,8 +799,7 @@ if (!aadhaarFile) {
 
           {editMode && (
             <p className="text-center text-xs sm:text-sm text-blue-700 mb-2">
-              You are editing your submitted admission form. Only selected
-              sections may be reviewed by counselor.
+               Please correct only the highlighted fields and submit.
             </p>
           )}
 
@@ -1310,8 +1334,7 @@ if (!aadhaarFile) {
                     value={photoOption}
                     onChange={onPhotoOptionChange}
                     disabled={!isFieldEditable("uploads", "up_photo")}
-                  >
-                    <option value="upload">Choose Image</option>
+                  ><option value="">Select option</option>
                     <option value="upload">Choose file</option>
                     <option value="camera">Take photo</option>
                   </select>
