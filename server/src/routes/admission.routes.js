@@ -1,12 +1,22 @@
-
+// server/src/routes/admission.routes.js
 import express from "express";
 import multer from "multer";
 import { initAdmission, dummyVerifyAdmissionOtp} from "../controllers/admission.controller.js";
 
 const router = express.Router();
+// const upload = multer({
+//   limits: {
+//     fieldSize: 10 * 1024 * 1024, // 10MB for big data URLs
+//     files: 6,
+//     parts: 30,
+//   },
+// });
+
 const upload = multer({
+  storage: multer.memoryStorage(),
   limits: {
-    fieldSize: 10 * 1024 * 1024, // 10MB for big data URLs
+    fileSize: 15 * 1024 * 1024,      // 🔥 2MB PER FILE (mobile-safe)
+    fieldSize: 10 * 1024 * 1024,    // for base64/signature
     files: 6,
     parts: 30,
   },

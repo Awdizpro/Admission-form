@@ -1,14 +1,3 @@
-// //client/src/lib/api
-
-// import axios from 'axios';
-
-// export const api = axios.create({
-//   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5002/api',
-  
-// });
-
-
-
 // // client/src/lib/api.js
 // import axios from "axios";
 

@@ -299,10 +299,21 @@ function pickCounselorEmailsByKey(key) {
   return { counselorKey: k, list };
 }
 
+// function getServerBaseUrl() {
+//   // local me backend port wali url do
+//   return String(process.env.SERVER_BASE_URL || "http://localhost:5002").replace(/\/+$/, "");
+// }
+
 function getServerBaseUrl() {
-  // local me backend port wali url do
-  return String(process.env.SERVER_BASE_URL || "http://localhost:5002").replace(/\/+$/, "");
+  const base =
+    process.env.SERVER_BASE_URL ||
+    process.env.PUBLIC_BASE_URL ||
+    process.env.BASE_URL ||
+    "http://localhost:5002";
+
+  return String(base).replace(/\/+$/, "");
 }
+
 
 const isPdf = (file) =>
   !!file &&
@@ -3451,15 +3462,6 @@ const finalMailHtml = `
   </div>
 `.trim();
 
-// ✅ admin cc list (ADMIN_EMAILS comma separated)
-const adminCcList = String(process.env.ADMIN_EMAILS || "")
-  .split(",")
-  .map((x) => x.trim())
-  .filter(Boolean);
-
-// ✅ cc: counselor + admins
-const ccList = [counselor.email, ...adminCcList].filter(Boolean);
-const ccValue = ccList.length ? ccList.join(",") : undefined;
 
 // ✅ guard: fromEmail must exist
 if (!fromEmail) {
@@ -3478,8 +3480,7 @@ const mail = {
   from: `"${counselor.name} (Awdiz)" <${fromEmail}>`,
   to: doc.personal?.email,
 
-  ...(ccValue ? { cc: ccValue } : {}),
-
+  // reply kare to counselor ko hi jayega
   ...(counselor.email
     ? { replyTo: `"${counselor.name}" <${counselor.email}>` }
     : {}),
@@ -3488,9 +3489,9 @@ const mail = {
   html: finalMailHtml,
 };
 
+
 console.log("📤 Mail meta:", {
   to: mail.to,
-  cc: mail.cc,
   replyTo: mail.replyTo,
   from: mail.from,
 });
@@ -3530,90 +3531,80 @@ console.log("📨 Edit request mail sent →", doc.personal?.email, {
 }
 /* ==================== ADMIN → COUNSELOR EDIT REQUEST ==================== */
 async function requestEditToCounselor(req, res) {
-  const { id } = req.params;
-  const { sections, notes, ...rest } = req.body;
+  try {
+    const { id } = req.params;
+    const { sections, notes, ...rest } = req.body;
 
-  const doc = await Admission.findById(id);
-  if (!doc) return res.status(404).send("Admission not found");
+    const doc = await Admission.findById(id);
+    if (!doc) return res.status(404).send("Admission not found");
 
-  const sectionsArray = Array.isArray(sections)
-    ? sections.filter(Boolean)
-    : sections ? [sections] : [];
+    const sectionsArray = Array.isArray(sections)
+      ? sections.filter(Boolean)
+      : sections ? [sections] : [];
 
-  const fieldFixKeys = Object.entries(rest)
-    .filter(([_, v]) => v === "fix")
-    .map(([k]) => k);
+    const fieldFixKeys = Object.entries(rest)
+      .filter(([_, v]) => v === "fix")
+      .map(([k]) => k);
 
-  // reuse SAME editRequest object
-  doc.editRequest = {
-    sections: sectionsArray,
-    fields: fieldFixKeys,
-    notes: notes || "",
-    status: "admin-requested",
-    createdAt: new Date(),
-  };
+    doc.editRequest = {
+      sections: sectionsArray,
+      fields: fieldFixKeys,
+      notes: notes || "",
+      status: "admin-requested",
+      createdAt: new Date(),
+    };
 
-  await doc.save();
+    await doc.save();
 
-  // 🔥 SEND MAIL TO ORIGINAL COUNSELOR
-  // await sendCounselorMail({
-  //   payload: doc.toObject(),
-  //   counselorPdfUrl: doc?.pdf?.pendingCounselorUrl,
-  // });
+    // mail try/catch (your existing block)...
+    try {
+      const { counselorKey, list: counselorEmails } = pickCounselorEmailsByKey(doc?.meta?.counselorKey);
+      if (counselorEmails.length) {
+        const serverBase = getServerBaseUrl();
+        const reviewUrl = `${serverBase}/api/admissions/${doc._id}/review`;
+        const studentName = doc?.personal?.name || "Student";
+        const courseName  = doc?.course?.name || "Course";
 
-  // ✅ SEND "ADMIN REQUESTED EDIT" MAIL TO COUNSELOR
-try {
-  const { counselorKey, list: counselorEmails } = pickCounselorEmailsByKey(doc?.meta?.counselorKey);
+        const safeNotes = String(notes || "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;").replace(/'/g, "&#39;")
+          .replace(/\n/g, "<br/>");
 
-  if (!counselorEmails.length) {
-    console.warn("⚠️ No counselor emails found. Skipping admin edit request mail.");
-  } else {
-    const serverBase = getServerBaseUrl();
-    const reviewUrl = `${serverBase}/api/admissions/${doc._id}/review`;
+        const html = `
+  <div style="font-family:system-ui,Arial,sans-serif;line-height:1.6">
+    <h2 style="margin:0 0 8px;color:#dc2626">Admin requested corrections</h2>
+    <p><b>Student:</b> ${studentName}</p>
+    <p><b>Course:</b> ${courseName}</p>
+    ${safeNotes ? `<p><b>Notes:</b><br/>${safeNotes}</p>` : ""}
+    <p>
+      <a href="${reviewUrl}" target="_blank"
+         style="display:inline-block;background:#2563eb;color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700">
+        🔍 Open Admission Review
+      </a>
+    </p>
+  </div>
+`.trim();// keep yours
 
-    const studentName = doc?.personal?.name || "Student";
-    const courseName  = doc?.course?.name || "Course";
+        await transporter.sendMail({
+          ...(process.env.FROM_EMAIL ? { from: { name: "Awdiz Admissions", address: process.env.FROM_EMAIL } } : {}),
+          to: counselorEmails,
+          subject: `Admin Requested Edit – ${studentName} (${courseName})`,
+          html,
+        });
+      }
+    } catch (e) {
+      console.error("Admin→Counselor edit request mail failed:", e);
+    }
 
-    const html = `
-      <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
-        <h2 style="margin:0 0 8px;color:#dc2626;">Admin Requested Corrections</h2>
-
-        <p>Admin has requested changes in <b>${studentName}</b>'s admission form for <b>${courseName}</b>.</p>
-
-        ${notes ? `<p><b>Admin Notes:</b><br/>${notes}</p>` : ""}
-
-        <p style="margin:14px 0;">
-          <a href="${reviewUrl}"
-             style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700"
-             target="_blank">
-            🔍 Open Admission (Fix & Resubmit)
-          </a>
-        </p>
-
-        <p style="margin-top:12px;font-size:12px;color:#6b7280;">
-          This is not a new admission — this is an admin edit request.
-        </p>
-      </div>
-    `.trim();
-
-    await transporter.sendMail({
-      ...(process.env.FROM_EMAIL ? { from: { name: "Awdiz Admissions", address: process.env.FROM_EMAIL } } : {}),
-      to: counselorEmails,
-      subject: `Admin Requested Edit – ${studentName} (${courseName})`,
-      html,
-    });
-
-    console.log("📧 Admin→Counselor edit request mail sent →", counselorEmails);
+    return res.send(`
+      <h2>Edit Request Sent to Counselor</h2>
+      <p>The counselor has been notified to fix the issues.</p>
+    `);
+  } catch (err) {
+    console.error("requestEditToCounselor failed:", err);
+    return res.status(500).send("Server error");
   }
-} catch (e) {
-  console.error("Admin→Counselor edit request mail failed:", e);
 }
- return res.send(`
-    <h2>Edit Request Sent to Counselor</h2>
-    <p>The counselor has been notified to fix the issues.</p>
-  `);
-}
-
 
 /* ==================== GET DATA FOR EDIT ==================== */
 async function getAdmissionForEdit(req, res) {
@@ -3878,21 +3869,19 @@ async function applyAdmissionEdit(req, res) {
    ✉️ Counselor ko RESUBMISSION mail (EDITED)
 =============================== */
 try {
-  // ✅ same counselor who created admission (or who requested edit)
   const key = doc?.meta?.counselorKey; // "c1" or "c2"
   const { counselorKey, list: counselorEmails } = pickCounselorEmailsByKey(key);
 
-  // ✅ if no recipients, do NOT crash
   if (!counselorEmails.length) {
-    console.warn(`⚠️ No counselor emails found for ${counselorKey}. Skipping resubmission mail.`);
+    console.warn(
+      `⚠️ No counselor emails found for ${counselorKey}. Skipping resubmission mail.`
+    );
   } else {
     const serverBase = getServerBaseUrl();
-
-    // ✅ backend review HTML route (always works)
     const reviewUrl = `${serverBase}/api/admissions/${doc._id}/review`;
 
-    const studentName = doc.personal?.name || "Student";
-    const courseName = doc.course?.name || "Course";
+    const studentName = doc?.personal?.name || "Student";
+    const courseName = doc?.course?.name || "Course";
 
     const pdfUrl =
       doc?.pdf?.pendingCounselorUrl ||
@@ -3901,7 +3890,10 @@ try {
 
     const html = `
       <div style="font-family:system-ui,Arial,sans-serif;line-height:1.5">
-        <h2 style="margin:0 0 8px;color:#16a34a;">Awdiz – Student Resubmitted After Corrections</h2>
+        <h2 style="margin:0 0 8px;color:#16a34a;">
+          Awdiz – Student Resubmitted After Corrections
+        </h2>
+
         <p>
           Student <b>${studentName}</b> has <b>resubmitted</b> the admission form after making the requested corrections
           for <b>${courseName}</b>.
@@ -3909,39 +3901,58 @@ try {
 
         <p style="margin:14px 0;">
           <a href="${reviewUrl}"
-             style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;
-                    text-decoration:none;font-weight:600;"
+             style="background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:8px;
+                    text-decoration:none;font-weight:700"
              target="_blank">
             🔍 Open Updated Admission (Review)
           </a>
         </p>
 
-        ${pdfUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${pdfUrl}" target="_blank">Open PDF</a></p>` : ``}
+        ${
+          pdfUrl
+            ? `<p style="margin:10px 0 0">PDF Link: <a href="${pdfUrl}" target="_blank">Open PDF</a></p>`
+            : ``
+        }
 
         <p style="margin-top:12px;font-size:12px;color:#6b7280;">
-          Counselor: <b>${counselorKey.toUpperCase()}</b> &nbsp;|&nbsp; Note: This is a resubmission (not a new admission).
+          Counselor: <b>${String(counselorKey || "").toUpperCase()}</b>
+          &nbsp;|&nbsp; Note: This is a resubmission (not a new admission).
         </p>
       </div>
     `.trim();
 
+    const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+
+    // replyTo counselor (first email from EMAIL/EMAILS)
+    const firstEmail = (v) =>
+      String(v || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean)[0] || "";
+
+    const counselorReplyTo =
+      counselorKey === "c2"
+        ? (process.env.COUNSELOR2_EMAIL || firstEmail(process.env.COUNSELOR2_EMAILS))
+        : (process.env.COUNSELOR1_EMAIL || firstEmail(process.env.COUNSELOR1_EMAILS));
+
     const mail = {
-      // ✅ from optional (FROM_EMAIL remove kar diya to bhi chalega)
-      ...(process.env.FROM_EMAIL
-        ? { from: { name: "Awdiz Admissions", address: process.env.FROM_EMAIL } }
-        : {}),
+      ...(fromEmail ? { from: `"Awdiz Admissions" <${fromEmail}>` } : {}),
       to: counselorEmails,
-      subject: `Resubmitted Admission – ${studentName} (${courseName})`,
+      subject: `Edited Admission Resubmitted – ${studentName} (${courseName})`,
       html,
+      ...(counselorReplyTo ? { replyTo: counselorReplyTo } : {}),
     };
 
     await transporter.sendMail(mail);
-    console.log("📧 Counselor RESUBMISSION mail sent →", counselorEmails);
+
+    console.log("📨 Resubmission mail sent to counselor →", counselorEmails, {
+      counselorKey,
+      replyTo: counselorReplyTo || null,
+    });
   }
 } catch (mailErr) {
-  console.error("send counselor RESUBMISSION mail failed:", mailErr);
+  console.error("❌ Counselor resubmission mail failed:", mailErr);
 }
-
-
 
     return res.status(200).json({
       success: true,

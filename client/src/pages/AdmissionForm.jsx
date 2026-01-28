@@ -127,8 +127,19 @@ useEffect(() => {
   const [videoKey, setVideoKey] = useState(0);
 
   // select option & hidden file input for passport photo
-  const [photoOption, setPhotoOption] = useState("");
-  const photoInputRef = useRef(null);
+  // const [photoOption, setPhotoOption] = useState("");
+  // const photoInputRef = useRef(null);
+
+  // ================= DEVICE DETECTION =================
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+
+// ================= Passport photo refs =================
+const [photoOption, setPhotoOption] = useState("");
+const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
+const photoCameraRef = useRef(null); // ✅ camera-only input for Android
+
 
   // 🔁 EDIT-MODE: helper – pure section ke liye (fallback)
   function isSectionEditable(section) {
@@ -425,28 +436,20 @@ tcText: a.tcText || prev.tcText,
     setTimeout(bindStreamToVideo, 0);
   };
 
-  const handleUsePhoto = async () => {
-    if (!capturedUrl) return;
+const handleUsePhoto = async () => {
+  if (!capturedUrl) return;
 
-    const blob = await (await fetch(capturedUrl)).blob();
-    const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
-      type: "image/jpeg",
-    });
+  const blob = await (await fetch(capturedUrl)).blob();
+  const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+    type: "image/jpeg",
+  });
 
-    setPhoto(file);
+  setPhoto(file);
+  setCapturedUrl(""); // ✅ clean
+  setCameraOpen(false);
+  stopCamera();
+};
 
-    if (photoInputRef.current) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      photoInputRef.current.files = dt.files;
-      photoInputRef.current.dispatchEvent(
-        new Event("change", { bubbles: true })
-      );
-    }
-
-    setCameraOpen(false);
-    stopCamera();
-  };
 
   const handleCloseCamera = () => {
     setCameraOpen(false);
@@ -456,16 +459,44 @@ tcText: a.tcText || prev.tcText,
 
   // select change handler (Choose file / Take photo)
   const onPhotoOptionChange = (e) => {
-    const v = e.target.value;
-    setPhotoOption(v);
-    if (v === "upload") {
-      photoInputRef.current?.click();
-      setPhotoOption("");
-    } else if (v === "camera") {
-      setPhotoOption("");
+  const v = e.target.value;
+  setPhotoOption(""); // UI reset
+
+  // ✅ iPhone Safari: ONE input with dynamic accept/capture (best reliable)
+  if (isIOS) {
+    const input = photoPickerRef.current;
+    if (!input) return;
+
+    if (v === "camera") {
+      input.accept = "image/*";
+      input.setAttribute("capture", "environment"); // opens camera
+    } else {
+      input.accept = "image/*";
+      input.removeAttribute("capture"); // opens files/photos
+    }
+
+    // ⚠️ iOS requires click inside same event stack
+    input.click();
+    return;
+  }
+
+  // ✅ Android + Desktop
+  if (v === "upload") {
+    photoPickerRef.current?.click();
+    return;
+  }
+
+  if (v === "camera") {
+    // Android camera via native capture input
+    if (isMobile) {
+      photoCameraRef.current?.click();
+    } else {
+      // Desktop -> custom modal camera
       openCamera();
     }
-  };
+  }
+};
+
 
   // ---- education rows ----
   const addEdu = () =>
@@ -799,7 +830,7 @@ if (!aadhaarFile) {
 
           {editMode && (
             <p className="text-center text-xs sm:text-sm text-blue-700 mb-2">
-               Please correct only the highlighted fields and submit.
+              You are editing your submitted admission form. The counselor will review only the sections selected for correction.
             </p>
           )}
 
@@ -1321,59 +1352,120 @@ if (!aadhaarFile) {
             <h2 className="text-lg sm:text-xl font-semibold">Uploads</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="min-w-0">
-                <label className="block text-sm mb-1">Passport photo*</label>
+  <label className="block text-sm mb-1">Passport photo*</label>
 
-                <div className="rounded-lg p-1 flex items-center gap-3 bg-white">
-                  <select
-                    className={
-                      "border rounded-lg p-2 min-w-[150px] " +
-                      (isFieldHighlighted("uploads", "up_photo")
-                        ? "border-red-500 bg-red-50"
-                        : "")
-                    }
-                    value={photoOption}
-                    onChange={onPhotoOptionChange}
-                    disabled={!isFieldEditable("uploads", "up_photo")}
-                  ><option value="">Select option</option>
-                    <option value="upload">Choose file</option>
-                    <option value="camera">Take photo</option>
-                  </select>
+  {/* ✅ iOS: label technique (MOST RELIABLE) */}
+  {isIOS ? (
+    <div className="flex flex-wrap gap-2">
+      <label
+        className={
+          "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
+          (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
+        }
+      >
+        Choose file
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={!isFieldEditable("uploads", "up_photo")}
+          required={!editMode && !photo}
+          onChange={(e) => {
+            const file = e.target.files?.[0] || null;
+            setPhoto(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
 
-                  {/* Hidden real file input (required stays here) */}
-                  <input
-                    ref={photoInputRef}
-                    type="file"
-                    accept="image/*,.pdf"
-                    capture="environment"
-                    onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-                    required={!editMode}
-                    className="hidden"
-                    disabled={!isFieldEditable("uploads", "up_photo")}
-                    
-                  />
-                </div>
+      <label
+        className={
+          "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
+          (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
+        }
+      >
+        Take photo
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          disabled={!isFieldEditable("uploads", "up_photo")}
+          required={!editMode && !photo}
+          onChange={(e) => {
+            const file = e.target.files?.[0] || null;
+            setPhoto(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </div>
+  ) : (
+    /* ✅ Non-iOS: your select flow (Android native capture + Desktop modal) */
+    <div className="rounded-lg p-1 flex items-center gap-3 bg-white">
+      <select
+        className={
+          "border rounded-lg p-2 min-w-[150px] " +
+          (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
+        }
+        value={photoOption}
+        onChange={onPhotoOptionChange}
+        disabled={!isFieldEditable("uploads", "up_photo")}
+      >
+        <option value="">Select option</option>
+        <option value="upload">Choose file</option>
+        <option value="camera">Take photo</option>
+      </select>
 
-                {(capturedUrl || photo) && (
-                  <div className="mt-2">
-                    <img
-                      alt="Selected passport"
-                      className="h-28 w-28 object-cover rounded border"
-                      src={
-                        capturedUrl ||
-                        (photo ? URL.createObjectURL(photo) : "")
-                      }
-                      onLoad={(e) => {
-                        if (
-                          photo &&
-                          e.currentTarget.src.startsWith("blob:")
-                        ) {
-                          URL.revokeObjectURL(e.currentTarget.src);
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+      <input
+        ref={photoPickerRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={!isFieldEditable("uploads", "up_photo")}
+        required={!editMode && !photo}
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          setPhoto(file);
+          e.target.value = "";
+        }}
+      />
+
+      <input
+        ref={photoCameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        disabled={!isFieldEditable("uploads", "up_photo")}
+        required={!editMode && !photo}
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          setPhoto(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  )}
+
+  {(capturedUrl || photo) && (
+    <div className="mt-2">
+      <img
+        alt="Selected passport"
+        className="h-28 w-28 object-cover rounded border"
+        src={capturedUrl || (photo ? URL.createObjectURL(photo) : "")}
+        onLoad={(e) => {
+          if (photo && e.currentTarget.src.startsWith("blob:")) {
+            URL.revokeObjectURL(e.currentTarget.src);
+          }
+        }}
+      />
+    </div>
+  )}
+</div>
+
+
+
 
               <div className="min-w-0">
                 <label className="block text-sm mb-1">PAN (image/pdf)*</label>
