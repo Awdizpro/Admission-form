@@ -135,10 +135,48 @@ const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 
+
 // ================= Passport photo refs =================
 const [photoOption, setPhotoOption] = useState("");
 const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
 const photoCameraRef = useRef(null); // ✅ camera-only input for Android
+
+async function normalizeImageFile(file) {
+  // only images
+  if (!file || !file.type.startsWith("image/")) return file;
+
+  // iPhone HEIC / HEIF / large images fix
+  const bitmap = await createImageBitmap(file);
+
+  const canvas = document.createElement("canvas");
+
+  // resize (max 1600px)
+  const MAX = 1600;
+  let { width, height } = bitmap;
+
+  if (width > MAX || height > MAX) {
+    const scale = Math.min(MAX / width, MAX / height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0, width, height);
+
+  // convert to jpeg (safe everywhere)
+  const blob = await new Promise((res) =>
+    canvas.toBlob(res, "image/jpeg", 0.85)
+  );
+
+  return new File(
+    [blob],
+    `photo-${Date.now()}.jpg`,
+    { type: "image/jpeg" }
+  );
+}
 
 
   // 🔁 EDIT-MODE: helper – pure section ke liye (fallback)
@@ -436,16 +474,32 @@ tcText: a.tcText || prev.tcText,
     setTimeout(bindStreamToVideo, 0);
   };
 
+// const handleUsePhoto = async () => {
+//   if (!capturedUrl) return;
+
+//   const blob = await (await fetch(capturedUrl)).blob();
+//   const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+//     type: "image/jpeg",
+//   });
+
+//   setPhoto(file);
+//   setCapturedUrl(""); // ✅ clean
+//   setCameraOpen(false);
+//   stopCamera();
+// };
+
 const handleUsePhoto = async () => {
   if (!capturedUrl) return;
 
   const blob = await (await fetch(capturedUrl)).blob();
-  const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+  const rawFile = new File([blob], `camera-photo-${Date.now()}.jpg`, {
     type: "image/jpeg",
   });
 
-  setPhoto(file);
-  setCapturedUrl(""); // ✅ clean
+  const normalized = await normalizeImageFile(rawFile);
+
+  setPhoto(normalized);
+  setCapturedUrl("");
   setCameraOpen(false);
   stopCamera();
 };
@@ -1370,12 +1424,22 @@ if (!aadhaarFile) {
           accept="image/*,.pdf"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
-          onChange={(e) => {
-            const file = e.target.files?.[0] || null;
-            setPhoto(file);
-            setCapturedUrl(""); // ✅ camera preview reset
-            e.target.value = "";
-          }}
+          // onChange={(e) => {
+          //   const file = e.target.files?.[0] || null;
+          //   setPhoto(file);
+          //   setCapturedUrl(""); // ✅ camera preview reset
+          //   e.target.value = "";
+          // }}
+          onChange={async (e) => {
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const normalized = await normalizeImageFile(file);
+  setPhoto(normalized);
+  setCapturedUrl("");
+  e.target.value = "";
+}}
+
         />
       </label>
 
@@ -1393,12 +1457,23 @@ if (!aadhaarFile) {
           capture="environment"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
-          onChange={(e) => {
-            const file = e.target.files?.[0] || null;
-            setPhoto(file);
-            setCapturedUrl("");
-            e.target.value = "";
-          }}
+          // onChange={(e) => {
+          //   const file = e.target.files?.[0] || null;
+          //   setPhoto(file);
+          //   setCapturedUrl("");
+          //   e.target.value = "";
+          // }}
+
+          onChange={async (e) => {
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const normalized = await normalizeImageFile(file);
+  setPhoto(normalized);
+  setCapturedUrl("");
+  e.target.value = "";
+}}
+
         />
       </label>
     </div>
