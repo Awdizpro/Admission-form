@@ -1354,7 +1354,7 @@ if (!aadhaarFile) {
               <div className="min-w-0">
   <label className="block text-sm mb-1">Passport photo*</label>
 
-  {/* ✅ iOS: label technique (MOST RELIABLE) */}
+  {/* ✅ iOS: label technique */}
   {isIOS ? (
     <div className="flex flex-wrap gap-2">
       <label
@@ -1366,13 +1366,13 @@ if (!aadhaarFile) {
         Choose file
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,.pdf"   // ✅ PDF allow
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
-          required={!editMode && !photo}
           onChange={(e) => {
             const file = e.target.files?.[0] || null;
             setPhoto(file);
+            setCapturedUrl("");     // ✅ clear any camera preview
             e.target.value = "";
           }}
         />
@@ -1387,21 +1387,21 @@ if (!aadhaarFile) {
         Take photo
         <input
           type="file"
-          accept="image/*"
+          accept="image/*"        // 📸 camera = image only
           capture="environment"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
-          required={!editMode && !photo}
           onChange={(e) => {
             const file = e.target.files?.[0] || null;
             setPhoto(file);
+            setCapturedUrl("");
             e.target.value = "";
           }}
         />
       </label>
     </div>
   ) : (
-    /* ✅ Non-iOS: your select flow (Android native capture + Desktop modal) */
+    /* ✅ Android + Desktop */
     <div className="rounded-lg p-1 flex items-center gap-3 bg-white">
       <select
         className={
@@ -1420,13 +1420,13 @@ if (!aadhaarFile) {
       <input
         ref={photoPickerRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.pdf"     // ✅ PDF allow
         className="hidden"
         disabled={!isFieldEditable("uploads", "up_photo")}
-        required={!editMode && !photo}
         onChange={(e) => {
           const file = e.target.files?.[0] || null;
           setPhoto(file);
+          setCapturedUrl("");
           e.target.value = "";
         }}
       />
@@ -1434,14 +1434,14 @@ if (!aadhaarFile) {
       <input
         ref={photoCameraRef}
         type="file"
-        accept="image/*"
+        accept="image/*"          // 📸 camera = image only
         capture="environment"
         className="hidden"
         disabled={!isFieldEditable("uploads", "up_photo")}
-        required={!editMode && !photo}
         onChange={(e) => {
           const file = e.target.files?.[0] || null;
           setPhoto(file);
+          setCapturedUrl("");
           e.target.value = "";
         }}
       />
@@ -1450,19 +1450,24 @@ if (!aadhaarFile) {
 
   {(capturedUrl || photo) && (
     <div className="mt-2">
-      <img
-        alt="Selected passport"
-        className="h-28 w-28 object-cover rounded border"
-        src={capturedUrl || (photo ? URL.createObjectURL(photo) : "")}
-        onLoad={(e) => {
-          if (photo && e.currentTarget.src.startsWith("blob:")) {
-            URL.revokeObjectURL(e.currentTarget.src);
-          }
-        }}
-      />
+      {photo?.type === "application/pdf" ? (
+        <p className="text-sm text-green-700">📄 PDF selected: {photo.name}</p>
+      ) : (
+        <img
+          alt="Selected passport"
+          className="h-28 w-28 object-cover rounded border"
+          src={capturedUrl || (photo ? URL.createObjectURL(photo) : "")}
+          onLoad={(e) => {
+            if (photo && e.currentTarget.src.startsWith("blob:")) {
+              URL.revokeObjectURL(e.currentTarget.src);
+            }
+          }}
+        />
+      )}
     </div>
   )}
 </div>
+
 
 
 
