@@ -1354,9 +1354,10 @@ if (!aadhaarFile) {
               <div className="min-w-0">
   <label className="block text-sm mb-1">Passport photo*</label>
 
-  {/* ✅ iOS: label technique */}
+  {/* iOS: two labels (stable) */}
   {isIOS ? (
     <div className="flex flex-wrap gap-2">
+      {/* Choose file (image + pdf) */}
       <label
         className={
           "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
@@ -1366,18 +1367,19 @@ if (!aadhaarFile) {
         Choose file
         <input
           type="file"
-          accept="image/*,.pdf"   // ✅ PDF allow
+          accept="image/*,.pdf"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
           onChange={(e) => {
             const file = e.target.files?.[0] || null;
             setPhoto(file);
-            setCapturedUrl("");     // ✅ clear any camera preview
+            setCapturedUrl(""); // ✅ camera preview reset
             e.target.value = "";
           }}
         />
       </label>
 
+      {/* Take photo (image only) */}
       <label
         className={
           "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
@@ -1387,7 +1389,7 @@ if (!aadhaarFile) {
         Take photo
         <input
           type="file"
-          accept="image/*"        // 📸 camera = image only
+          accept="image/*"
           capture="environment"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
@@ -1401,7 +1403,7 @@ if (!aadhaarFile) {
       </label>
     </div>
   ) : (
-    /* ✅ Android + Desktop */
+    /* Android + Desktop */
     <div className="rounded-lg p-1 flex items-center gap-3 bg-white">
       <select
         className={
@@ -1409,7 +1411,33 @@ if (!aadhaarFile) {
           (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
         }
         value={photoOption}
-        onChange={onPhotoOptionChange}
+        onChange={(e) => {
+          const v = e.target.value;
+          setPhotoOption(""); // ✅ reset UI
+
+          if (v === "upload") {
+            // image + pdf
+            if (photoPickerRef.current) {
+              photoPickerRef.current.accept = "image/*,.pdf";
+              photoPickerRef.current.removeAttribute("capture");
+              photoPickerRef.current.click();
+            }
+            return;
+          }
+
+          if (v === "camera") {
+            // Android mobile -> native capture input; Desktop -> your custom modal
+            if (isMobile) {
+              if (photoCameraRef.current) {
+                photoCameraRef.current.accept = "image/*";
+                photoCameraRef.current.setAttribute("capture", "environment");
+                photoCameraRef.current.click();
+              }
+            } else {
+              openCamera(); // ✅ your existing desktop camera modal
+            }
+          }
+        }}
         disabled={!isFieldEditable("uploads", "up_photo")}
       >
         <option value="">Select option</option>
@@ -1417,10 +1445,11 @@ if (!aadhaarFile) {
         <option value="camera">Take photo</option>
       </select>
 
+      {/* choose file input */}
       <input
         ref={photoPickerRef}
         type="file"
-        accept="image/*,.pdf"     // ✅ PDF allow
+        accept="image/*,.pdf"
         className="hidden"
         disabled={!isFieldEditable("uploads", "up_photo")}
         onChange={(e) => {
@@ -1431,10 +1460,11 @@ if (!aadhaarFile) {
         }}
       />
 
+      {/* take photo input */}
       <input
         ref={photoCameraRef}
         type="file"
-        accept="image/*"          // 📸 camera = image only
+        accept="image/*"
         capture="environment"
         className="hidden"
         disabled={!isFieldEditable("uploads", "up_photo")}
@@ -1448,10 +1478,13 @@ if (!aadhaarFile) {
     </div>
   )}
 
+  {/* Preview */}
   {(capturedUrl || photo) && (
     <div className="mt-2">
       {photo?.type === "application/pdf" ? (
-        <p className="text-sm text-green-700">📄 PDF selected: {photo.name}</p>
+        <p className="text-sm border rounded p-2 text-green-700">
+          📄 PDF selected: {photo.name}
+        </p>
       ) : (
         <img
           alt="Selected passport"
@@ -1467,6 +1500,7 @@ if (!aadhaarFile) {
     </div>
   )}
 </div>
+
 
 
 
