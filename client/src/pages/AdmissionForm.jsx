@@ -143,10 +143,26 @@ const photoCameraRef = useRef(null); // ✅ camera-only input for Android
 
 async function normalizeImageFile(file) {
   // only images
-  if (!file || !file.type.startsWith("image/")) return file;
+  // 🔥 iPhone camera fix: force normalize unknown / HEIC images
+if (!file) return file;
+
+const isImage =
+  file.type.startsWith("image/") ||
+  file.name?.toLowerCase().endsWith(".heic") ||
+  file.name?.toLowerCase().endsWith(".heif");
+
+if (!isImage) return file;
+
 
   // iPhone HEIC / HEIF / large images fix
-  const bitmap = await createImageBitmap(file);
+ let bitmap;
+try {
+  bitmap = await createImageBitmap(file);
+} catch (err) {
+  console.warn("ImageBitmap failed, returning original file", err);
+  return file; // 🔒 fallback – OTP break nahi hoga
+}
+
 
   const canvas = document.createElement("canvas");
 
