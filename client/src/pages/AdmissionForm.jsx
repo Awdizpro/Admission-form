@@ -140,7 +140,7 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const [photoOption, setPhotoOption] = useState("");
 const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
 const photoCameraRef = useRef(null); // ✅ camera-only input for Android
-
+const [photoReady, setPhotoReady] = useState(false);
 async function normalizeImageFile(file) {
   // only images
   if (!file || !file.type.startsWith("image/")) return file;
@@ -499,6 +499,8 @@ const handleUsePhoto = async () => {
   const normalized = await normalizeImageFile(rawFile);
 
   setPhoto(normalized);
+  setPhotoReady(true); // ✅ IMPORTANT
+
   setCapturedUrl("");
   setCameraOpen(false);
   stopCamera();
@@ -765,10 +767,11 @@ if (editMode && admissionId && allowedSections.length && allowedFields.length ==
       return;
     }
 
-    if (!photo) {
-      setError("Passport photo is required.");
-      return;
-    }
+    if (!photo || (!photoReady && isMobile)) {
+  setError("Please wait for photo to finish processing.");
+  return;
+}
+
 
     if (!panFile) {
   setError("PAN card document is required.");
@@ -1436,6 +1439,7 @@ if (!aadhaarFile) {
 
   const normalized = await normalizeImageFile(file);
   setPhoto(normalized);
+  setPhotoReady(true);
   setCapturedUrl("");
   e.target.value = "";
 }}
@@ -1470,6 +1474,7 @@ if (!aadhaarFile) {
 
   const normalized = await normalizeImageFile(file);
   setPhoto(normalized);
+  setPhotoReady(true);
   setCapturedUrl("");
   e.target.value = "";
 }}
@@ -1530,6 +1535,7 @@ if (!aadhaarFile) {
         onChange={(e) => {
           const file = e.target.files?.[0] || null;
           setPhoto(file);
+          setPhotoReady(true);
           setCapturedUrl("");
           e.target.value = "";
         }}
@@ -1546,6 +1552,7 @@ if (!aadhaarFile) {
         onChange={(e) => {
           const file = e.target.files?.[0] || null;
           setPhoto(file);
+          setPhotoReady(true);
           setCapturedUrl("");
           e.target.value = "";
         }}
