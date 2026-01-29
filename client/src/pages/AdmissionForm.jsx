@@ -140,7 +140,7 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const [photoOption, setPhotoOption] = useState("");
 const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
 const photoCameraRef = useRef(null); // ✅ camera-only input for Android
-const [photoReady, setPhotoReady] = useState(false);
+
 async function normalizeImageFile(file) {
   // only images
   if (!file || !file.type.startsWith("image/")) return file;
@@ -177,6 +177,12 @@ async function normalizeImageFile(file) {
     { type: "image/jpeg" }
   );
 }
+
+const photoReadyRef = useRef(false);
+
+useEffect(() => {
+  photoReadyRef.current = !!photo;
+}, [photo]);
 
 
   // 🔁 EDIT-MODE: helper – pure section ke liye (fallback)
@@ -445,6 +451,13 @@ tcText: a.tcText || prev.tcText,
     if (videoRef.current) videoRef.current.srcObject = null;
   };
 
+  // ✅ YAHI PASTE KARNA HAI (EXACT)
+useEffect(() => {
+  return () => {
+    stopCamera();
+  };
+}, []);
+
   useEffect(() => {
     if (!cameraOpen) return;
     bindStreamToVideo();
@@ -499,8 +512,6 @@ const handleUsePhoto = async () => {
   const normalized = await normalizeImageFile(rawFile);
 
   setPhoto(normalized);
-  setPhotoReady(true); // ✅ IMPORTANT
-
   setCapturedUrl("");
   setCameraOpen(false);
   stopCamera();
@@ -639,6 +650,11 @@ const handleUsePhoto = async () => {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!photoReadyRef.current) {
+  setError("Please wait, photo is processing. Try again.");
+  return;
+}
+
 
     // 🔴 SECTION-LEVEL ❌ VALIDATION
 if (editMode && admissionId && allowedSections.length && allowedFields.length === 0) {
@@ -767,11 +783,10 @@ if (editMode && admissionId && allowedSections.length && allowedFields.length ==
       return;
     }
 
-    if (!photo || (!photoReady && isMobile)) {
-  setError("Please wait for photo to finish processing.");
-  return;
-}
-
+    if (!photo) {
+      setError("Passport photo is required.");
+      return;
+    }
 
     if (!panFile) {
   setError("PAN card document is required.");
@@ -1439,7 +1454,6 @@ if (!aadhaarFile) {
 
   const normalized = await normalizeImageFile(file);
   setPhoto(normalized);
-  setPhotoReady(true);
   setCapturedUrl("");
   e.target.value = "";
 }}
@@ -1474,7 +1488,6 @@ if (!aadhaarFile) {
 
   const normalized = await normalizeImageFile(file);
   setPhoto(normalized);
-  setPhotoReady(true);
   setCapturedUrl("");
   e.target.value = "";
 }}
@@ -1532,13 +1545,16 @@ if (!aadhaarFile) {
         accept="image/*,.pdf"
         className="hidden"
         disabled={!isFieldEditable("uploads", "up_photo")}
-        onChange={(e) => {
-          const file = e.target.files?.[0] || null;
-          setPhoto(file);
-          setPhotoReady(true);
-          setCapturedUrl("");
-          e.target.value = "";
-        }}
+        onChange={async (e) => {
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const normalized = await normalizeImageFile(file);
+  setPhoto(normalized);
+  setCapturedUrl("");
+  e.target.value = "";
+}}
+
       />
 
       {/* take photo input */}
@@ -1549,13 +1565,16 @@ if (!aadhaarFile) {
         capture="environment"
         className="hidden"
         disabled={!isFieldEditable("uploads", "up_photo")}
-        onChange={(e) => {
-          const file = e.target.files?.[0] || null;
-          setPhoto(file);
-          setPhotoReady(true);
-          setCapturedUrl("");
-          e.target.value = "";
-        }}
+       onChange={async (e) => {
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const normalized = await normalizeImageFile(file);
+  setPhoto(normalized);
+  setCapturedUrl("");
+  e.target.value = "";
+}}
+
       />
     </div>
   )}
@@ -1593,7 +1612,14 @@ if (!aadhaarFile) {
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={(e) => setPanFile(e.target.files?.[0] || null)}
+                  onChange={async (e) => {
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const normalized = await normalizeImageFile(file);
+  setPanFile(normalized);
+}}
+
                   className={
                     "w-full border rounded p-1 " +
                     (isFieldHighlighted("uploads", "up_pan")
@@ -1611,9 +1637,14 @@ if (!aadhaarFile) {
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={(e) =>
-                    setAadhaarFile(e.target.files?.[0] || null)
-                  }
+                  onChange={async (e) => {
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const normalized = await normalizeImageFile(file);
+  setAadhaarFile(normalized);
+}}
+
                   className={
                     "w-full border rounded p-1 " +
                     (isFieldHighlighted("uploads", "up_aadhaar")
