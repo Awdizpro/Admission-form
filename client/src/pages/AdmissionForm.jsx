@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import SignaturePad from "../components/SignaturePad.jsx";
 import TermsAndConditions from "../components/TermsAndConditions.jsx";
 import { TERMS_TEXT } from "../components/termsText";
-import { api } from "../lib/api"; // 🔁 for edit-mode API calls
+import { api } from "../lib/api"; 
 
 
 
@@ -144,25 +144,23 @@ const photoCameraRef = useRef(null); // ✅ camera-only input for Android
 async function normalizeImageFile(file) {
   // only images
   // 🔥 iPhone camera fix: force normalize unknown / HEIC images
-if (!file) return file;
+  if (!file) return file;
 
-const isImage =
-  file.type.startsWith("image/") ||
-  file.name?.toLowerCase().endsWith(".heic") ||
-  file.name?.toLowerCase().endsWith(".heif");
+  const isImage =
+    file.type.startsWith("image/") ||
+    file.name?.toLowerCase().endsWith(".heic") ||
+    file.name?.toLowerCase().endsWith(".heif");
 
-if (!isImage) return file;
-
+  if (!isImage) return file;
 
   // iPhone HEIC / HEIF / large images fix
- let bitmap;
-try {
-  bitmap = await createImageBitmap(file);
-} catch (err) {
-  console.warn("ImageBitmap failed, returning original file", err);
-  return file; // 🔒 fallback – OTP break nahi hoga
-}
-
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch (err) {
+    console.warn("ImageBitmap failed, returning original file", err);
+    return file; // 🔒 fallback – OTP break nahi hoga
+  }
 
   const canvas = document.createElement("canvas");
 
@@ -545,23 +543,8 @@ const handleUsePhoto = async () => {
   const v = e.target.value;
   setPhotoOption(""); // UI reset
 
-  // ✅ iPhone Safari: ONE input with dynamic accept/capture (best reliable)
-  if (isIOS) {
-    const input = photoPickerRef.current;
-    if (!input) return;
-
-    if (v === "camera") {
-      input.accept = "image/*";
-      input.setAttribute("capture", "environment"); // opens camera
-    } else {
-      input.accept = "image/*";
-      input.removeAttribute("capture"); // opens files/photos
-    }
-
-    // ⚠️ iOS requires click inside same event stack
-    input.click();
-    return;
-  }
+  // ✅ iOS is handled separately with inline inputs, skip this logic
+  if (isIOS) return;
 
   // ✅ Android + Desktop
   if (v === "upload") {
@@ -1447,6 +1430,7 @@ if (!aadhaarFile) {
     <div className="flex flex-wrap gap-2">
       {/* Choose file (image + pdf) */}
       <label
+        style={{ touchAction: "manipulation" }}
         className={
           "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
           (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
@@ -1458,27 +1442,32 @@ if (!aadhaarFile) {
           accept="image/*,.pdf"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
-          // onChange={(e) => {
-          //   const file = e.target.files?.[0] || null;
-          //   setPhoto(file);
-          //   setCapturedUrl(""); // ✅ camera preview reset
-          //   e.target.value = "";
-          // }}
           onChange={async (e) => {
-  const file = e.target.files?.[0] || null;
-  if (!file) return;
+            try {
+              const file = e.target.files?.[0] || null;
+              if (!file) return;
 
-  const normalized = await normalizeImageFile(file);
-  setPhoto(normalized);
-  setCapturedUrl("");
-  e.target.value = "";
-}}
-
+              console.log("📁 File selected:", file.name, file.type, file.size);
+              const normalized = await normalizeImageFile(file);
+              console.log("📁 Normalized file:", normalized.name, normalized.type, normalized.size);
+              setPhoto(normalized);
+              setCapturedUrl("");
+              e.target.value = "";
+            } catch (err) {
+              console.error("📁 File upload error:", err);
+              setError("Failed to process file. Please try again.");
+            }
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.target.click();
+          }}
         />
       </label>
 
       {/* Take photo (image only) */}
       <label
+        style={{ touchAction: "manipulation" }}
         className={
           "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
           (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
@@ -1491,23 +1480,26 @@ if (!aadhaarFile) {
           capture="environment"
           className="hidden"
           disabled={!isFieldEditable("uploads", "up_photo")}
-          // onChange={(e) => {
-          //   const file = e.target.files?.[0] || null;
-          //   setPhoto(file);
-          //   setCapturedUrl("");
-          //   e.target.value = "";
-          // }}
-
           onChange={async (e) => {
-  const file = e.target.files?.[0] || null;
-  if (!file) return;
+            try {
+              const file = e.target.files?.[0] || null;
+              if (!file) return;
 
-  const normalized = await normalizeImageFile(file);
-  setPhoto(normalized);
-  setCapturedUrl("");
-  e.target.value = "";
-}}
-
+              console.log("📸 iOS Camera file received:", file.name, file.type, file.size);
+              const normalized = await normalizeImageFile(file);
+              console.log("📸 Normalized file:", normalized.name, normalized.type, normalized.size);
+              setPhoto(normalized);
+              setCapturedUrl("");
+              e.target.value = "";
+            } catch (err) {
+              console.error("📸 iOS Camera error:", err);
+              setError("Failed to process camera photo. Please try again.");
+            }
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.target.click();
+          }}
         />
       </label>
     </div>
