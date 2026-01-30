@@ -6,6 +6,57 @@ import { api } from "../lib/api";
 import { getAdmissionDraft, clearAdmissionDraft } from "../lib/formStore";
 import { TERMS_TEXT } from "../components/termsText";
 
+// ✅ iOS Fix: Compress signature data URLs to reduce size
+async function compressSignature(dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith("data:image")) {
+    return dataUrl;
+  }
+
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Reduce dimensions for signature (max width 600px)
+    const maxWidth = 600;
+    let width = img.width;
+    let height = img.height;
+
+    if (width > maxWidth) {
+      height = Math.round((height * maxWidth) / width);
+      width = maxWidth;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // Draw with white background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // Compress to JPEG with lower quality (0.7) instead of PNG
+    const compressed = canvas.toDataURL("image/jpeg", 0.7);
+    console.log("Signature compressed:", {
+      original: dataUrl.length,
+      compressed: compressed.length,
+      reduction: Math.round((1 - compressed.length / dataUrl.length) * 100) + "%",
+    });
+
+    return compressed;
+  } catch (err) {
+    console.warn("Signature compression failed, using original:", err);
+    return dataUrl;
+  }
+}
+
+
 export default function OtpVerify() {
   const nav = useNavigate();
   const [mobile, setMobile] = useState("");
@@ -43,6 +94,34 @@ export default function OtpVerify() {
     const { payload, files } = getAdmissionDraft();
     if (!payload) return setErr("Session expired. Please fill the form again.");
     if (!mobile) return setErr("Mobile number missing from form data.");
+
+    // ✅ iOS Fix: Validate parent signature exists
+    if (!files?.parentSign || !files?.parentSign?.startsWith?.("data:image")) {
+      return setErr("Parent signature is missing. Please go back and sign.");
+    }
+
+    // ✅ iOS Fix: Check signature data URL size (iOS Safari has limits)
+    const maxSigSize = 500000; // 500KB limit for signatures
+    if (files?.parentSign?.length > maxSigSize) {
+      return setErr("Parent signature is too large. Please sign again with a smaller signature.");
+    }
+
+    // ✅ iOS Fix: Compress signatures before sending (reduces FormData size for iOS)
+    let studentSignToSend = files?.studentSign;
+    let parentSignToSend = files?.parentSign;
+
+    try {
+      // Compress if signature is a data URL
+      if (studentSignToSend?.startsWith?.("data:image")) {
+        studentSignToSend = await compressSignature(studentSignToSend);
+      }
+      if (parentSignToSend?.startsWith?.("data:image")) {
+        parentSignToSend = await compressSignature(parentSignToSend);
+      }
+    } catch (compressErr) {
+      console.warn("Signature compression failed, using original:", compressErr);
+      // Use original if compression fails
+    }
 
     const fd = new FormData();
 
@@ -99,26 +178,49 @@ By signing this document, you acknowledge that you have received and agreed to l
     if (files?.photo) fd.append("photo", files.photo);
     if (files?.panFile) fd.append("pan", files.panFile);
     if (files?.aadhaarFile) fd.append("aadhaar", files.aadhaarFile);
-    if (files?.studentSign?.startsWith?.("data:image"))
-      fd.append("studentSignDataUrl", files.studentSign);
-    if (files?.parentSign?.startsWith?.("data:image"))
-      fd.append("parentSignDataUrl", files.parentSign);
+    if (studentSignToSend?.startsWith?.("data:image"))
+      fd.append("studentSignDataUrl", studentSignToSend);
+    if (parentSignToSend?.startsWith?.("data:image"))
+      fd.append("parentSignDataUrl", parentSignToSend);
+
+    console.log("🚀 Sending OTP request...", {
+      hasPhoto: !!files?.photo,
+      hasPan: !!files?.panFile,
+      hasAadhaar: !!files?.aadhaarFile,
+      parentSignLength: parentSignToSend?.length || 0,
+      studentSignLength: studentSignToSend?.length || 0,
+      counselorKey,
+      userAgent: navigator.userAgent,
+    });
 
     try {
       setLoading(true);
-      const { data } = await api.post("/admissions/init", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      // ✅ iOS Fix: Remove manual Content-Type header to let Axios handle it properly
+      const { data } = await api.post("/admissions/init", fd);
       console.log("OTP sent successfully, server response:", data);
 
       setPendingId(data.pendingId);
       setPhase("enter-otp");
     } catch (e) {
-      console.error("Send OTP failed:", e.response?.data || e.message);
-      setErr(
-        e?.response?.data?.message ||
-          "Failed to send OTP. Check console for details."
-      );
+      console.error("Send OTP failed:", {
+        message: e.message,
+        response: e.response?.data,
+        status: e.response?.status,
+        code: e.code,
+        stack: e.stack,
+      });
+
+      // ✅ iOS-specific error handling
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const errorMessage = e?.response?.data?.message;
+
+      if (isIOS && !errorMessage) {
+        setErr(
+          "Upload failed on iOS. Please try: 1) Using a smaller signature, 2) Using WiFi instead of mobile data, 3) Closing other apps to free memory."
+        );
+      } else {
+        setErr(errorMessage || "Failed to send OTP. Check console for details.");
+      }
     } finally {
       setLoading(false);
     }

@@ -62,7 +62,42 @@ function getBaseURL() {
   return `${currentProtocol}//${currentHost}:5002/api`;
 }
 
+// ✅ iOS Fix: Detect iOS device
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 export const api = axios.create({
   baseURL: getBaseURL(),
   withCredentials: true,
+  timeout: 60000, // 60 seconds timeout (iOS needs more time for large uploads)
+  maxContentLength: 50 * 1024 * 1024, // 50MB max content length
+  maxBodyLength: 50 * 1024 * 1024, // 50MB max body length
 });
+
+// ✅ iOS Fix: Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("🔴 API Error:", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+      code: error.code,
+      isIOS,
+      userAgent: navigator.userAgent,
+    });
+
+    // iOS Safari specific: handle network errors better
+    if (isIOS && error.code === 'ECONNABORTED') {
+      error.message = "Upload timed out on iOS. Please check your connection and try again.";
+    }
+
+    if (isIOS && error.code === 'ERR_NETWORK') {
+      error.message = "Network error on iOS. Please try again or use WiFi.";
+    }
+
+    return Promise.reject(error);
+  }
+);
+

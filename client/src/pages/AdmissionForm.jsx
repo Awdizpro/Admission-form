@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import SignaturePad from "../components/SignaturePad.jsx";
 import TermsAndConditions from "../components/TermsAndConditions.jsx";
 import { TERMS_TEXT } from "../components/termsText";
-import { api } from "../lib/api"; 
+import { api } from "../lib/api";
 
 
 
@@ -23,27 +23,27 @@ export default function AdmissionForm() {
   const nav = useNavigate();
   const [searchParams] = useSearchParams();
 
-const rawC = (searchParams.get("c") || "c1").toLowerCase();
+  const rawC = (searchParams.get("c") || "c1").toLowerCase();
 
-const allowed = new Set(["c1", "1", "counselor1", "c2", "2", "counselor2"]);
-if (!allowed.has(rawC)) {
-  return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white border rounded-lg p-6 text-center">
-        <h2 className="text-xl font-semibold text-red-600">Invalid Link</h2>
-        <p className="text-sm text-gray-700 mt-2">
-          This counselor link is not valid. Please ask your counselor for the correct link.
-        </p>
+  const allowed = new Set(["c1", "1", "counselor1", "c2", "2", "counselor2"]);
+  if (!allowed.has(rawC)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white border rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-600">Invalid Link</h2>
+          <p className="text-sm text-gray-700 mt-2">
+            This counselor link is not valid. Please ask your counselor for the correct link.
+          </p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-const counselorKey =
-  rawC === "c2" || rawC === "2" || rawC === "counselor2" ? "c2" : "c1";
+  const counselorKey =
+    rawC === "c2" || rawC === "2" || rawC === "counselor2" ? "c2" : "c1";
 
   // 🔐 LocalStorage key (counselor-wise)
-const LS_KEY = `awdiz_admission_draft_${counselorKey}`;
+  const LS_KEY = `awdiz_admission_draft_${counselorKey}`;
   // 🔁 EDIT MODE STATE (based on query params)
   const [restored, setRestored] = useState(false);
   const editMode = searchParams.get("edit") === "1";
@@ -88,21 +88,21 @@ const LS_KEY = `awdiz_admission_draft_${counselorKey}`;
   });
 
   // 💾 AUTO SAVE FORM TO LOCAL STORAGE (NEW ADMISSION ONLY)
-useEffect(() => {
- if (editMode || !restored) return;
+  useEffect(() => {
+    if (editMode || !restored) return;
 
-  try {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify({
-        form,
-        savedAt: Date.now(),
-      })
-    );
-  } catch (e) {
-    console.warn("LocalStorage save failed:", e);
-  }
-}, [form, editMode, LS_KEY]);
+    try {
+      localStorage.setItem(
+        LS_KEY,
+        JSON.stringify({
+          form,
+          savedAt: Date.now(),
+        })
+      );
+    } catch (e) {
+      console.warn("LocalStorage save failed:", e);
+    }
+  }, [form, editMode, LS_KEY]);
 
 
   // 🆕 original snapshot for edit-mode comparison
@@ -131,72 +131,72 @@ useEffect(() => {
   // const photoInputRef = useRef(null);
 
   // ================= DEVICE DETECTION =================
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 
 
-// ================= Passport photo refs =================
-const [photoOption, setPhotoOption] = useState("");
-const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
-const photoCameraRef = useRef(null); // ✅ camera-only input for Android
+  // ================= Passport photo refs =================
+  const [photoOption, setPhotoOption] = useState("");
+  const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
+  const photoCameraRef = useRef(null); // ✅ camera-only input for Android
 
-async function normalizeImageFile(file) {
-  // only images
-  // 🔥 iPhone camera fix: force normalize unknown / HEIC images
-  if (!file) return file;
+  async function normalizeImageFile(file) {
+    // only images
+    // 🔥 iPhone camera fix: force normalize unknown / HEIC images
+    if (!file) return file;
 
-  const isImage =
-    file.type.startsWith("image/") ||
-    file.name?.toLowerCase().endsWith(".heic") ||
-    file.name?.toLowerCase().endsWith(".heif");
+    const isImage =
+      file.type.startsWith("image/") ||
+      file.name?.toLowerCase().endsWith(".heic") ||
+      file.name?.toLowerCase().endsWith(".heif");
 
-  if (!isImage) return file;
+    if (!isImage) return file;
 
-  // iPhone HEIC / HEIF / large images fix
-  let bitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch (err) {
-    console.warn("ImageBitmap failed, returning original file", err);
-    return file; // 🔒 fallback – OTP break nahi hoga
+    // iPhone HEIC / HEIF / large images fix
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch (err) {
+      console.warn("ImageBitmap failed, returning original file", err);
+      return file; // 🔒 fallback – OTP break nahi hoga
+    }
+
+    const canvas = document.createElement("canvas");
+
+    // resize (max 1600px)
+    const MAX = 1600;
+    let { width, height } = bitmap;
+
+    if (width > MAX || height > MAX) {
+      const scale = Math.min(MAX / width, MAX / height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    // convert to jpeg (safe everywhere)
+    const blob = await new Promise((res) =>
+      canvas.toBlob(res, "image/jpeg", 0.85)
+    );
+
+    return new File(
+      [blob],
+      `photo-${Date.now()}.jpg`,
+      { type: "image/jpeg" }
+    );
   }
 
-  const canvas = document.createElement("canvas");
+  const photoReadyRef = useRef(false);
 
-  // resize (max 1600px)
-  const MAX = 1600;
-  let { width, height } = bitmap;
-
-  if (width > MAX || height > MAX) {
-    const scale = Math.min(MAX / width, MAX / height);
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
-  }
-
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(bitmap, 0, 0, width, height);
-
-  // convert to jpeg (safe everywhere)
-  const blob = await new Promise((res) =>
-    canvas.toBlob(res, "image/jpeg", 0.85)
-  );
-
-  return new File(
-    [blob],
-    `photo-${Date.now()}.jpg`,
-    { type: "image/jpeg" }
-  );
-}
-
-const photoReadyRef = useRef(false);
-
-useEffect(() => {
-  photoReadyRef.current = !!photo;
-}, [photo]);
+  useEffect(() => {
+    photoReadyRef.current = !!photo;
+  }, [photo]);
 
 
   // 🔁 EDIT-MODE: helper – pure section ke liye (fallback)
@@ -221,22 +221,22 @@ useEffect(() => {
   // }
 
   function isFieldEditable(sectionKey, fieldKey) {
-  if (!editMode) return true;
+    if (!editMode) return true;
 
-  // ✅ agar section ❌ hai → poora section editable
-  if (allowedSections.includes(sectionKey)) {
-    // agar field-level ❌ aaye hain → sirf wahi editable
-    if (allowedFields.length > 0) {
-      return allowedFields.includes(fieldKey);
+    // ✅ agar section ❌ hai → poora section editable
+    if (allowedSections.includes(sectionKey)) {
+      // agar field-level ❌ aaye hain → sirf wahi editable
+      if (allowedFields.length > 0) {
+        return allowedFields.includes(fieldKey);
+      }
+
+      // ❌ sirf section-level case
+      return true;
     }
 
-    // ❌ sirf section-level case
-    return true;
+    // ❌ section allowed nahi
+    return false;
   }
-
-  // ❌ section allowed nahi
-  return false;
-}
 
 
   // 🔴 NEW – ❌ fields ko red highlight dene ke liye
@@ -248,71 +248,71 @@ useEffect(() => {
   // }
 
   function isFieldHighlighted(sectionKey, fieldKey) {
-  if (!editMode) return false;
+    if (!editMode) return false;
 
-  // ❌ section-level cross → full section red
-  if (allowedSections.includes(sectionKey) && allowedFields.length === 0) {
-    return true;
+    // ❌ section-level cross → full section red
+    if (allowedSections.includes(sectionKey) && allowedFields.length === 0) {
+      return true;
+    }
+
+    // ❌ field-level cross → only specific fields red
+    if (
+      allowedSections.includes(sectionKey) &&
+      allowedFields.length > 0 &&
+      allowedFields.includes(fieldKey)
+    ) {
+      return true;
+    }
+
+    return false;
   }
-
-  // ❌ field-level cross → only specific fields red
-  if (
-    allowedSections.includes(sectionKey) &&
-    allowedFields.length > 0 &&
-    allowedFields.includes(fieldKey)
-  ) {
-    return true;
-  }
-
-  return false;
-}
 
 
   // 🔁 RESTORE FORM FROM LOCAL STORAGE (NEW ADMISSION ONLY)
-useEffect(() => {
-  if (editMode) return;
+  useEffect(() => {
+    if (editMode) return;
 
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) {
-      setRestored(true); // ⬅️ nothing to restore
-      return;
-    }
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) {
+        setRestored(true); // ⬅️ nothing to restore
+        return;
+      }
 
-    const parsed = JSON.parse(raw);
-    if (!parsed?.form) {
-      setRestored(true);
-      return;
-    }
+      const parsed = JSON.parse(raw);
+      if (!parsed?.form) {
+        setRestored(true);
+        return;
+      }
 
-    setForm((prev) => ({
-      ...prev,
-      personal: { ...prev.personal, ...parsed.form.personal },
-      course: { ...prev.course, ...parsed.form.course },
-      education: parsed.form.education || prev.education,
-      ids: { ...prev.ids, ...parsed.form.ids },
-      center: { ...prev.center, ...parsed.form.center },
-      signatures: {
-        student: {
-          ...prev.signatures.student,
-          ...parsed.form.signatures?.student,
+      setForm((prev) => ({
+        ...prev,
+        personal: { ...prev.personal, ...parsed.form.personal },
+        course: { ...prev.course, ...parsed.form.course },
+        education: parsed.form.education || prev.education,
+        ids: { ...prev.ids, ...parsed.form.ids },
+        center: { ...prev.center, ...parsed.form.center },
+        signatures: {
+          student: {
+            ...prev.signatures.student,
+            ...parsed.form.signatures?.student,
+          },
+          parent: {
+            ...prev.signatures.parent,
+            ...parsed.form.signatures?.parent,
+          },
         },
-        parent: {
-          ...prev.signatures.parent,
-          ...parsed.form.signatures?.parent,
-        },
-      },
-      termsAccepted: parsed.form.termsAccepted || false,
-      dataConsentAccepted: parsed.form.dataConsentAccepted || false,
-      tcVersion: parsed.form.tcVersion || prev.tcVersion,
-      tcText: parsed.form.tcText || prev.tcText,
-    }));
-  } catch (e) {
-    console.warn("LocalStorage restore failed:", e);
-  } finally {
-    setRestored(true); // ✅ restore finished
-  }
-}, [editMode, LS_KEY]);
+        termsAccepted: parsed.form.termsAccepted || false,
+        dataConsentAccepted: parsed.form.dataConsentAccepted || false,
+        tcVersion: parsed.form.tcVersion || prev.tcVersion,
+        tcText: parsed.form.tcText || prev.tcText,
+      }));
+    } catch (e) {
+      console.warn("LocalStorage restore failed:", e);
+    } finally {
+      setRestored(true); // ✅ restore finished
+    }
+  }, [editMode, LS_KEY]);
 
   // 🔁 EDIT-MODE: existing admission load
   useEffect(() => {
@@ -338,8 +338,8 @@ useEffect(() => {
 
         const res = await api.get(
           `/admissions/${admissionId}/edit-data` +
-            `?sections=${encodeURIComponent(rawSections)}` +
-            `&fields=${encodeURIComponent(rawFields)}`
+          `?sections=${encodeURIComponent(rawSections)}` +
+          `&fields=${encodeURIComponent(rawFields)}`
         );
 
         setAllowedSections(res.data.allowedSections || parsedSections || []);
@@ -373,10 +373,10 @@ useEffect(() => {
             // tcVersion: a.tcVersion || prev.tcVersion,
             // tcText: a.tcText || prev.tcText,
             termsAccepted: a?.termsAccepted ?? a?.tc?.accepted ?? true,
-dataConsentAccepted: a?.dataConsentAccepted ?? a?.tc?.dataConsentAccepted ?? true,
+            dataConsentAccepted: a?.dataConsentAccepted ?? a?.tc?.dataConsentAccepted ?? true,
 
-tcVersion: a.tcVersion || prev.tcVersion,
-tcText: a.tcText || prev.tcText,
+            tcVersion: a.tcVersion || prev.tcVersion,
+            tcText: a.tcText || prev.tcText,
 
           };
 
@@ -415,8 +415,8 @@ tcText: a.tcText || prev.tcText,
         .catch(() => {
           try {
             video.muted = true;
-            video.play().catch(() => {});
-          } catch {}
+            video.play().catch(() => { });
+          } catch { }
         });
     };
 
@@ -466,16 +466,16 @@ tcText: a.tcText || prev.tcText,
   };
 
   // ✅ YAHI PASTE KARNA HAI (EXACT)
-useEffect(() => {
-  return () => {
-    stopCamera();
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   useEffect(() => {
     if (!cameraOpen) return;
     bindStreamToVideo();
-    return () => {};
+    return () => { };
   }, [cameraOpen]);
 
   const handleCapture = () => {
@@ -501,35 +501,35 @@ useEffect(() => {
     setTimeout(bindStreamToVideo, 0);
   };
 
-// const handleUsePhoto = async () => {
-//   if (!capturedUrl) return;
+  // const handleUsePhoto = async () => {
+  //   if (!capturedUrl) return;
 
-//   const blob = await (await fetch(capturedUrl)).blob();
-//   const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
-//     type: "image/jpeg",
-//   });
+  //   const blob = await (await fetch(capturedUrl)).blob();
+  //   const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+  //     type: "image/jpeg",
+  //   });
 
-//   setPhoto(file);
-//   setCapturedUrl(""); // ✅ clean
-//   setCameraOpen(false);
-//   stopCamera();
-// };
+  //   setPhoto(file);
+  //   setCapturedUrl(""); // ✅ clean
+  //   setCameraOpen(false);
+  //   stopCamera();
+  // };
 
-const handleUsePhoto = async () => {
-  if (!capturedUrl) return;
+  const handleUsePhoto = async () => {
+    if (!capturedUrl) return;
 
-  const blob = await (await fetch(capturedUrl)).blob();
-  const rawFile = new File([blob], `camera-photo-${Date.now()}.jpg`, {
-    type: "image/jpeg",
-  });
+    const blob = await (await fetch(capturedUrl)).blob();
+    const rawFile = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+      type: "image/jpeg",
+    });
 
-  const normalized = await normalizeImageFile(rawFile);
+    const normalized = await normalizeImageFile(rawFile);
 
-  setPhoto(normalized);
-  setCapturedUrl("");
-  setCameraOpen(false);
-  stopCamera();
-};
+    setPhoto(normalized);
+    setCapturedUrl("");
+    setCameraOpen(false);
+    stopCamera();
+  };
 
 
   const handleCloseCamera = () => {
@@ -540,28 +540,28 @@ const handleUsePhoto = async () => {
 
   // select change handler (Choose file / Take photo)
   const onPhotoOptionChange = (e) => {
-  const v = e.target.value;
-  setPhotoOption(""); // UI reset
+    const v = e.target.value;
+    setPhotoOption(""); // UI reset
 
-  // ✅ iOS is handled separately with inline inputs, skip this logic
-  if (isIOS) return;
+    // ✅ iOS is handled separately with inline inputs, skip this logic
+    if (isIOS) return;
 
-  // ✅ Android + Desktop
-  if (v === "upload") {
-    photoPickerRef.current?.click();
-    return;
-  }
-
-  if (v === "camera") {
-    // Android camera via native capture input
-    if (isMobile) {
-      photoCameraRef.current?.click();
-    } else {
-      // Desktop -> custom modal camera
-      openCamera();
+    // ✅ Android + Desktop
+    if (v === "upload") {
+      photoPickerRef.current?.click();
+      return;
     }
-  }
-};
+
+    if (v === "camera") {
+      // Android camera via native capture input
+      if (isMobile) {
+        photoCameraRef.current?.click();
+      } else {
+        // Desktop -> custom modal camera
+        openCamera();
+      }
+    }
+  };
 
 
   // ---- education rows ----
@@ -650,26 +650,26 @@ const handleUsePhoto = async () => {
     e.preventDefault();
     setError("");
     if (!photoReadyRef.current) {
-  setError("Please wait, photo is processing. Try again.");
-  return;
-}
+      setError("Please wait, photo is processing. Try again.");
+      return;
+    }
 
 
     // 🔴 SECTION-LEVEL ❌ VALIDATION
-if (editMode && admissionId && allowedSections.length && allowedFields.length === 0) {
-  if (!originalForm) return;
+    if (editMode && admissionId && allowedSections.length && allowedFields.length === 0) {
+      if (!originalForm) return;
 
-  const sectionChanged = allowedSections.some((section) => {
-    return JSON.stringify(originalForm[section]) !== JSON.stringify(form[section]);
-  });
+      const sectionChanged = allowedSections.some((section) => {
+        return JSON.stringify(originalForm[section]) !== JSON.stringify(form[section]);
+      });
 
-  if (!sectionChanged) {
-    setError(
-      "Please make at least one change in the highlighted section before submitting."
-    );
-    return;
-  }
-}
+      if (!sectionChanged) {
+        setError(
+          "Please make at least one change in the highlighted section before submitting."
+        );
+        return;
+      }
+    }
 
 
     // 🔁 EDIT-MODE: existing admission update → no OTP / no file upload
@@ -704,13 +704,13 @@ if (editMode && admissionId && allowedSections.length && allowedFields.length ==
           sections: allowedSections,
           // updated: form,
           updated: {
-    ...form,
-    tc: {
-      ...(form.tc || {}),
-      accepted: !!form.termsAccepted,
-      dataConsentAccepted: !!form.dataConsentAccepted,
-    },
-  },
+            ...form,
+            tc: {
+              ...(form.tc || {}),
+              accepted: !!form.termsAccepted,
+              dataConsentAccepted: !!form.dataConsentAccepted,
+            },
+          },
         });
         setLoading(false);
         alert("Your changes have been submitted. Counselor will review.");
@@ -788,14 +788,14 @@ if (editMode && admissionId && allowedSections.length && allowedFields.length ==
     }
 
     if (!panFile) {
-  setError("PAN card document is required.");
-  return;
-}
+      setError("PAN card document is required.");
+      return;
+    }
 
-if (!aadhaarFile) {
-  setError("Aadhaar / Driving License document is required.");
-  return;
-}
+    if (!aadhaarFile) {
+      setError("Aadhaar / Driving License document is required.");
+      return;
+    }
 
 
     if (!hasSign(form.signatures.student.signDataUrl)) {
@@ -827,9 +827,9 @@ if (!aadhaarFile) {
         },
         meta: {
           planType: form.course.trainingOnly ? "training" : "job",
-            counselorKey, // ✅ NEW
+          counselorKey, // ✅ NEW
         },
-        
+
       },
       files: {
         photo,
@@ -839,7 +839,7 @@ if (!aadhaarFile) {
         parentSign: form?.signatures?.parent?.signDataUrl || "",
       },
     });
-   
+
     nav(`/admission-otp?c=${counselorKey}`);
   };
 
@@ -870,15 +870,15 @@ if (!aadhaarFile) {
       {/* Page/container: 80% width on lg+ */}
       <main className="mx-auto w-full sm:w-[96%] md:w-[94%] lg:w-[80%] xl:w-[80%] 2xl:w-[80%] max-w-[1920px] p-3 sm:p-6">
         {loading && (
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30">
-    <div className="bg-white px-6 py-5 rounded-lg shadow-xl flex items-center gap-4">
-      <span className="w-10 h-10 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin inline-block" />
-      <span className="text-base font-semibold text-gray-700">
-        {editMode ? "Saving changes…" : "Submitting…"}
-      </span>
-    </div>
-  </div>
-)}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30">
+            <div className="bg-white px-6 py-5 rounded-lg shadow-xl flex items-center gap-4">
+              <span className="w-10 h-10 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin inline-block" />
+              <span className="text-base font-semibold text-gray-700">
+                {editMode ? "Saving changes…" : "Submitting…"}
+              </span>
+            </div>
+          </div>
+        )}
 
         <form
           onSubmit={submit}
@@ -998,65 +998,65 @@ if (!aadhaarFile) {
               />
 
               <div className="relative">
-  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-    +91
-  </span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                  +91
+                </span>
 
-  <input
-    className={
-      "border p-2 pl-12 rounded w-full " +
-      (isFieldHighlighted("personal", "pf_studentMobile")
-        ? "border-red-500 bg-red-50"
-        : "")
-    }
-    type="tel"
-    inputMode="numeric"
-    pattern="[0-9]{10}"
-    placeholder="Enter 10 digit mobile number*"
-    value={form.personal.studentMobile}
-    disabled={!isFieldEditable("personal", "pf_studentMobile")}
-    onChange={(e) =>
-      setForm({
-        ...form,
-        personal: {
-          ...form.personal,
-          studentMobile: e.target.value.replace(/\D/g, "").slice(0, 10),
-        },
-      })
-    }
-    required
-  />
-</div>
+                <input
+                  className={
+                    "border p-2 pl-12 rounded w-full " +
+                    (isFieldHighlighted("personal", "pf_studentMobile")
+                      ? "border-red-500 bg-red-50"
+                      : "")
+                  }
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  placeholder="Enter 10 digit mobile number*"
+                  value={form.personal.studentMobile}
+                  disabled={!isFieldEditable("personal", "pf_studentMobile")}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      personal: {
+                        ...form.personal,
+                        studentMobile: e.target.value.replace(/\D/g, "").slice(0, 10),
+                      },
+                    })
+                  }
+                  required
+                />
+              </div>
 
-<div className="relative">
-  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-    +91
-  </span>
-              <input
-                className={
-                  "border p-2 pl-12 rounded w-full " +
-                  (isFieldHighlighted("personal", "pf_whatsapp")
-                    ? "border-red-500 bg-red-50"
-                    : "")
-                }
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]{10}"
-                placeholder="Student’s WhatsApp Mobile*"
-                value={form.personal.whatsappMobile}
-                disabled={!isFieldEditable("personal", "pf_whatsapp")}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    personal: {
-                      ...form.personal,
-                      whatsappMobile: e.target.value.replace(/\D/g, "").slice(0, 10),
-                    },
-                  })
-                }
-                required
-              />
-</div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                  +91
+                </span>
+                <input
+                  className={
+                    "border p-2 pl-12 rounded w-full " +
+                    (isFieldHighlighted("personal", "pf_whatsapp")
+                      ? "border-red-500 bg-red-50"
+                      : "")
+                  }
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  placeholder="Student’s WhatsApp Mobile*"
+                  value={form.personal.whatsappMobile}
+                  disabled={!isFieldEditable("personal", "pf_whatsapp")}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      personal: {
+                        ...form.personal,
+                        whatsappMobile: e.target.value.replace(/\D/g, "").slice(0, 10),
+                      },
+                    })
+                  }
+                  required
+                />
+              </div>
               <input
                 className={
                   "border p-2 rounded w-full " +
@@ -1077,36 +1077,36 @@ if (!aadhaarFile) {
                 required
               />
               <div className="relative">
-  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-    +91
-  </span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                  +91
+                </span>
 
 
-              {/* Parent mobile */}
-              <input
-                className={
-                  "border p-2 pl-12 rounded sm:col-span-2 w-full " +
-                  (isFieldHighlighted("personal", "pf_parentMobile")
-                    ? "border-red-500 bg-red-50"
-                    : "")
-                }
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]{10}"
-                placeholder="Parent's Mobile*"
-                value={form.personal.parentMobile}
-                disabled={!isFieldEditable("personal", "pf_parentMobile")}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    personal: {
-                      ...form.personal,
-                      parentMobile: e.target.value,
-                    },
-                  })
-                }
-                required
-              />
+                {/* Parent mobile */}
+                <input
+                  className={
+                    "border p-2 pl-12 rounded sm:col-span-2 w-full " +
+                    (isFieldHighlighted("personal", "pf_parentMobile")
+                      ? "border-red-500 bg-red-50"
+                      : "")
+                  }
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  placeholder="Parent's Mobile*"
+                  value={form.personal.parentMobile}
+                  disabled={!isFieldEditable("personal", "pf_parentMobile")}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      personal: {
+                        ...form.personal,
+                        parentMobile: e.target.value,
+                      },
+                    })
+                  }
+                  required
+                />
               </div>
             </div>
           </section>
@@ -1142,7 +1142,7 @@ if (!aadhaarFile) {
                 <option value="">Select Course Enrolled</option>
                 <option value="Network System Admin">Network System Admin</option>
                 <option value="Hardware Networking">Hardware Networking</option>
-                 <option value="Windows Administrator">Windows Administrator</option>
+                <option value="Windows Administrator">Windows Administrator</option>
                 <option value="Full Stack (Mern)">Full Stack (Mern)</option>
                 <option value="Java Full Stack Developer">
                   Java Full Stack Developer
@@ -1393,7 +1393,7 @@ if (!aadhaarFile) {
                   setForm({
                     ...form,
                     ids: { ...form.ids, pan: e.target.value },
-                    
+
                   })
                 }
               />
@@ -1423,192 +1423,192 @@ if (!aadhaarFile) {
             <h2 className="text-lg sm:text-xl font-semibold">Uploads</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="min-w-0">
-  <label className="block text-sm mb-1">Passport photo*</label>
+                <label className="block text-sm mb-1">Passport photo*</label>
 
-  {/* iOS: two labels (stable) */}
-  {isIOS ? (
-    <div className="flex flex-wrap gap-2">
-      {/* Choose file (image + pdf) */}
-      <label
-        style={{ touchAction: "manipulation" }}
-        className={
-          "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
-          (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
-        }
-      >
-        Choose file
-        <input
-          type="file"
-          accept="image/*,.pdf"
-          className="hidden"
-          disabled={!isFieldEditable("uploads", "up_photo")}
-          onChange={async (e) => {
-            try {
-              const file = e.target.files?.[0] || null;
-              if (!file) return;
+                {/* iOS: two labels (stable) */}
+                {isIOS ? (
+                  <div className="flex flex-wrap gap-2">
+                    {/* Choose file (image + pdf) */}
+                    <label
+                      style={{ touchAction: "manipulation" }}
+                      className={
+                        "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
+                        (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
+                      }
+                    >
+                      Choose file
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        disabled={!isFieldEditable("uploads", "up_photo")}
+                        onChange={async (e) => {
+                          try {
+                            const file = e.target.files?.[0] || null;
+                            if (!file) return;
 
-              console.log("📁 File selected:", file.name, file.type, file.size);
-              const normalized = await normalizeImageFile(file);
-              console.log("📁 Normalized file:", normalized.name, normalized.type, normalized.size);
-              setPhoto(normalized);
-              setCapturedUrl("");
-              e.target.value = "";
-            } catch (err) {
-              console.error("📁 File upload error:", err);
-              setError("Failed to process file. Please try again.");
-            }
-          }}
-          onTouchEnd={(e) => {
-            e.preventDefault();
-            e.target.click();
-          }}
-        />
-      </label>
+                            console.log("📁 File selected:", file.name, file.type, file.size);
+                            const normalized = await normalizeImageFile(file);
+                            console.log("📁 Normalized file:", normalized.name, normalized.type, normalized.size);
+                            setPhoto(normalized);
+                            setCapturedUrl("");
+                            e.target.value = "";
+                          } catch (err) {
+                            console.error("📁 File upload error:", err);
+                            setError("Failed to process file. Please try again.");
+                          }
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.target.click();
+                        }}
+                      />
+                    </label>
 
-      {/* Take photo (image only) */}
-      <label
-        style={{ touchAction: "manipulation" }}
-        className={
-          "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
-          (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
-        }
-      >
-        Take photo
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          disabled={!isFieldEditable("uploads", "up_photo")}
-          onChange={async (e) => {
-            try {
-              const file = e.target.files?.[0] || null;
-              if (!file) return;
+                    {/* Take photo (image only) */}
+                    <label
+                      style={{ touchAction: "manipulation" }}
+                      className={
+                        "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
+                        (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
+                      }
+                    >
+                      Take photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        disabled={!isFieldEditable("uploads", "up_photo")}
+                        onChange={async (e) => {
+                          try {
+                            const file = e.target.files?.[0] || null;
+                            if (!file) return;
 
-              console.log("📸 iOS Camera file received:", file.name, file.type, file.size);
-              const normalized = await normalizeImageFile(file);
-              console.log("📸 Normalized file:", normalized.name, normalized.type, normalized.size);
-              setPhoto(normalized);
-              setCapturedUrl("");
-              e.target.value = "";
-            } catch (err) {
-              console.error("📸 iOS Camera error:", err);
-              setError("Failed to process camera photo. Please try again.");
-            }
-          }}
-          onTouchEnd={(e) => {
-            e.preventDefault();
-            e.target.click();
-          }}
-        />
-      </label>
-    </div>
-  ) : (
-    /* Android + Desktop */
-    <div className="rounded-lg p-1 flex items-center gap-3 bg-white">
-      <select
-        className={
-          "border rounded-lg p-2 min-w-[150px] " +
-          (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
-        }
-        value={photoOption}
-        onChange={(e) => {
-          const v = e.target.value;
-          setPhotoOption(""); // ✅ reset UI
+                            console.log("📸 iOS Camera file received:", file.name, file.type, file.size);
+                            const normalized = await normalizeImageFile(file);
+                            console.log("📸 Normalized file:", normalized.name, normalized.type, normalized.size);
+                            setPhoto(normalized);
+                            setCapturedUrl("");
+                            e.target.value = "";
+                          } catch (err) {
+                            console.error("📸 iOS Camera error:", err);
+                            setError("Failed to process camera photo. Please try again.");
+                          }
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.target.click();
+                        }}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  /* Android + Desktop */
+                  <div className="rounded-lg p-1 flex items-center gap-3 bg-white">
+                    <select
+                      className={
+                        "border rounded-lg p-2 min-w-[150px] " +
+                        (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
+                      }
+                      value={photoOption}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPhotoOption(""); // ✅ reset UI
 
-          if (v === "upload") {
-            // image + pdf
-            if (photoPickerRef.current) {
-              photoPickerRef.current.accept = "image/*,.pdf";
-              photoPickerRef.current.removeAttribute("capture");
-              photoPickerRef.current.click();
-            }
-            return;
-          }
+                        if (v === "upload") {
+                          // image + pdf
+                          if (photoPickerRef.current) {
+                            photoPickerRef.current.accept = "image/*,.pdf";
+                            photoPickerRef.current.removeAttribute("capture");
+                            photoPickerRef.current.click();
+                          }
+                          return;
+                        }
 
-          if (v === "camera") {
-            // Android mobile -> native capture input; Desktop -> your custom modal
-            if (isMobile) {
-              if (photoCameraRef.current) {
-                photoCameraRef.current.accept = "image/*";
-                photoCameraRef.current.setAttribute("capture", "environment");
-                photoCameraRef.current.click();
-              }
-            } else {
-              openCamera(); // ✅ your existing desktop camera modal
-            }
-          }
-        }}
-        disabled={!isFieldEditable("uploads", "up_photo")}
-      >
-        <option value="">Select option</option>
-        <option value="upload">Choose file</option>
-        <option value="camera">Take photo</option>
-      </select>
+                        if (v === "camera") {
+                          // Android mobile -> native capture input; Desktop -> your custom modal
+                          if (isMobile) {
+                            if (photoCameraRef.current) {
+                              photoCameraRef.current.accept = "image/*";
+                              photoCameraRef.current.setAttribute("capture", "environment");
+                              photoCameraRef.current.click();
+                            }
+                          } else {
+                            openCamera(); // ✅ your existing desktop camera modal
+                          }
+                        }
+                      }}
+                      disabled={!isFieldEditable("uploads", "up_photo")}
+                    >
+                      <option value="">Select option</option>
+                      <option value="upload">Choose file</option>
+                      <option value="camera">Take photo</option>
+                    </select>
 
-      {/* choose file input */}
-      <input
-        ref={photoPickerRef}
-        type="file"
-        accept="image/*,.pdf"
-        className="hidden"
-        disabled={!isFieldEditable("uploads", "up_photo")}
-        onChange={async (e) => {
-  const file = e.target.files?.[0] || null;
-  if (!file) return;
+                    {/* choose file input */}
+                    <input
+                      ref={photoPickerRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      disabled={!isFieldEditable("uploads", "up_photo")}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (!file) return;
 
-  const normalized = await normalizeImageFile(file);
-  setPhoto(normalized);
-  setCapturedUrl("");
-  e.target.value = "";
-}}
+                        const normalized = await normalizeImageFile(file);
+                        setPhoto(normalized);
+                        setCapturedUrl("");
+                        e.target.value = "";
+                      }}
 
-      />
+                    />
 
-      {/* take photo input */}
-      <input
-        ref={photoCameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        disabled={!isFieldEditable("uploads", "up_photo")}
-       onChange={async (e) => {
-  const file = e.target.files?.[0] || null;
-  if (!file) return;
+                    {/* take photo input */}
+                    <input
+                      ref={photoCameraRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      disabled={!isFieldEditable("uploads", "up_photo")}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (!file) return;
 
-  const normalized = await normalizeImageFile(file);
-  setPhoto(normalized);
-  setCapturedUrl("");
-  e.target.value = "";
-}}
+                        const normalized = await normalizeImageFile(file);
+                        setPhoto(normalized);
+                        setCapturedUrl("");
+                        e.target.value = "";
+                      }}
 
-      />
-    </div>
-  )}
+                    />
+                  </div>
+                )}
 
-  {/* Preview */}
-  {(capturedUrl || photo) && (
-    <div className="mt-2">
-      {photo?.type === "application/pdf" ? (
-        <p className="text-sm border rounded p-2 text-green-700">
-          📄 PDF selected: {photo.name}
-        </p>
-      ) : (
-        <img
-          alt="Selected passport"
-          className="h-28 w-28 object-cover rounded border"
-          src={capturedUrl || (photo ? URL.createObjectURL(photo) : "")}
-          onLoad={(e) => {
-            if (photo && e.currentTarget.src.startsWith("blob:")) {
-              URL.revokeObjectURL(e.currentTarget.src);
-            }
-          }}
-        />
-      )}
-    </div>
-  )}
-</div>
+                {/* Preview */}
+                {(capturedUrl || photo) && (
+                  <div className="mt-2">
+                    {photo?.type === "application/pdf" ? (
+                      <p className="text-sm border rounded p-2 text-green-700">
+                        📄 PDF selected: {photo.name}
+                      </p>
+                    ) : (
+                      <img
+                        alt="Selected passport"
+                        className="h-28 w-28 object-cover rounded border"
+                        src={capturedUrl || (photo ? URL.createObjectURL(photo) : "")}
+                        onLoad={(e) => {
+                          if (photo && e.currentTarget.src.startsWith("blob:")) {
+                            URL.revokeObjectURL(e.currentTarget.src);
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
 
 
 
@@ -1621,12 +1621,12 @@ if (!aadhaarFile) {
                   type="file"
                   accept="image/*,.pdf"
                   onChange={async (e) => {
-  const file = e.target.files?.[0] || null;
-  if (!file) return;
+                    const file = e.target.files?.[0] || null;
+                    if (!file) return;
 
-  const normalized = await normalizeImageFile(file);
-  setPanFile(normalized);
-}}
+                    const normalized = await normalizeImageFile(file);
+                    setPanFile(normalized);
+                  }}
 
                   className={
                     "w-full border rounded p-1 " +
@@ -1635,7 +1635,7 @@ if (!aadhaarFile) {
                       : "")
                   }
                   disabled={!isFieldEditable("uploads", "up_pan")}
-                  required={!editMode} 
+                  required={!editMode}
                 />
               </div>
               <div className="min-w-0">
@@ -1646,12 +1646,12 @@ if (!aadhaarFile) {
                   type="file"
                   accept="image/*,.pdf"
                   onChange={async (e) => {
-  const file = e.target.files?.[0] || null;
-  if (!file) return;
+                    const file = e.target.files?.[0] || null;
+                    if (!file) return;
 
-  const normalized = await normalizeImageFile(file);
-  setAadhaarFile(normalized);
-}}
+                    const normalized = await normalizeImageFile(file);
+                    setAadhaarFile(normalized);
+                  }}
 
                   className={
                     "w-full border rounded p-1 " +
@@ -1660,7 +1660,7 @@ if (!aadhaarFile) {
                       : "")
                   }
                   disabled={!isFieldEditable("uploads", "up_aadhaar")}
-                  required={!editMode} 
+                  required={!editMode}
                 />
               </div>
             </div>
@@ -1839,67 +1839,67 @@ if (!aadhaarFile) {
           </section>
 
           {/* ---------- TERMS (conditional) ---------- */}
-<section className="space-y-2">
-  <h2 className="text-lg sm:text-xl font-semibold">
-    {form.course.trainingOnly
-      ? "Training Terms & Conditions"
-      : "Job Guarantee Terms & Conditions"}
-  </h2>
+          <section className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-semibold">
+              {form.course.trainingOnly
+                ? "Training Terms & Conditions"
+                : "Job Guarantee Terms & Conditions"}
+            </h2>
 
-  {form.course.trainingOnly ? (
-    <div className="border rounded p-3 bg-gray-50 whitespace-pre-line">
-      {TRAINING_ONLY_TNC}
-    </div>
-  ) : (
-    <div className="border rounded p-3 h-56 overflow-y-auto bg-gray-50">
-      <TermsAndConditions />
-    </div>
-  )}
+            {form.course.trainingOnly ? (
+              <div className="border rounded p-3 bg-gray-50 whitespace-pre-line">
+                {TRAINING_ONLY_TNC}
+              </div>
+            ) : (
+              <div className="border rounded p-3 h-56 overflow-y-auto bg-gray-50">
+                <TermsAndConditions />
+              </div>
+            )}
 
-  {/* ✅ Existing first checkbox (same as before) */}
-  <label className="flex items-center gap-2 mt-2 text-sm">
-    <input
-      type="checkbox"
-      checked={form.termsAccepted}
-      onChange={(e) =>
-        setForm({ ...form, termsAccepted: e.target.checked })
-      }
-      required={!editMode}
-    />
-    <span>
-      I have read and agree to the{" "}
-      {form.course.trainingOnly ? "Training-only" : "Job-Guarantee"}{" "}
-      Terms &amp; Conditions.
-    </span>
-  </label>
+            {/* ✅ Existing first checkbox (same as before) */}
+            <label className="flex items-center gap-2 mt-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.termsAccepted}
+                onChange={(e) =>
+                  setForm({ ...form, termsAccepted: e.target.checked })
+                }
+                required={!editMode}
+              />
+              <span>
+                I have read and agree to the{" "}
+                {form.course.trainingOnly ? "Training-only" : "Job-Guarantee"}{" "}
+                Terms &amp; Conditions.
+              </span>
+            </label>
 
-  {/* ✅ NEW: Data consent checkbox with paragraph (required) */}
-  <label className="flex items-start gap-2 mt-2 text-sl">
-    <input
-      type="checkbox"
-      checked={form.dataConsentAccepted}
-      onChange={(e) =>
-        setForm({ ...form, dataConsentAccepted: e.target.checked })
-      }
-      required={!editMode}
-    />
-    <span className="text-base font-semibold">
-      By submitting this admission form, I hereby give consent to the
-      institution to collect and store my personal information, including my
-      photograph and identity documents, for admission and administrative
-      purposes. I understand that my documents and photos may be securely stored
-      on third-party cloud platforms and that my personal data may be recorded
-      in digital storage systems for processing and record-keeping. I
-      acknowledge that this information will be used only for verification,
-      internal administration, and legally required processes, and will not be
-      shared with unauthorized parties. I further understand that the institution
-      will take reasonable measures to protect my data, and that I may request
-      correction or deletion of my information as per institutional and legal
-      guidelines. By proceeding, I voluntarily agree to these terms and
-      conditions.
-    </span>
-  </label>
-</section>
+            {/* ✅ NEW: Data consent checkbox with paragraph (required) */}
+            <label className="flex items-start gap-2 mt-2 text-sl">
+              <input
+                type="checkbox"
+                checked={form.dataConsentAccepted}
+                onChange={(e) =>
+                  setForm({ ...form, dataConsentAccepted: e.target.checked })
+                }
+                required={!editMode}
+              />
+              <span className="text-base font-semibold">
+                By submitting this admission form, I hereby give consent to the
+                institution to collect and store my personal information, including my
+                photograph and identity documents, for admission and administrative
+                purposes. I understand that my documents and photos may be securely stored
+                on third-party cloud platforms and that my personal data may be recorded
+                in digital storage systems for processing and record-keeping. I
+                acknowledge that this information will be used only for verification,
+                internal administration, and legally required processes, and will not be
+                shared with unauthorized parties. I further understand that the institution
+                will take reasonable measures to protect my data, and that I may request
+                correction or deletion of my information as per institutional and legal
+                guidelines. By proceeding, I voluntarily agree to these terms and
+                conditions.
+              </span>
+            </label>
+          </section>
           <div>
             <button
               disabled={loading}
@@ -1910,8 +1910,8 @@ if (!aadhaarFile) {
                   ? "Saving Changes…"
                   : "Submitting…"
                 : editMode
-                ? "Save Changes"
-                : "Submit"}
+                  ? "Save Changes"
+                  : "Submit"}
             </button>
           </div>
         </form>
