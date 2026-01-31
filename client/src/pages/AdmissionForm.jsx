@@ -114,6 +114,7 @@ export default function AdmissionForm() {
   const [aadhaarFile, setAadhaarFile] = useState(null);
 
   const [loading, setLoading] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [error, setError] = useState("");
 
   // ================= CAMERA STATES =================
@@ -156,7 +157,6 @@ export default function AdmissionForm() {
       file.size < maxSizeThreshold;
 
     if (isAlreadyOptimized) {
-      console.log("📁 File already optimized, skipping normalization:", file.name);
       return file;
     }
 
@@ -205,10 +205,6 @@ export default function AdmissionForm() {
     const blob = await new Promise((res) =>
       canvas.toBlob(res, "image/jpeg", quality)
     );
-
-    // Log compression results
-    const finalSize = blob?.size || 0;
-    console.log(`📁 Image normalized: ${file.name} → ${width}x${height}, ${Math.round(finalSize / 1024)}KB, iOS: ${isIOS}`);
 
     return new File(
       [blob],
@@ -675,13 +671,13 @@ export default function AdmissionForm() {
     e.preventDefault();
     setError("");
     
-    // 🔒 Check photo is ready (with fallback for iOS)
-    if (!photoReadyRef.current && !photo) {
+    // 🔒 Check if image is still processing
+    if (imageProcessing) {
       setError("Please wait, photo is processing. Try again.");
       return;
     }
     
-    // Additional iOS safety check
+    // Photo required check
     if (!photo) {
       setError("Passport photo is required. Please select or capture a photo.");
       return;
@@ -1520,27 +1516,22 @@ export default function AdmissionForm() {
                         onChange={async (e) => {
                           try {
                             const file = e.target.files?.[0] || null;
-                            if (!file) {
-                              console.log("📁 No file selected");
-                              return;
-                            }
+                            if (!file) return;
 
-                            console.log("📁 File selected:", file.name, file.type, file.size);
-                            
-                            // Process file without resetting input value immediately (iOS fix)
+                            setImageProcessing(true);
                             const normalized = await normalizeImageFile(file);
-                            console.log("📁 Normalized file:", normalized?.name, normalized?.type, normalized?.size);
+                            setImageProcessing(false);
                             
                             if (normalized) {
                               setPhoto(normalized);
                               setCapturedUrl("");
-                              // Reset after successful processing
                               setTimeout(() => {
                                 e.target.value = "";
                               }, 100);
                             }
                           } catch (err) {
-                            console.error("📁 File upload error:", err);
+                            setImageProcessing(false);
+                            console.error("File upload error:", err);
                             setError("Failed to process file. Please try again.");
                             e.target.value = "";
                           }
@@ -1567,28 +1558,24 @@ export default function AdmissionForm() {
                           try {
                             const file = e.target.files?.[0] || null;
                             if (!file) {
-                              console.log("📸 No camera photo received - likely permission issue");
-                              // 🔍 DIAGNOSTIC: Alert for camera permission debugging
                               alert("Camera Issue: No photo was captured.\n\nPossible causes:\n1. Camera permission denied in iOS Settings\n2. User cancelled the camera\n3. iOS memory issue\n\nTo fix:\n- Go to iOS Settings > Safari > Camera > Allow\n- Or use 'Choose file' instead");
                               return;
                             }
 
-                            console.log("📸 iOS Camera file received:", file.name, file.type, file.size, "bytes");
-                            
-                            // Process file without resetting input value immediately (iOS fix)
+                            setImageProcessing(true);
                             const normalized = await normalizeImageFile(file);
-                            console.log("📸 Normalized file:", normalized?.name, normalized?.type, normalized?.size);
+                            setImageProcessing(false);
                             
                             if (normalized) {
                               setPhoto(normalized);
                               setCapturedUrl("");
-                              // Reset after successful processing with delay for iOS
                               setTimeout(() => {
                                 e.target.value = "";
                               }, 100);
                             }
                           } catch (err) {
-                            console.error("📸 iOS Camera error:", err);
+                            setImageProcessing(false);
+                            console.error("iOS Camera error:", err);
                             setError("Failed to process camera photo. Please try again.");
                             e.target.value = "";
                           }
@@ -1650,7 +1637,9 @@ export default function AdmissionForm() {
                         const file = e.target.files?.[0] || null;
                         if (!file) return;
 
+                        setImageProcessing(true);
                         const normalized = await normalizeImageFile(file);
+                        setImageProcessing(false);
                         setPhoto(normalized);
                         setCapturedUrl("");
                         e.target.value = "";
@@ -1670,7 +1659,9 @@ export default function AdmissionForm() {
                         const file = e.target.files?.[0] || null;
                         if (!file) return;
 
+                        setImageProcessing(true);
                         const normalized = await normalizeImageFile(file);
+                        setImageProcessing(false);
                         setPhoto(normalized);
                         setCapturedUrl("");
                         e.target.value = "";
@@ -1717,7 +1708,9 @@ export default function AdmissionForm() {
                     const file = e.target.files?.[0] || null;
                     if (!file) return;
 
+                    setImageProcessing(true);
                     const normalized = await normalizeImageFile(file);
+                    setImageProcessing(false);
                     setPanFile(normalized);
                   }}
 
@@ -1742,7 +1735,9 @@ export default function AdmissionForm() {
                     const file = e.target.files?.[0] || null;
                     if (!file) return;
 
+                    setImageProcessing(true);
                     const normalized = await normalizeImageFile(file);
+                    setImageProcessing(false);
                     setAadhaarFile(normalized);
                   }}
 

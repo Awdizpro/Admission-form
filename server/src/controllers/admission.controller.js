@@ -3706,6 +3706,48 @@ async function applyAdmissionEdit(req, res) {
       };
     }
 
+    // ✅ UPLOADS section: Handle new file uploads during edit
+    if (allowedSections.includes("uploads")) {
+      try {
+        if (req.files?.photo?.[0]) {
+          const r = await uploadStudentDoc({
+            file: req.files.photo[0],
+            folder: "awdiz/admissions/photos",
+            publicIdPrefix: "photo",
+          });
+          doc.uploads = { ...(doc.uploads || {}), photoUrl: r.url, photoKind: r.kind };
+        }
+      } catch (e) {
+        console.log("Edit photo upload skipped:", e?.message);
+      }
+
+      try {
+        if (req.files?.pan?.[0]) {
+          const r = await uploadStudentDoc({
+            file: req.files.pan[0],
+            folder: "awdiz/admissions/pan",
+            publicIdPrefix: "pan",
+          });
+          doc.uploads = { ...(doc.uploads || {}), panUrl: r.url, panKind: r.kind };
+        }
+      } catch (e) {
+        console.log("Edit pan upload skipped:", e?.message);
+      }
+
+      try {
+        if (req.files?.aadhaar?.[0]) {
+          const r = await uploadStudentDoc({
+            file: req.files.aadhaar[0],
+            folder: "awdiz/admissions/aadhaar",
+            publicIdPrefix: "aadhaar",
+          });
+          doc.uploads = { ...(doc.uploads || {}), aadhaarUrl: r.url, aadhaarKind: r.kind };
+        }
+      } catch (e) {
+        console.log("Edit aadhaar upload skipped:", e?.message);
+      }
+    }
+
     // ✅ Edit ke baad status ko fir se "pending" rakhenge (counselor re-review karega)
     doc.status = "pending";
     await doc.save(); // 👈 pehle Mongo me latest data save
