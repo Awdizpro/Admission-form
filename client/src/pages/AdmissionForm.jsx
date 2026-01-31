@@ -146,6 +146,16 @@ export default function AdmissionForm() {
     // 🔥 iPhone camera fix: force normalize unknown / HEIC images
     if (!file) return file;
 
+    // Check if it's already a valid JPEG/PNG that doesn't need processing
+    const isAlreadyOptimized =
+      (file.type === "image/jpeg" || file.type === "image/png") &&
+      file.size < 2 * 1024 * 1024; // Less than 2MB
+
+    if (isAlreadyOptimized) {
+      console.log("📁 File already optimized, skipping normalization:", file.name);
+      return file;
+    }
+
     const isImage =
       file.type.startsWith("image/") ||
       file.name?.toLowerCase().endsWith(".heic") ||
@@ -159,7 +169,12 @@ export default function AdmissionForm() {
       bitmap = await createImageBitmap(file);
     } catch (err) {
       console.warn("ImageBitmap failed, returning original file", err);
-      return file; // 🔒 fallback – OTP break nahi hoga
+      // 🔒 Fallback: return original file wrapped in new File to ensure proper type
+      return new File(
+        [file],
+        `photo-${Date.now()}.jpg`,
+        { type: "image/jpeg" }
+      );
     }
 
     const canvas = document.createElement("canvas");
@@ -649,8 +664,16 @@ export default function AdmissionForm() {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!photoReadyRef.current) {
+    
+    // 🔒 Check photo is ready (with fallback for iOS)
+    if (!photoReadyRef.current && !photo) {
       setError("Please wait, photo is processing. Try again.");
+      return;
+    }
+    
+    // Additional iOS safety check
+    if (!photo) {
+      setError("Passport photo is required. Please select or capture a photo.");
       return;
     }
 
@@ -1430,9 +1453,9 @@ export default function AdmissionForm() {
                   <div className="flex flex-wrap gap-2">
                     {/* Choose file (image + pdf) */}
                     <label
-                      style={{ touchAction: "manipulation" }}
+                      style={{ touchAction: "manipulation", WebkitTouchCallout: "none", userSelect: "none" }}
                       className={
-                        "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
+                        "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer active:scale-95 transition-transform " +
                         (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
                       }
                     >
@@ -1445,31 +1468,39 @@ export default function AdmissionForm() {
                         onChange={async (e) => {
                           try {
                             const file = e.target.files?.[0] || null;
-                            if (!file) return;
+                            if (!file) {
+                              console.log("📁 No file selected");
+                              return;
+                            }
 
                             console.log("📁 File selected:", file.name, file.type, file.size);
+                            
+                            // Process file without resetting input value immediately (iOS fix)
                             const normalized = await normalizeImageFile(file);
-                            console.log("📁 Normalized file:", normalized.name, normalized.type, normalized.size);
-                            setPhoto(normalized);
-                            setCapturedUrl("");
-                            e.target.value = "";
+                            console.log("📁 Normalized file:", normalized?.name, normalized?.type, normalized?.size);
+                            
+                            if (normalized) {
+                              setPhoto(normalized);
+                              setCapturedUrl("");
+                              // Reset after successful processing
+                              setTimeout(() => {
+                                e.target.value = "";
+                              }, 100);
+                            }
                           } catch (err) {
                             console.error("📁 File upload error:", err);
                             setError("Failed to process file. Please try again.");
+                            e.target.value = "";
                           }
-                        }}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.target.click();
                         }}
                       />
                     </label>
 
                     {/* Take photo (image only) */}
                     <label
-                      style={{ touchAction: "manipulation" }}
+                      style={{ touchAction: "manipulation", WebkitTouchCallout: "none", userSelect: "none" }}
                       className={
-                        "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer " +
+                        "inline-flex items-center justify-center border rounded-lg px-3 py-2 cursor-pointer active:scale-95 transition-transform " +
                         (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
                       }
                     >
@@ -1483,22 +1514,30 @@ export default function AdmissionForm() {
                         onChange={async (e) => {
                           try {
                             const file = e.target.files?.[0] || null;
-                            if (!file) return;
+                            if (!file) {
+                              console.log("📸 No camera photo received");
+                              return;
+                            }
 
-                            console.log("📸 iOS Camera file received:", file.name, file.type, file.size);
+                            console.log("📸 iOS Camera file received:", file.name, file.type, file.size, "bytes");
+                            
+                            // Process file without resetting input value immediately (iOS fix)
                             const normalized = await normalizeImageFile(file);
-                            console.log("📸 Normalized file:", normalized.name, normalized.type, normalized.size);
-                            setPhoto(normalized);
-                            setCapturedUrl("");
-                            e.target.value = "";
+                            console.log("📸 Normalized file:", normalized?.name, normalized?.type, normalized?.size);
+                            
+                            if (normalized) {
+                              setPhoto(normalized);
+                              setCapturedUrl("");
+                              // Reset after successful processing with delay for iOS
+                              setTimeout(() => {
+                                e.target.value = "";
+                              }, 100);
+                            }
                           } catch (err) {
                             console.error("📸 iOS Camera error:", err);
                             setError("Failed to process camera photo. Please try again.");
+                            e.target.value = "";
                           }
-                        }}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.target.click();
                         }}
                       />
                     </label>
