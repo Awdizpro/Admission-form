@@ -3706,6 +3706,63 @@ async function applyAdmissionEdit(req, res) {
       };
     }
 
+    // ✅ UPLOADS: Handle file updates for photo, pan, aadhaar
+    if (allowedSections.includes("uploads")) {
+      try {
+        if (req.files?.photo?.[0]) {
+          const r = await uploadStudentDoc({
+            file: req.files.photo[0],
+            folder: "awdiz/admissions/photos",
+            publicIdPrefix: "photo",
+          });
+          doc.uploads = doc.uploads || {};
+          doc.uploads.photoUrl = r.url;
+          doc.uploads.photoKind = r.kind;
+          doc.uploads.photoPreviewUrl = r.previewUrl;
+          doc.uploads.photoDataUrl = await compressToJpegDataUrl(req.files.photo[0]);
+          console.log("✅ Photo updated in edit:", r.url);
+        }
+      } catch (e) {
+        console.log("Photo upload skipped in edit:", e?.message);
+      }
+
+      try {
+        if (req.files?.pan?.[0]) {
+          const r = await uploadStudentDoc({
+            file: req.files.pan[0],
+            folder: "awdiz/admissions/pan",
+            publicIdPrefix: "pan",
+          });
+          doc.uploads = doc.uploads || {};
+          doc.uploads.panUrl = r.url;
+          doc.uploads.panKind = r.kind;
+          doc.uploads.panPreviewUrl = r.previewUrl;
+          doc.uploads.panDataUrl = await compressToJpegDataUrl(req.files.pan[0]);
+          console.log("✅ Pan updated in edit:", r.url);
+        }
+      } catch (e) {
+        console.log("Pan upload skipped in edit:", e?.message);
+      }
+
+      try {
+        if (req.files?.aadhaar?.[0]) {
+          const r = await uploadStudentDoc({
+            file: req.files.aadhaar[0],
+            folder: "awdiz/admissions/aadhaar",
+            publicIdPrefix: "aadhaar",
+          });
+          doc.uploads = doc.uploads || {};
+          doc.uploads.aadhaarUrl = r.url;
+          doc.uploads.aadhaarKind = r.kind;
+          doc.uploads.aadhaarPreviewUrl = r.previewUrl;
+          doc.uploads.aadhaarDataUrl = await compressToJpegDataUrl(req.files.aadhaar[0]);
+          console.log("✅ Aadhaar updated in edit:", r.url);
+        }
+      } catch (e) {
+        console.log("Aadhaar upload skipped in edit:", e?.message);
+      }
+    }
+
     // ✅ Edit ke baad status ko fir se "pending" rakhenge (counselor re-review karega)
     doc.status = "pending";
     await doc.save(); // 👈 pehle Mongo me latest data save

@@ -100,8 +100,24 @@ router.post("/:id/approve", approveAdmission);
 // 🔹 Student edit ke liye data fetch
 router.get("/:id/edit-data", getAdmissionForEdit);
 
-// 🔹 Student ne edit submit kiya
-router.post("/:id/apply-edit", express.json(), applyAdmissionEdit);
+// 🔹 Student ne edit submit kiya (with file uploads support)
+const editUpload = upload.fields([
+  { name: "photo", maxCount: 1 },
+  { name: "pan", maxCount: 1 },
+  { name: "aadhaar", maxCount: 1 },
+]);
+
+router.post("/:id/apply-edit", (req, res, next) => {
+  editUpload(req, res, (err) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ message: "File too large. Upload under 35MB." });
+      }
+      return res.status(400).json({ message: err.message || "Upload failed" });
+    }
+    next();
+  });
+}, applyAdmissionEdit);
 
 
 router.post("/:id/request-edit-counselor", requestEditToCounselor);

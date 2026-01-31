@@ -733,18 +733,32 @@ export default function AdmissionForm() {
 
       try {
         setLoading(true);
-        await api.post(`/admissions/${admissionId}/apply-edit`, {
-          sections: allowedSections,
-          // updated: form,
-          updated: {
-            ...form,
-            tc: {
-              ...(form.tc || {}),
-              accepted: !!form.termsAccepted,
-              dataConsentAccepted: !!form.dataConsentAccepted,
-            },
+        
+        // ✅ Create FormData for file uploads in edit mode
+        const fd = new FormData();
+        fd.append("sections", JSON.stringify(allowedSections));
+        fd.append("updated", JSON.stringify({
+          ...form,
+          tc: {
+            ...(form.tc || {}),
+            accepted: !!form.termsAccepted,
+            dataConsentAccepted: !!form.dataConsentAccepted,
           },
+        }));
+        
+        // ✅ Append files if they exist (new uploads during edit)
+        if (photo) fd.append("photo", photo);
+        if (panFile) fd.append("pan", panFile);
+        if (aadhaarFile) fd.append("aadhaar", aadhaarFile);
+        
+        console.log("📝 Edit submission with files:", {
+          hasPhoto: !!photo,
+          hasPan: !!panFile,
+          hasAadhaar: !!aadhaarFile,
+          allowedSections,
         });
+        
+        await api.post(`/admissions/${admissionId}/apply-edit`, fd);
         setLoading(false);
         alert("Your changes have been submitted. Counselor will review.");
         return;
