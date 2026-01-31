@@ -1679,7 +1679,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </div>
       </div>
 
-      <!-- COURSE (same as before) -->
+      <!-- COURSE (with field-level flags) -->
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">Course Details</p>
@@ -1689,17 +1689,35 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
         </div>
         <div class="grid-2">
-          <div>
-            <div class="field-label">Course Name</div>
-            <div class="field-value">${p.course?.name || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Course Name</div>
+              <div data-field="cr_name" class="field-value${flaggedFields.includes("cr_name") ? " field-flagged" : ""}">${p.course?.name || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="cr_name" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="cr_name" value="fix" data-section="course" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Reference</div>
-            <div class="field-value">${p.course?.reference || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Reference</div>
+              <div data-field="cr_reference" class="field-value${flaggedFields.includes("cr_reference") ? " field-flagged" : ""}">${p.course?.reference || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="cr_reference" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="cr_reference" value="fix" data-section="course" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Plan Type</div>
-            <div class="field-value">${jobType}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Plan Type</div>
+              <div data-field="cr_planType" class="field-value${flaggedFields.includes("cr_planType") ? " field-flagged" : ""}">${jobType}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="cr_planType" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="cr_planType" value="fix" data-section="course" /> ❌</label>
+            </div>
           </div>
         </div>
       </div>
@@ -1727,7 +1745,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </table>
       </div>
 
-      <!-- IDS (same) -->
+      <!-- IDS (with field-level flags) -->
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">ID Details</p>
@@ -1737,13 +1755,25 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
         </div>
         <div class="grid-2">
-          <div>
-            <div class="field-label">PAN Number</div>
-            <div class="field-value">${p.ids?.pan || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">PAN Number</div>
+              <div data-field="id_pan" class="field-value${flaggedFields.includes("id_pan") ? " field-flagged" : ""}">${p.ids?.pan || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="id_pan" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="id_pan" value="fix" data-section="ids" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Aadhaar / Driving</div>
-            <div class="field-value">${p.ids?.aadhaarOrDriving || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Aadhaar / Driving</div>
+              <div data-field="id_aadhaar" class="field-value${flaggedFields.includes("id_aadhaar") ? " field-flagged" : ""}">${p.ids?.aadhaarOrDriving || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="id_aadhaar" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="id_aadhaar" value="fix" data-section="ids" /> ❌</label>
+            </div>
           </div>
         </div>
       </div>
@@ -1850,7 +1880,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </div>
       </div>
 
-      <!-- CENTER (same) -->
+      <!-- CENTER (with field-level flags) -->
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">Center Details</p>
@@ -1860,13 +1890,25 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
         </div>
         <div class="grid-2">
-          <div>
-            <div class="field-label">Place of Admission</div>
-            <div class="field-value">${p.center?.placeOfAdmission || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Place of Admission</div>
+              <div data-field="center_place" class="field-value${flaggedFields.includes("center_place") ? " field-flagged" : ""}">${p.center?.placeOfAdmission || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="center_place" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="center_place" value="fix" data-section="center" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Mode</div>
-            <div class="field-value">${p.center?.mode || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Mode</div>
+              <div data-field="center_mode" class="field-value${flaggedFields.includes("center_mode") ? " field-flagged" : ""}">${p.center?.mode || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="center_mode" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="center_mode" value="fix" data-section="center" /> ❌</label>
+            </div>
           </div>
         </div>
       </div>
@@ -2794,7 +2836,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </div>
       </div>
 
-      <!-- COURSE (same as before) -->
+      <!-- COURSE (with field-level flags) -->
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">Course Details</p>
@@ -2804,17 +2846,35 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
         </div>
         <div class="grid-2">
-          <div>
-            <div class="field-label">Course Name</div>
-            <div class="field-value">${p.course?.name || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Course Name</div>
+              <div data-field="cr_name" class="field-value${flaggedFields.includes("cr_name") ? " field-flagged" : ""}">${p.course?.name || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="cr_name" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="cr_name" value="fix" data-section="course" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Reference</div>
-            <div class="field-value">${p.course?.reference || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Reference</div>
+              <div data-field="cr_reference" class="field-value${flaggedFields.includes("cr_reference") ? " field-flagged" : ""}">${p.course?.reference || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="cr_reference" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="cr_reference" value="fix" data-section="course" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Plan Type</div>
-            <div class="field-value">${jobType}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Plan Type</div>
+              <div data-field="cr_planType" class="field-value${flaggedFields.includes("cr_planType") ? " field-flagged" : ""}">${jobType}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="cr_planType" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="cr_planType" value="fix" data-section="course" /> ❌</label>
+            </div>
           </div>
         </div>
       </div>
@@ -2842,7 +2902,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </table>
       </div>
 
-      <!-- IDS (same) -->
+      <!-- IDS (with field-level flags) -->
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">ID Details</p>
@@ -2852,13 +2912,25 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
         </div>
         <div class="grid-2">
-          <div>
-            <div class="field-label">PAN Number</div>
-            <div class="field-value">${p.ids?.pan || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">PAN Number</div>
+              <div data-field="id_pan" class="field-value${flaggedFields.includes("id_pan") ? " field-flagged" : ""}">${p.ids?.pan || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="id_pan" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="id_pan" value="fix" data-section="ids" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Aadhaar / Driving</div>
-            <div class="field-value">${p.ids?.aadhaarOrDriving || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Aadhaar / Driving</div>
+              <div data-field="id_aadhaar" class="field-value${flaggedFields.includes("id_aadhaar") ? " field-flagged" : ""}">${p.ids?.aadhaarOrDriving || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="id_aadhaar" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="id_aadhaar" value="fix" data-section="ids" /> ❌</label>
+            </div>
           </div>
         </div>
       </div>
@@ -2965,7 +3037,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </div>
       </div>
 
-      <!-- CENTER (same) -->
+      <!-- CENTER (with field-level flags) -->
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">Center Details</p>
@@ -2975,13 +3047,25 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
         </div>
         <div class="grid-2">
-          <div>
-            <div class="field-label">Place of Admission</div>
-            <div class="field-value">${p.center?.placeOfAdmission || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Place of Admission</div>
+              <div data-field="center_place" class="field-value${flaggedFields.includes("center_place") ? " field-flagged" : ""}">${p.center?.placeOfAdmission || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="center_place" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="center_place" value="fix" data-section="center" /> ❌</label>
+            </div>
           </div>
-          <div>
-            <div class="field-label">Mode</div>
-            <div class="field-value">${p.center?.mode || "-"}</div>
+          <div class="field-row">
+            <div class="field-main">
+              <div class="field-label">Mode</div>
+              <div data-field="center_mode" class="field-value${flaggedFields.includes("center_mode") ? " field-flagged" : ""}">${p.center?.mode || "-"}</div>
+            </div>
+            <div class="field-flags">
+              <label class="mini-badge"><input type="radio" name="center_mode" value="ok" checked /> ✅</label>
+              <label class="mini-badge"><input type="radio" name="center_mode" value="fix" data-section="center" /> ❌</label>
+            </div>
           </div>
         </div>
       </div>

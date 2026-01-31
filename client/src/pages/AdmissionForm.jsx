@@ -684,46 +684,57 @@ export default function AdmissionForm() {
     }
 
 
-    // 🔴 SECTION-LEVEL ❌ VALIDATION
-    if (editMode && admissionId && allowedSections.length && allowedFields.length === 0) {
-      if (!originalForm) return;
-
-      const sectionChanged = allowedSections.some((section) => {
-        return JSON.stringify(originalForm[section]) !== JSON.stringify(form[section]);
-      });
-
-      if (!sectionChanged) {
-        setError(
-          "Please make at least one change in the highlighted section before submitting."
-        );
-        return;
-      }
-    }
-
-
     // 🔁 EDIT-MODE: existing admission update → no OTP / no file upload
     if (editMode && admissionId) {
       // 🆕 Counselor ne jis jis field ko ❌ mark kiya,
       // un sab me change karna COMPULSORY hai.
-      if (allowedFields.length && originalForm) {
-        const notChanged = allowedFields.filter((key) => {
-          // ---- UPLOADS: naya file dena hi padega ----
-          if (key === "up_photo") return !photo; // still null => not changed
-          if (key === "up_pan") return !panFile;
-          if (key === "up_aadhaar") return !aadhaarFile;
+      if (originalForm) {
+        // ---- FIELD-LEVEL VALIDATION ----
+        if (allowedFields.length > 0) {
+          const notChanged = allowedFields.filter((key) => {
+            // ---- UPLOADS: naya file dena hi padega ----
+            if (key === "up_photo") return !photo; // still null => not changed
+            if (key === "up_pan") return !panFile;
+            if (key === "up_aadhaar") return !aadhaarFile;
 
-          // ---- BAAKI SAB (personal / course / center / ids / education / signatures) ----
-          const beforeVal = getValueForKey(originalForm, key);
-          const nowVal = getValueForKey(form, key);
+            // ---- BAAKI SAB (personal / course / center / ids / education / signatures) ----
+            const beforeVal = getValueForKey(originalForm, key);
+            const nowVal = getValueForKey(form, key);
 
-          return String(beforeVal ?? "") === String(nowVal ?? "");
-        });
+            return String(beforeVal ?? "") === String(nowVal ?? "");
+          });
 
-        if (notChanged.length) {
-          setError(
-            "Please update all highlighted fields before submitting your corrections."
-          );
-          return; // ❌ API call hi nahi jayega
+          if (notChanged.length) {
+            setError(
+              "Please update all highlighted fields before submitting your corrections."
+            );
+            return; // ❌ API call hi nahi jayega
+          }
+        }
+        
+        // ---- SECTION-LEVEL VALIDATION ----
+        // If no specific fields but sections are marked, check if at least one field in section changed
+        if (allowedFields.length === 0 && allowedSections.length > 0) {
+          const unchangedSections = allowedSections.filter((section) => {
+            const beforeSection = originalForm[section];
+            const nowSection = form[section];
+            
+            // Handle different data types
+            if (Array.isArray(beforeSection) && Array.isArray(nowSection)) {
+              return JSON.stringify(beforeSection) === JSON.stringify(nowSection);
+            }
+            if (typeof beforeSection === 'object' && typeof nowSection === 'object') {
+              return JSON.stringify(beforeSection) === JSON.stringify(nowSection);
+            }
+            return String(beforeSection ?? "") === String(nowSection ?? "");
+          });
+
+          if (unchangedSections.length === allowedSections.length) {
+            setError(
+              "Please make changes to at least one section before submitting."
+            );
+            return; // ❌ API call hi nahi jayega
+          }
         }
       }
 
