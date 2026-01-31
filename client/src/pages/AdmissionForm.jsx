@@ -147,9 +147,13 @@ export default function AdmissionForm() {
     if (!file) return file;
 
     // Check if it's already a valid JPEG/PNG that doesn't need processing
+    // 🔥 iOS needs smaller files - use 1MB threshold for iOS
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const maxSizeThreshold = isIOS ? 1 * 1024 * 1024 : 2 * 1024 * 1024; // 1MB for iOS, 2MB for others
+    
     const isAlreadyOptimized =
       (file.type === "image/jpeg" || file.type === "image/png") &&
-      file.size < 2 * 1024 * 1024; // Less than 2MB
+      file.size < maxSizeThreshold;
 
     if (isAlreadyOptimized) {
       console.log("📁 File already optimized, skipping normalization:", file.name);
@@ -179,8 +183,9 @@ export default function AdmissionForm() {
 
     const canvas = document.createElement("canvas");
 
-    // resize (max 1600px)
-    const MAX = 1600;
+    // 🔥 iOS needs smaller dimensions to prevent memory issues during upload
+    // iPhone camera photos can be 3000+ pixels, we reduce more aggressively for iOS
+    const MAX = isIOS ? 1200 : 1600;
     let { width, height } = bitmap;
 
     if (width > MAX || height > MAX) {
@@ -195,10 +200,15 @@ export default function AdmissionForm() {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(bitmap, 0, 0, width, height);
 
-    // convert to jpeg (safe everywhere)
+    // 🔥 iOS needs lower quality to keep file size small (memory issues)
+    const quality = isIOS ? 0.7 : 0.85;
     const blob = await new Promise((res) =>
-      canvas.toBlob(res, "image/jpeg", 0.85)
+      canvas.toBlob(res, "image/jpeg", quality)
     );
+
+    // Log compression results
+    const finalSize = blob?.size || 0;
+    console.log(`📁 Image normalized: ${file.name} → ${width}x${height}, ${Math.round(finalSize / 1024)}KB, iOS: ${isIOS}`);
 
     return new File(
       [blob],
@@ -808,6 +818,25 @@ export default function AdmissionForm() {
     if (!photo) {
       setError("Passport photo is required.");
       return;
+    }
+
+    // 🔥 iOS Fix: Check file sizes before allowing submit
+    if (isIOS) {
+      const maxPhotoSize = 3 * 1024 * 1024; // 3MB
+      const maxDocSize = 3 * 1024 * 1024;   // 3MB
+      
+      if (photo.size > maxPhotoSize) {
+        setError(`Photo too large (${Math.round(photo.size / 1024 / 1024)}MB). iOS limit: 3MB. Please use 'Choose file' to select a smaller image.`);
+        return;
+      }
+      if (panFile && panFile.size > maxDocSize) {
+        setError(`PAN document too large (${Math.round(panFile.size / 1024 / 1024)}MB). iOS limit: 3MB per file.`);
+        return;
+      }
+      if (aadhaarFile && aadhaarFile.size > maxDocSize) {
+        setError(`Aadhaar document too large (${Math.round(aadhaarFile.size / 1024 / 1024)}MB). iOS limit: 3MB per file.`);
+        return;
+      }
     }
 
     if (!panFile) {
@@ -1444,6 +1473,15 @@ export default function AdmissionForm() {
           {/* ---------- UPLOADS (PHOTO MANDATORY for NEW only) ---------- */}
           <section className="space-y-2">
             <h2 className="text-lg sm:text-xl font-semibold">Uploads</h2>
+            
+            {/* 🔥 iOS Notice */}
+            {isIOS && (
+              <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2">
+                📱 iPhone/iPad users: Use "Choose file" instead of camera for better upload success. 
+                Max 3MB per file. Use WiFi if possible.
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="min-w-0">
                 <label className="block text-sm mb-1">Passport photo*</label>
@@ -1515,7 +1553,9 @@ export default function AdmissionForm() {
                           try {
                             const file = e.target.files?.[0] || null;
                             if (!file) {
-                              console.log("📸 No camera photo received");
+                              console.log("📸 No camera photo received - likely permission issue");
+                              // 🔍 DIAGNOSTIC: Alert for camera permission debugging
+                              alert("Camera Issue: No photo was captured.\n\nPossible causes:\n1. Camera permission denied in iOS Settings\n2. User cancelled the camera\n3. iOS memory issue\n\nTo fix:\n- Go to iOS Settings > Safari > Camera > Allow\n- Or use 'Choose file' instead");
                               return;
                             }
 

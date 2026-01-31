@@ -7,7 +7,7 @@ import { getAdmissionDraft, clearAdmissionDraft } from "../lib/formStore";
 import { TERMS_TEXT } from "../components/termsText";
 
 // ✅ iOS Fix: Compress signature data URLs to reduce size
-async function compressSignature(dataUrl) {
+async function compressSignature(dataUrl, isIOS = false) {
   if (!dataUrl || !dataUrl.startsWith("data:image")) {
     return dataUrl;
   }
@@ -23,8 +23,8 @@ async function compressSignature(dataUrl) {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
-    // Reduce dimensions for signature (max width 600px)
-    const maxWidth = 600;
+    // 🔥 iOS needs smaller dimensions to prevent memory issues
+    const maxWidth = isIOS ? 400 : 600;
     let width = img.width;
     let height = img.height;
 
@@ -41,12 +41,14 @@ async function compressSignature(dataUrl) {
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
 
-    // Compress to JPEG with lower quality (0.7) instead of PNG
-    const compressed = canvas.toDataURL("image/jpeg", 0.7);
+    // 🔥 iOS needs lower quality (0.5) to reduce data URL size
+    const quality = isIOS ? 0.5 : 0.7;
+    const compressed = canvas.toDataURL("image/jpeg", quality);
     console.log("Signature compressed:", {
       original: dataUrl.length,
       compressed: compressed.length,
       reduction: Math.round((1 - compressed.length / dataUrl.length) * 100) + "%",
+      isIOS,
     });
 
     return compressed;
@@ -95,15 +97,39 @@ export default function OtpVerify() {
     if (!payload) return setErr("Session expired. Please fill the form again.");
     if (!mobile) return setErr("Mobile number missing from form data.");
 
+    // ✅ Detect iOS
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     // ✅ iOS Fix: Validate parent signature exists
     if (!files?.parentSign || !files?.parentSign?.startsWith?.("data:image")) {
       return setErr("Parent signature is missing. Please go back and sign.");
     }
 
-    // ✅ iOS Fix: Check signature data URL size (iOS Safari has limits)
-    const maxSigSize = 500000; // 500KB limit for signatures
+    // ✅ iOS Fix: Stricter signature size limits for iOS (memory issues)
+    const maxSigSize = isIOS ? 200000 : 500000; // 200KB for iOS, 500KB for others
     if (files?.parentSign?.length > maxSigSize) {
-      return setErr("Parent signature is too large. Please sign again with a smaller signature.");
+      return setErr(
+        isIOS 
+          ? "Signature too large for iOS. Please sign smaller (iOS has strict memory limits)."
+          : "Parent signature is too large. Please sign again with a smaller signature."
+      );
+    }
+
+    // ✅ iOS Fix: Check total estimated FormData size
+    let totalEstimatedSize = 0;
+    if (files?.photo) totalEstimatedSize += files.photo.size || 0;
+    if (files?.panFile) totalEstimatedSize += files.panFile.size || 0;
+    if (files?.aadhaarFile) totalEstimatedSize += files.aadhaarFile.size || 0;
+    if (files?.studentSign) totalEstimatedSize += files.studentSign.length || 0;
+    if (files?.parentSign) totalEstimatedSize += files.parentSign.length || 0;
+
+    // 🔥 iOS struggles with uploads > 10MB total
+    const maxTotalSize = isIOS ? 8 * 1024 * 1024 : 25 * 1024 * 1024; // 8MB for iOS, 25MB for others
+    if (totalEstimatedSize > maxTotalSize) {
+      return setErr(
+        `Total upload size (${Math.round(totalEstimatedSize / 1024 / 1024)}MB) too large for ${isIOS ? 'iOS' : 'mobile'}. ` +
+        `Please use smaller files or reduce image quality. Recommended: Photo < 2MB, Documents < 3MB each.`
+      );
     }
 
     // ✅ iOS Fix: Compress signatures before sending (reduces FormData size for iOS)
@@ -111,12 +137,12 @@ export default function OtpVerify() {
     let parentSignToSend = files?.parentSign;
 
     try {
-      // Compress if signature is a data URL
+      // Compress if signature is a data URL (pass isIOS flag for aggressive compression)
       if (studentSignToSend?.startsWith?.("data:image")) {
-        studentSignToSend = await compressSignature(studentSignToSend);
+        studentSignToSend = await compressSignature(studentSignToSend, isIOS);
       }
       if (parentSignToSend?.startsWith?.("data:image")) {
-        parentSignToSend = await compressSignature(parentSignToSend);
+        parentSignToSend = await compressSignature(parentSignToSend, isIOS);
       }
     } catch (compressErr) {
       console.warn("Signature compression failed, using original:", compressErr);
@@ -211,15 +237,32 @@ By signing this document, you acknowledge that you have received and agreed to l
       });
 
       // ✅ iOS-specific error handling
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isIOSError = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const errorMessage = e?.response?.data?.message;
+      const statusCode = e?.response?.status;
+      const errorCode = e?.code;
 
-      if (isIOS && !errorMessage) {
-        setErr(
-          "Upload failed on iOS. Please try: 1) Using a smaller signature, 2) Using WiFi instead of mobile data, 3) Closing other apps to free memory."
-        );
+      if (isIOSError) {
+        if (errorCode === 'ECONNABORTED' || errorCode === 'ERR_NETWORK' || !errorMessage) {
+          setErr(
+            "iOS upload failed (likely memory/timeout). Quick fixes:\n" +
+            "1) Use WiFi (not mobile data)\n" +
+            "2) Sign smaller (shorter strokes)\n" +
+            "3) Close all other apps\n" +
+            "4) Use 'Choose file' instead of camera\n" +
+            "5) Try on a device with more RAM"
+          );
+        } else if (statusCode === 413) {
+          setErr("Files too large. Please use smaller photos/documents (< 3MB each).");
+        } else {
+          setErr(errorMessage || "iOS upload failed. Try WiFi or smaller files.");
+        }
       } else {
-        setErr(errorMessage || "Failed to send OTP. Check console for details.");
+        if (statusCode === 413) {
+          setErr("Files too large. Maximum total size is 35MB.");
+        } else {
+          setErr(errorMessage || "Failed to send OTP. Please try again.");
+        }
       }
     } finally {
       setLoading(false);
