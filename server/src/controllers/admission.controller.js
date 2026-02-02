@@ -3701,7 +3701,23 @@ async function getAdmissionForEdit(req, res) {
 
     // 🔴 Sirf tabhi allow karo jab editPending me entry ho
     const state = editPending.get(String(id));
-    const allowedSections = Array.isArray(state?.sections) ? state.sections : [];
+    let allowedSections = Array.isArray(state?.sections) ? state.sections : [];
+    let allowedFields = Array.isArray(state?.fields) ? state.fields : [];
+
+    // 🔵 DATABASE FALLBACK: agar memory me nahi hai to DB se check karo
+    if (!allowedSections.length) {
+      const dbEditRequest = doc.editRequest;
+      if (dbEditRequest?.status === "pending" && Array.isArray(dbEditRequest?.sections)) {
+        allowedSections = dbEditRequest.sections;
+        allowedFields = Array.isArray(dbEditRequest?.fields) ? dbEditRequest.fields : [];
+        // 🔄 Restore to memory for consistency
+        editPending.set(String(id), {
+          sections: allowedSections,
+          fields: allowedFields,
+          createdAt: dbEditRequest.createdAt?.getTime() || Date.now(),
+        });
+      }
+    }
 
     if (!allowedSections.length) {
       return res.status(400).json({
@@ -3709,9 +3725,6 @@ async function getAdmissionForEdit(req, res) {
           "This edit link has expired or is not active. Please contact the counselor for a new edit request.",
       });
     }
-
-    // 👉 field-level list
-    let allowedFields = Array.isArray(state?.fields) ? state.fields : [];
 
     // fallback: agar kisi reason se memory me fields na ho lekin URL param hai
     if (!allowedFields.length && typeof fields === "string") {
@@ -3750,7 +3763,21 @@ async function applyAdmissionEdit(req, res) {
 
     // 🔴 EDIT WINDOW CHECK (single-use)
     const state = editPending.get(String(id));
-    const allowedSections = Array.isArray(state?.sections) ? state.sections : [];
+    let allowedSections = Array.isArray(state?.sections) ? state.sections : [];
+
+    // 🔵 DATABASE FALLBACK: agar memory me nahi hai to DB se check karo
+    if (!allowedSections.length) {
+      const dbEditRequest = doc.editRequest;
+      if (dbEditRequest?.status === "pending" && Array.isArray(dbEditRequest?.sections)) {
+        allowedSections = dbEditRequest.sections;
+        // 🔄 Restore to memory for consistency
+        editPending.set(String(id), {
+          sections: allowedSections,
+          fields: Array.isArray(dbEditRequest?.fields) ? dbEditRequest.fields : [],
+          createdAt: dbEditRequest.createdAt?.getTime() || Date.now(),
+        });
+      }
+    }
 
     if (!allowedSections.length) {
       return res.status(400).json({
