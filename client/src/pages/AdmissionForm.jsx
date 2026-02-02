@@ -677,6 +677,12 @@ export default function AdmissionForm() {
       return;
     }
     
+    // Photo required check
+    if (!photo) {
+      setError("Passport photo is required. Please select or capture a photo.");
+      return;
+    }
+    
 
     // 🔁 EDIT-MODE: existing admission update → no OTP / no file upload
     if (editMode && admissionId) {
