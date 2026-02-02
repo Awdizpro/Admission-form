@@ -288,6 +288,50 @@ export default function AdmissionForm() {
     return false;
   }
 
+  // 🆕 Helper: Get human-readable field/section names for UI display
+  const getFieldDisplayName = (key) => {
+    const fieldMap = {
+      // Personal
+      "pf_fullName": "Full Name",
+      "pf_guardian": "Guardian Name",
+      "pf_address": "Address",
+      "pf_studentMobile": "Student Mobile",
+      "pf_whatsapp": "WhatsApp Mobile",
+      "pf_email": "Email",
+      "pf_parentMobile": "Parent's Mobile",
+      // Course
+      "cr_name": "Course Name",
+      "cr_reference": "Reference",
+      "cr_planType": "Plan Type (Job/Training)",
+      // IDs
+      "id_pan": "PAN Number",
+      "id_aadhaar": "Aadhaar Number",
+      // Center
+      "ct_place": "Center Location",
+      "ct_mode": "Mode (Online/Offline)",
+      // Signatures
+      "sg_student": "Student Signature",
+      "sg_parent": "Parent Signature",
+      // Uploads
+      "up_photo": "Passport Photo",
+      "up_pan": "PAN Document",
+      "up_aadhaar": "Aadhaar Document",
+    };
+    return fieldMap[key] || key;
+  };
+
+  const getSectionDisplayName = (section) => {
+    const sectionMap = {
+      "personal": "Personal Information",
+      "course": "Course Details",
+      "education": "Educational Details",
+      "ids": "ID Details",
+      "center": "Center Details",
+      "signatures": "Signatures",
+      "uploads": "Document Uploads",
+    };
+    return sectionMap[section] || section;
+  };
 
   // 🔁 RESTORE FORM FROM LOCAL STORAGE (NEW ADMISSION ONLY)
   useEffect(() => {
@@ -677,12 +721,6 @@ export default function AdmissionForm() {
       return;
     }
     
-    // Photo required check
-    if (!photo) {
-      setError("Passport photo is required. Please select or capture a photo.");
-      return;
-    }
-    
 
     // 🔁 EDIT-MODE: existing admission update → no OTP / no file upload
     if (editMode && admissionId) {
@@ -716,6 +754,14 @@ export default function AdmissionForm() {
         // If no specific fields but sections are marked, check if at least one field in section changed
         if (allowedFields.length === 0 && allowedSections.length > 0) {
           const unchangedSections = allowedSections.filter((section) => {
+            // 🔴 SPECIAL HANDLING for uploads section
+            if (section === "uploads") {
+              // Check if any new file was uploaded
+              const hasNewUpload = !!(photo || panFile || aadhaarFile);
+              // If no new upload, section is unchanged
+              return !hasNewUpload;
+            }
+            
             const beforeSection = originalForm[section];
             const nowSection = form[section];
             
@@ -973,9 +1019,29 @@ export default function AdmissionForm() {
           </p>
 
           {editMode && (
-            <p className="text-center text-xs sm:text-sm text-blue-700 mb-2">
-              You are editing your submitted admission form. The counselor will review only the sections selected for correction.
-            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
+              <p className="text-sm text-blue-800 font-semibold mb-2">
+                📝 Edit Mode: Please update the following fields marked by your counselor:
+              </p>
+              {allowedFields.length > 0 ? (
+                <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
+                  {allowedFields.map((field) => (
+                    <li key={field}>{getFieldDisplayName(field)}</li>
+                  ))}
+                </ul>
+              ) : allowedSections.length > 0 ? (
+                <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
+                  {allowedSections.map((section) => (
+                    <li key={section}>{getSectionDisplayName(section)}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-blue-700">Loading edit details...</p>
+              )}
+              <p className="text-xs text-blue-600 mt-2">
+                Fields marked with red borders need to be updated before submitting.
+              </p>
+            </div>
           )}
 
           {error && error !== "expired-link" && (

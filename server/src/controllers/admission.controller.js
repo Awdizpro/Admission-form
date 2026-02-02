@@ -3787,6 +3787,98 @@ async function applyAdmissionEdit(req, res) {
       });
     }
 
+    // ✅ FIELD-LEVEL VALIDATION: Check if specific fields were actually changed
+    const allowedFields = Array.isArray(state?.fields) ? state.fields : [];
+    
+    if (allowedFields.length > 0) {
+      const unchangedFields = [];
+      
+      for (const fieldKey of allowedFields) {
+        let isChanged = false;
+        
+        // Check uploads
+        if (fieldKey === "up_photo" && req.files?.photo?.[0]) isChanged = true;
+        else if (fieldKey === "up_pan" && req.files?.pan?.[0]) isChanged = true;
+        else if (fieldKey === "up_aadhaar" && req.files?.aadhaar?.[0]) isChanged = true;
+        // Check signatures
+        else if (fieldKey === "sg_student") {
+          const oldSign = doc.signatures?.student?.signDataUrl || "";
+          const newSign = updated.signatures?.student?.signDataUrl || "";
+          if (oldSign !== newSign) isChanged = true;
+        }
+        else if (fieldKey === "sg_parent") {
+          const oldSign = doc.signatures?.parent?.signDataUrl || "";
+          const newSign = updated.signatures?.parent?.signDataUrl || "";
+          if (oldSign !== newSign) isChanged = true;
+        }
+        // Check personal fields
+        else if (fieldKey === "pf_fullName") {
+          const oldVal = `${doc.personal?.salutation || ""} ${doc.personal?.name || ""}`.trim();
+          const newVal = `${updated.personal?.salutation || ""} ${updated.personal?.name || ""}`.trim();
+          if (oldVal !== newVal) isChanged = true;
+        }
+        else if (fieldKey === "pf_guardian") {
+          if (doc.personal?.fatherOrGuardianName !== updated.personal?.fatherOrGuardianName) isChanged = true;
+        }
+        else if (fieldKey === "pf_address") {
+          if (doc.personal?.address !== updated.personal?.address) isChanged = true;
+        }
+        else if (fieldKey === "pf_studentMobile") {
+          if (doc.personal?.studentMobile !== updated.personal?.studentMobile) isChanged = true;
+        }
+        else if (fieldKey === "pf_whatsapp") {
+          if (doc.personal?.whatsappMobile !== updated.personal?.whatsappMobile) isChanged = true;
+        }
+        else if (fieldKey === "pf_email") {
+          if (doc.personal?.email !== updated.personal?.email) isChanged = true;
+        }
+        else if (fieldKey === "pf_parentMobile") {
+          if (doc.personal?.parentMobile !== updated.personal?.parentMobile) isChanged = true;
+        }
+        // Check course fields
+        else if (fieldKey === "cr_name") {
+          if (doc.course?.name !== updated.course?.name) isChanged = true;
+        }
+        else if (fieldKey === "cr_reference") {
+          if (doc.course?.reference !== updated.course?.reference) isChanged = true;
+        }
+        else if (fieldKey === "cr_planType") {
+          const oldType = doc.course?.trainingOnly ? "training-only" : "job";
+          const newType = updated.course?.trainingOnly ? "training-only" : "job";
+          if (oldType !== newType) isChanged = true;
+        }
+        // Check ids fields
+        else if (fieldKey === "id_pan") {
+          if (doc.ids?.panNumber !== updated.ids?.panNumber) isChanged = true;
+        }
+        else if (fieldKey === "id_aadhaar") {
+          if (doc.ids?.aadhaarNumber !== updated.ids?.aadhaarNumber) isChanged = true;
+        }
+        // Check center fields
+        else if (fieldKey === "ct_place") {
+          if (doc.center?.placeOfAdmission !== updated.center?.placeOfAdmission) isChanged = true;
+        }
+        else if (fieldKey === "ct_mode") {
+          if (doc.center?.mode !== updated.center?.mode) isChanged = true;
+        }
+        // Check education - if section marked, consider it changed if education array differs
+        else if (fieldKey.startsWith("edu_")) {
+          if (JSON.stringify(doc.education) !== JSON.stringify(updated.education)) isChanged = true;
+        }
+        
+        if (!isChanged) {
+          unchangedFields.push(fieldKey);
+        }
+      }
+      
+      if (unchangedFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Please update all highlighted fields before submitting. Missing changes in: ${unchangedFields.join(", ")}`,
+        });
+      }
+    }
+
     updated = updated || {};
 
     // 💡 Sirf allowed sections update karenge – simple merge
