@@ -1928,84 +1928,58 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         />
 
         <div class="field-row">
-  <div class="field-main">
-    <div class="field-label">Student Name</div>
-
-    <div
-      data-field="sg_student"
-      class="field-value${
-        flaggedFields.includes("sg_student") ? " field-flagged" : ""
-      }"
-    >
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="font-weight:600;">
-          ${p.signatures?.student?.fullName || "-"}
+          <div class="field-main">
+            <div class="field-label">Student Name</div>
+            <div data-field="sg_student_name" class="field-value${flaggedFields.includes("sg_student_name") ? " field-flagged" : ""}">${p.signatures?.student?.fullName || "-"}</div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_student_name" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_student_name" value="fix" data-section="signatures" /> ❌</label>
+          </div>
         </div>
 
-        ${
-          (p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
-            ? `<img 
-                 src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" 
-                 alt="Student Signature"
-                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
-               />`
-            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
-        }
-      </div>
-    </div>
-  </div>
-
-  <div class="field-flags">
-    <label class="mini-badge">
-      <input type="radio" name="sg_student" value="ok" checked />
-      ✅
-    </label>
-    <label class="mini-badge">
-      <input type="radio" name="sg_student" value="fix" data-section="signatures" />
-      ❌
-    </label>
-  </div>
-</div>
-
-<div class="field-row">
-  <div class="field-main">
-    <div class="field-label">Parent / Guardian Name</div>
-
-    <div
-      data-field="sg_parent"
-      class="field-value${
-        flaggedFields.includes("sg_parent") ? " field-flagged" : ""
-      }"
-    >
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="font-weight:600;">
-          ${p.signatures?.parent?.fullName || "-"}
+        <div class="field-row">
+          <div class="field-main">
+            <div class="field-label">Student Signature</div>
+            <div data-field="sg_student_sign" class="field-value${flaggedFields.includes("sg_student_sign") ? " field-flagged" : ""}">
+              ${(p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
+                ? `<img src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" alt="Student Signature" style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" />`
+                : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+              }
+            </div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_student_sign" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_student_sign" value="fix" data-section="signatures" /> ❌</label>
+          </div>
         </div>
 
-        ${
-          (p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
-            ? `<img 
-                 src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" 
-                 alt="Parent Signature"
-                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
-               />`
-            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
-        }
-      </div>
-    </div>
-  </div>
+        <div class="field-row">
+          <div class="field-main">
+            <div class="field-label">Parent / Guardian Name</div>
+            <div data-field="sg_parent_name" class="field-value${flaggedFields.includes("sg_parent_name") ? " field-flagged" : ""}">${p.signatures?.parent?.fullName || "-"}</div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_parent_name" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_parent_name" value="fix" data-section="signatures" /> ❌</label>
+          </div>
+        </div>
 
-  <div class="field-flags">
-    <label class="mini-badge">
-      <input type="radio" name="sg_parent" value="ok" checked />
-      ✅
-    </label>
-    <label class="mini-badge">
-      <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
-      ❌
-    </label>
-  </div>
-</div>
+        <div class="field-row">
+          <div class="field-main">
+            <div class="field-label">Parent / Guardian Signature</div>
+            <div data-field="sg_parent_sign" class="field-value${flaggedFields.includes("sg_parent_sign") ? " field-flagged" : ""}">
+              ${(p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
+                ? `<img src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" alt="Parent Signature" style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" />`
+                : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+              }
+            </div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_parent_sign" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_parent_sign" value="fix" data-section="signatures" /> ❌</label>
+          </div>
+        </div>
 
         </div>
       </div>
@@ -3085,84 +3059,58 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         />
 
         <div class="field-row">
-  <div class="field-main">
-    <div class="field-label">Student Name</div>
-
-    <div
-      data-field="sg_student"
-      class="field-value${
-        flaggedFields.includes("sg_student") ? " field-flagged" : ""
-      }"
-    >
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="font-weight:600;">
-          ${p.signatures?.student?.fullName || "-"}
+          <div class="field-main">
+            <div class="field-label">Student Name</div>
+            <div data-field="sg_student_name" class="field-value${flaggedFields.includes("sg_student_name") ? " field-flagged" : ""}">${p.signatures?.student?.fullName || "-"}</div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_student_name" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_student_name" value="fix" data-section="signatures" /> ❌</label>
+          </div>
         </div>
 
-        ${
-          (p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
-            ? `<img 
-                 src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" 
-                 alt="Student Signature"
-                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
-               />`
-            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
-        }
-      </div>
-    </div>
-  </div>
-
-  <div class="field-flags">
-    <label class="mini-badge">
-      <input type="radio" name="sg_student" value="ok" checked />
-      ✅
-    </label>
-    <label class="mini-badge">
-      <input type="radio" name="sg_student" value="fix" data-section="signatures" />
-      ❌
-    </label>
-  </div>
-</div>
-
-<div class="field-row">
-  <div class="field-main">
-    <div class="field-label">Parent / Guardian Name</div>
-
-    <div
-      data-field="sg_parent"
-      class="field-value${
-        flaggedFields.includes("sg_parent") ? " field-flagged" : ""
-      }"
-    >
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="font-weight:600;">
-          ${p.signatures?.parent?.fullName || "-"}
+        <div class="field-row">
+          <div class="field-main">
+            <div class="field-label">Student Signature</div>
+            <div data-field="sg_student_sign" class="field-value${flaggedFields.includes("sg_student_sign") ? " field-flagged" : ""}">
+              ${(p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl)
+                ? `<img src="${p.signatures?.student?.signUrl || p.signatures?.student?.signDataUrl}" alt="Student Signature" style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" />`
+                : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+              }
+            </div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_student_sign" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_student_sign" value="fix" data-section="signatures" /> ❌</label>
+          </div>
         </div>
 
-        ${
-          (p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
-            ? `<img 
-                 src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" 
-                 alt="Parent Signature"
-                 style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px"
-               />`
-            : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
-        }
-      </div>
-    </div>
-  </div>
+        <div class="field-row">
+          <div class="field-main">
+            <div class="field-label">Parent / Guardian Name</div>
+            <div data-field="sg_parent_name" class="field-value${flaggedFields.includes("sg_parent_name") ? " field-flagged" : ""}">${p.signatures?.parent?.fullName || "-"}</div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_parent_name" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_parent_name" value="fix" data-section="signatures" /> ❌</label>
+          </div>
+        </div>
 
-  <div class="field-flags">
-    <label class="mini-badge">
-      <input type="radio" name="sg_parent" value="ok" checked />
-      ✅
-    </label>
-    <label class="mini-badge">
-      <input type="radio" name="sg_parent" value="fix" data-section="signatures" />
-      ❌
-    </label>
-  </div>
-</div>
+        <div class="field-row">
+          <div class="field-main">
+            <div class="field-label">Parent / Guardian Signature</div>
+            <div data-field="sg_parent_sign" class="field-value${flaggedFields.includes("sg_parent_sign") ? " field-flagged" : ""}">
+              ${(p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl)
+                ? `<img src="${p.signatures?.parent?.signUrl || p.signatures?.parent?.signDataUrl}" alt="Parent Signature" style="height:42px;max-width:220px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" />`
+                : `<span style="font-size:12px;color:#6b7280;">No signature</span>`
+              }
+            </div>
+          </div>
+          <div class="field-flags">
+            <label class="mini-badge"><input type="radio" name="sg_parent_sign" value="ok" checked /> ✅</label>
+            <label class="mini-badge"><input type="radio" name="sg_parent_sign" value="fix" data-section="signatures" /> ❌</label>
+          </div>
+        </div>
 
         </div>
       </div>

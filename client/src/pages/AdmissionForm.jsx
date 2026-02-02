@@ -310,8 +310,10 @@ export default function AdmissionForm() {
       "center_place": "Center Location",
       "center_mode": "Mode (Online/Offline)",
       // Signatures
-      "sg_student": "Student Signature",
-      "sg_parent": "Parent Signature",
+      "sg_student_name": "Student Name",
+      "sg_student_sign": "Student Signature",
+      "sg_parent_name": "Parent Name",
+      "sg_parent_sign": "Parent Signature",
       // Uploads
       "up_photo": "Passport Photo",
       "up_pan": "PAN Document",
@@ -664,15 +666,17 @@ export default function AdmissionForm() {
     if (key === "pf_parentMobile") return srcForm.personal?.parentMobile || "";
 
     // ---------- SIGNATURES (sg_) ----------
-    if (key === "sg_student") {
-      const nm = srcForm.signatures?.student?.fullName || "";
-      const sign = srcForm.signatures?.student?.signDataUrl || "";
-      return `${nm}||${sign}`;
+    if (key === "sg_student_name") {
+      return srcForm.signatures?.student?.fullName || "";
     }
-    if (key === "sg_parent") {
-      const nm = srcForm.signatures?.parent?.fullName || "";
-      const sign = srcForm.signatures?.parent?.signDataUrl || "";
-      return `${nm}||${sign}`;
+    if (key === "sg_student_sign") {
+      return srcForm.signatures?.student?.signDataUrl || "";
+    }
+    if (key === "sg_parent_name") {
+      return srcForm.signatures?.parent?.fullName || "";
+    }
+    if (key === "sg_parent_sign") {
+      return srcForm.signatures?.parent?.signDataUrl || "";
     }
 
     // ---------- COURSE (cr_) ----------
@@ -981,8 +985,10 @@ export default function AdmissionForm() {
     );
   }
 
-  const canEditStudentSign = isFieldEditable("signatures", "sg_student");
-  const canEditParentSign = isFieldEditable("signatures", "sg_parent");
+  const canEditStudentName = isFieldEditable("signatures", "sg_student_name");
+  const canEditStudentSign = isFieldEditable("signatures", "sg_student_sign");
+  const canEditParentName = isFieldEditable("signatures", "sg_parent_name");
+  const canEditParentSign = isFieldEditable("signatures", "sg_parent_sign");
 
   return (
     <div className="min-h-screen">
@@ -1903,12 +1909,12 @@ export default function AdmissionForm() {
                 <input
                   className={
                     "border p-2 rounded w-full " +
-                    (isFieldHighlighted("signatures", "sg_student")
+                    (isFieldHighlighted("signatures", "sg_student_name")
                       ? "border-red-500 bg-red-50"
                       : "")
                   }
                   value={form.signatures.student.fullName}
-                  disabled={!canEditStudentSign}
+                  disabled={!canEditStudentName}
                   onChange={(e) =>
                     setForm({
                       ...form,
@@ -1955,12 +1961,12 @@ export default function AdmissionForm() {
                 <input
                   className={
                     "border p-2 rounded w-full " +
-                    (isFieldHighlighted("signatures", "sg_parent")
+                    (isFieldHighlighted("signatures", "sg_parent_name")
                       ? "border-red-500 bg-red-50"
                       : "")
                   }
                   value={form.signatures.parent.fullName}
-                  disabled={!canEditParentSign}
+                  disabled={!canEditParentName}
                   onChange={(e) =>
                     setForm({
                       ...form,
