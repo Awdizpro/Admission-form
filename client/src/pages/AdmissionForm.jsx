@@ -405,19 +405,6 @@ export default function AdmissionForm() {
           setOriginalForm(merged);
           return merged;
         });
-
-        // 🔵 Load existing files into state for edit mode validation
-        if (a?.uploads) {
-          if (a.uploads.photoUrl) {
-            setPhoto({ name: "existing-photo", size: 0, type: "image/jpeg" });
-          }
-          if (a.uploads.panUrl) {
-            setPanFile({ name: "existing-pan", size: 0, type: "application/pdf" });
-          }
-          if (a.uploads.aadhaarUrl) {
-            setAadhaarFile({ name: "existing-aadhaar", size: 0, type: "application/pdf" });
-          }
-        }
       } catch (err) {
         console.error("Edit load failed", err);
 
