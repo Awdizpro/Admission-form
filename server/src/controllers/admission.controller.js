@@ -3769,10 +3769,35 @@ async function applyAdmissionEdit(req, res) {
     }
 
     if (allowedSections.includes("signatures") && updated.signatures) {
+      // Check if student signature was updated with new data URL
+      const newStudentSign = updated.signatures?.student?.signDataUrl;
+      const oldStudentSign = doc.signatures?.student?.signDataUrl;
+      const studentSignChanged = newStudentSign && newStudentSign !== oldStudentSign;
+      
+      // Check if parent signature was updated with new data URL
+      const newParentSign = updated.signatures?.parent?.signDataUrl;
+      const oldParentSign = doc.signatures?.parent?.signDataUrl;
+      const parentSignChanged = newParentSign && newParentSign !== oldParentSign;
+      
       doc.signatures = {
         ...(doc.signatures || {}),
         ...(updated.signatures || {}),
       };
+      
+      // Clear old Cloudinary URLs when new signatures are captured
+      if (studentSignChanged) {
+        doc.signatures.student = {
+          ...doc.signatures.student,
+          signUrl: "", // Clear old Cloudinary URL
+        };
+      }
+      
+      if (parentSignChanged) {
+        doc.signatures.parent = {
+          ...doc.signatures.parent,
+          signUrl: "", // Clear old Cloudinary URL
+        };
+      }
     }
 
     // ✅ UPLOADS section: Handle new file uploads during edit
