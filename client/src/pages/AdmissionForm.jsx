@@ -307,8 +307,8 @@ export default function AdmissionForm() {
       "id_pan": "PAN Number",
       "id_aadhaar": "Aadhaar Number",
       // Center
-      "ct_place": "Center Location",
-      "ct_mode": "Mode (Online/Offline)",
+      "center_place": "Center Location",
+      "center_mode": "Mode (Online/Offline)",
       // Signatures
       "sg_student": "Student Signature",
       "sg_parent": "Parent Signature",

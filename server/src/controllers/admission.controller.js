@@ -3855,10 +3855,10 @@ async function applyAdmissionEdit(req, res) {
           if (doc.ids?.aadhaarNumber !== updated.ids?.aadhaarNumber) isChanged = true;
         }
         // Check center fields
-        else if (fieldKey === "ct_place") {
+        else if (fieldKey === "center_place") {
           if (doc.center?.placeOfAdmission !== updated.center?.placeOfAdmission) isChanged = true;
         }
-        else if (fieldKey === "ct_mode") {
+        else if (fieldKey === "center_mode") {
           if (doc.center?.mode !== updated.center?.mode) isChanged = true;
         }
         // Check education - if section marked, consider it changed if education array differs
