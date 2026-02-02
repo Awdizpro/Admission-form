@@ -1,7 +1,7 @@
 // src/components/SignaturePad.jsx
 import { useRef, useEffect, useState } from "react";
 
-export default function SignaturePad({ value = "", onChange, height = 160 }) {
+export default function SignaturePad({ value = "", onChange, height = 160, disabled = false }) {
   const canvasRef = useRef(null);
   const drewRef = useRef(false);
   const [saved, setSaved] = useState(
@@ -57,6 +57,7 @@ export default function SignaturePad({ value = "", onChange, height = 160 }) {
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const down = (e) => {
+      if (disabled) return;
       drawing = true;
       const { x, y } = getPos(e);
       ctx.beginPath();
@@ -64,7 +65,7 @@ export default function SignaturePad({ value = "", onChange, height = 160 }) {
       e.preventDefault();
     };
     const move = (e) => {
-      if (!drawing) return;
+      if (!drawing || disabled) return;
       const { x, y } = getPos(e);
       ctx.lineTo(x, y);
       ctx.stroke();
@@ -74,7 +75,7 @@ export default function SignaturePad({ value = "", onChange, height = 160 }) {
     const up = () => {
       if (!drawing) return;
       drawing = false;
-      if (drewRef.current) {
+      if (drewRef.current && !disabled) {
         onChange?.(canvas.toDataURL("image/png"));
         setSaved(true); // we keep a fixed status slot so no layout shift
       }
@@ -105,7 +106,7 @@ export default function SignaturePad({ value = "", onChange, height = 160 }) {
       window.removeEventListener("pointercancel", cancel);
       window.removeEventListener("resize", handleResize);
     };
-  }, [height, onChange, value]);
+  }, [height, onChange, value, disabled]);
 
   const clear = () => {
     const c = canvasRef.current;
@@ -120,12 +121,13 @@ export default function SignaturePad({ value = "", onChange, height = 160 }) {
   return (
     <div
       // isolate layout so siblings (like text inputs) cannot change this block
-      className="border rounded bg-white overflow-hidden select-none"
+      className={`border rounded overflow-hidden select-none ${disabled ? "bg-gray-100 opacity-60" : "bg-white"}`}
       style={{
         // total fixed height = canvas (height) + footer (24px)
         height: height + 24,
         contain: "layout paint size",
         isolation: "isolate",
+        cursor: disabled ? "not-allowed" : "default",
       }}
     >
       <canvas
@@ -135,16 +137,22 @@ export default function SignaturePad({ value = "", onChange, height = 160 }) {
           height,               // fixed visual height in px
           touchAction: "none",  // disable touch scroll on canvas
           userSelect: "none",
+          pointerEvents: disabled ? "none" : "auto",
         }}
         aria-label="Signature pad"
         draggable={false}
       />
       {/* Fixed-height footer -> no reflow when status text toggles */}
       <div className="flex items-center justify-between px-2" style={{ height: 24 }}>
-        <button type="button" onClick={clear} className="text-xs underline">
+        <button 
+          type="button" 
+          onClick={clear} 
+          className={`text-xs underline ${disabled ? "text-gray-400 cursor-not-allowed" : ""}`}
+          disabled={disabled}
+        >
           Clear
         </button>
-
+        {disabled && <span className="text-xs text-gray-500">Locked</span>}
       </div>
     </div>
   );

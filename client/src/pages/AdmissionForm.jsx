@@ -1945,6 +1945,7 @@ export default function AdmissionForm() {
                         },
                       });
                     }}
+                    disabled={!canEditStudentSign}
                     required
                   />
                   {hasSign(form.signatures.student.signDataUrl) && (
@@ -1997,6 +1998,7 @@ export default function AdmissionForm() {
                         },
                       });
                     }}
+                    disabled={!canEditParentSign}
                     required
                   />
                 </div>
