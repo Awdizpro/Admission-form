@@ -1888,10 +1888,14 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">Center Details</p>
-          <div class="sec-badges">
-            <label class="badge"><input type="checkbox" disabled /> ✅ Correct</label>
-            <label class="badge"><input type="checkbox" name="sections" value="center" /> ❌ Needs correction</label>
-          </div>
+          <!-- hidden master checkbox for backend -->
+          <input
+            type="checkbox"
+            name="sections"
+            value="center"
+            data-section-master="center"
+            class="hidden-section-checkbox"
+          />
         </div>
         <div class="grid-2">
           <div class="field-row">
@@ -3023,10 +3027,14 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       <div class="section-card">
         <div class="sec-header">
           <p class="sec-title">Center Details</p>
-          <div class="sec-badges">
-            <label class="badge"><input type="checkbox" disabled /> ✅ Correct</label>
-            <label class="badge"><input type="checkbox" name="sections" value="center" /> ❌ Needs correction</label>
-          </div>
+          <!-- hidden master checkbox for backend -->
+          <input
+            type="checkbox"
+            name="sections"
+            value="center"
+            data-section-master="center"
+            class="hidden-section-checkbox"
+          />
         </div>
         <div class="grid-2">
           <div class="field-row">
