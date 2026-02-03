@@ -2071,7 +2071,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       class="btn-success"
       formaction="/api/admissions/${doc._id}/submit-to-admin"
       formmethod="POST"
-      onclick="this.disabled=true;this.innerHTML='<span>⏳ Submitting to Admin…</span>';document.getElementById('loading-overlay').style.display='flex';"
+      onclick="document.getElementById('loading-overlay').style.display='flex';this.style.opacity='0.6';this.style.cursor='not-allowed';this.innerHTML='<span>⏳ Submitting to Admin…</span>';"
     >
       <span>📤 Submit to Admin</span>
     </button>
