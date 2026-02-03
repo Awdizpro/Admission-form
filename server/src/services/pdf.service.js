@@ -611,7 +611,7 @@ export async function generateAdmissionPDF(payload, opts = {}) {
 
   doc.moveDown(1);
   doc.fontSize(11)
-    .text(`DATE: ${new Date().toLocaleDateString()}`)
+    .text(`DATE: ${new Date().toLocaleDateString('en-IN')}`)
     .text(`PLACE OF ADMISSION: ${keep(CTR.placeOfAdmission, "-")}`)
     .text(`ONLINE / OFFLINE: ${keep(CTR.mode, "-")}`)
     .moveDown(1.2);
