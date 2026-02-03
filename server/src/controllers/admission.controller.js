@@ -836,7 +836,7 @@ doc.workflow.counselorSubmittedToAdminAt = new Date();
     let pdfBuffer = null;
     let pdfUrl = "";
     try {
-      const pdfRes = await generateAdmissionPDF(doc);
+      const pdfRes = await generateAdmissionPDF(doc.toObject());
       pdfBuffer = pdfRes?.buffer || null;
       pdfUrl =
   asUrl(pdfRes) ||
@@ -2071,7 +2071,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       class="btn-success"
       formaction="/api/admissions/${doc._id}/submit-to-admin"
       formmethod="POST"
-      onclick="this.disabled=true;this.innerHTML='<span>⏳ Submitting to Admin…</span>';document.getElementById('loading-overlay').style.display='flex';this.form.submit();"
+      onclick="this.disabled=true;this.innerHTML='<span>⏳ Submitting to Admin…</span>';document.getElementById('loading-overlay').style.display='flex';"
     >
       <span>📤 Submit to Admin</span>
     </button>
