@@ -1086,8 +1086,8 @@ try {
     </div>
   `.trim();
 
-  const attachment = {
-    filename: `Awdiz-Admission-Approved-${doc._id}.pdf`,
+const attachment = {
+    filename: `Awdiz-Admission-Approved-${studentName}.pdf`,
     content: approvedPdf.buffer,              // ✅ MUST be Buffer
     contentType: "application/pdf",
   };
@@ -1489,10 +1489,48 @@ const feeMode =
   color: #1e3a8a;
 }
 
+/* loading overlay */
+#loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+}
+#loading-overlay .loader-box {
+  background: #fff;
+  padding: 20px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#loading-overlay .spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 </style>
 </head>
 <body>
+  <!-- loading overlay -->
+  <div id="loading-overlay">
+    <div class="loader-box">
+      <div class="spinner"></div>
+      <span style="font-weight:600;color:#374151;">Submitting to Admin…</span>
+    </div>
+  </div>
+
   <div class="page">
     <div class="header">
       <div>
@@ -2033,6 +2071,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       class="btn-success"
       formaction="/api/admissions/${doc._id}/submit-to-admin"
       formmethod="POST"
+      onclick="this.disabled=true;this.innerHTML='<span>⏳ Submitting to Admin…</span>';document.getElementById('loading-overlay').style.display='flex';this.form.submit();"
     >
       <span>📤 Submit to Admin</span>
     </button>
@@ -2628,10 +2667,48 @@ const feeMode =
   color: #1e3a8a;
 }
 
+/* loading overlay */
+#loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+}
+#loading-overlay .loader-box {
+  background: #fff;
+  padding: 20px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#loading-overlay .spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 </style>
 </head>
 <body>
+  <!-- loading overlay -->
+  <div id="loading-overlay">
+    <div class="loader-box">
+      <div class="spinner"></div>
+      <span style="font-weight:600;color:#374151;">Submitting to Admin…</span>
+    </div>
+  </div>
+
   <div class="page">
     <div class="header">
       <div>
