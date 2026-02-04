@@ -1567,13 +1567,13 @@ export default function AdmissionForm() {
           <section className="space-y-2">
             <h2 className="text-lg sm:text-xl font-semibold">Uploads</h2>
             
-            {/* 🔥 iOS Notice */}
+            {/* 🔥 iOS Notice
             {isIOS && (
               <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2">
                 📱 iPhone/iPad users: Use "Choose file" instead of camera for better upload success. 
                 Max 3MB per file. Use WiFi if possible.
               </div>
-            )}
+            )} */}
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="min-w-0">
