@@ -3902,7 +3902,9 @@ async function applyAdmissionEdit(req, res) {
             folder: "awdiz/admissions/photos",
             publicIdPrefix: "photo",
           });
-          doc.uploads = { ...(doc.uploads || {}), photoUrl: r.url, photoKind: r.kind };
+          // ✅ Also save data URL for PDF
+          const photoDataUrl = await compressToJpegDataUrl(req.files.photo[0]);
+          doc.uploads = { ...(doc.uploads || {}), photoUrl: r.url, photoKind: r.kind, photoDataUrl };
         }
       } catch (e) {
         console.log("Edit photo upload skipped:", e?.message);
