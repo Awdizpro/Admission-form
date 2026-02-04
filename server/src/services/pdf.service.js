@@ -561,13 +561,8 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     // ❌ no photo border
     doc.fontSize(9).text("STUDENT PHOTO", rightX, topY - 12, { width: photoW, align: "center" });
 
-    const photoBuf =
-      (await toImageBuffer(payload?.uploads?.photoDataUrl)) ||
-      (await toImageBuffer(payload?.uploads?.photoUrl)) ||
-      (await toImageBuffer(payload?.uploads?.photo?.secure_url)) ||
-      (await toImageBuffer(payload?.uploads?.photo?.url)) ||
-      (await toImageBuffer(payload?.photoUrl)) ||
-      (await toImageBuffer(payload?.files?.photoUrl));
+    // ✅ prioritize photoDataUrl (passport photo for PDF)
+    const photoBuf = await toImageBuffer(payload?.uploads?.photoDataUrl);
 
     if (photoBuf) {
       await drawCenteredImage(doc, photoBuf, rightX, topY, photoW, photoH);
