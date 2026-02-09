@@ -1577,7 +1577,7 @@ export default function AdmissionForm() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="min-w-0">
-                <label className="block text-sm mb-1">Passport photo*</label>
+                <label className="block text-sm mb-1">Passport Size photo*</label>
 
                 {/* iOS: two labels (stable) */}
                 {isIOS ? (
