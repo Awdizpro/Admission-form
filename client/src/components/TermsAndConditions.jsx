@@ -12,218 +12,136 @@ export default function StudentsAgreement() {
       <p><strong>Thanks for choosing us!!</strong></p>
 <br />
       <p>
-        This agreement has to be agreed upon and signed by all the candidates joining our master programs at Awdiz.
-        This will be a legal affirmation by the candidate that he will follow all the internal rules and regulations put
-        forward by AWDIZ management and will abide by this throughout the duration of the training program.
+        This agreement is mandatory and must be read, agreed upon, and signed by all candidates enrolling in any Awdiz Master Job Guaranteed Programs. By signing this agreement, the candidate provides a legal affirmation to follow all internal rules, regulations, policies, and guidelines issued by Awdiz Management and agrees to abide by them throughout the entire duration of the training program.
       </p>
       <br />
       <p>
-        We make sure the training experience of our students will be comfortable and their journey from a learner to an
-        IT engineer will be memorable at each phase of their personal growth. Our programs quality has been appreciated
-        by many clients who have hired candidates from us and have been associated with us for so many years. Their
-        trust on us is a proof that our candidate learning is on-track.
+        We ensure that every student experiences a comfortable, supportive, and structured learning environment, making their journey from a learner to an IT professional memorable and impactful at every stage of personal and technical growth. The quality of our programs has been consistently appreciated by our hiring partners, many of whom have been associated with Awdiz for several years. Their continued trust is a strong validation that our training methodology and candidate learning outcomes are on the right track.
       </p>
       <br />
       <p>
-        Our process at Awdiz is simple and focusses basically on the repeated cycle of train - asses- retrain-reassess- till
-        offered. We monitor our students learning at each phase of their course and suggest improvements to make
-        sure the training becomes fruitful to them. We take all the medium of learning into considerations like Online,
-        Classroom, Hybrid and Recorded lectures to make sure student takes maximum advantages of our training
-        inventory and regularly asses them on weekly/monthly and module-based assessments, live projects, and more.
+        At Awdiz, our training process is simple and outcome-oriented, built around a continuous cycle of Train → Assess → Retrain → Reassess → Until Placement. We closely monitor each student’s learning progress at every phase of the program and provide timely feedback and improvement plans to ensure the training remains effective and result-driven.
       </p>
       <br />
       <p>
-        We are currently putting students on to our internal LMS portal which monitors their training attendance, test
-        results, mocks, resume building, internship details, interview opportunities and interview feedbacks till the
-        students successfully comes out with a dream job. Our ultimate goal in monitoring the complete student learning
-        journey is to provide the best practical training to the candidate in the simplest way. When you are monitored,
-        your weaknesses can be converted into strengths and this will lead to an easier gateway for success.
+        All enrolled students are onboarded onto Awdiz’s internal Learning Management System (LMS), which tracks and monitors training attendance, assessments, mock interviews, resume development, internship details, interview opportunities, and interview feedback until the student successfully secures employment.
       </p>
       <br />
       <p>
-        To achieve the above goals and make student focus seriously on their careers, we have put forward certain terms
-        and conditions that will definitely help both students and AWDIZ follow discipline protocols which in turn help
-        students reach their dreams of a high paying IT job. Student has to confirm on the below points and has to follow
-        the same during the complete training program.
+        The purpose of monitoring the complete learning journey is to deliver practical, industry-relevant training in the simplest and most effective manner. Continuous monitoring helps identify individual learning gaps, convert weaknesses into strengths, and create a structured pathway that increases the student’s chances of long-term success.
+      </p>
+      <br />
+      <p>
+        To achieve the above objectives and ensure that students remain focused on their career goals, Awdiz has defined certain terms and conditions designed to promote discipline, accountability, and consistent progress. These guidelines are intended to support both the students and Awdiz in maintaining a structured learning environment, ultimately helping students work toward their goal of securing a well-paying IT role.
+      </p>
+      <br />
+      <p>
+        By enrolling in the program, the student confirms acceptance of the below terms and agrees to strictly follow them throughout the entire duration of the training program.
       </p>
 
       <h3 className="!mt-6"><strong>Terms &amp; Conditions – Master Programs in IT Infrastructure and Software Development</strong></h3>
 <br />
       <p>
         <strong>
-          Any student failing to fulfil the below criteria’s will not be eligible to attend our placements. This will
-          be a legal re-affirmation from the candidate that he will be serious throughout his training program
-          duration and failing which, AWDIZ will not be or should not be blamed for students not getting jobs.
+          Any student who fails to meet the eligibility criteria mentioned below shall not be eligible to participate in Awdiz placement activities. By agreeing to these terms, the student provides a legal reaffirmation of their commitment to remain serious, disciplined, and compliant throughout the entire training duration. In such cases of non-compliance, Awdiz shall not be held responsible or liable for the student’s inability to secure employment.
           </strong>
       </p>
       <br />
 
+      <p>
+        	Admission eligibility for Awdiz programs is defined based on course requirements, industry demands, and role-specific working conditions.
+          <ol className="list-disc pl-6 mt-1">
+            <li>IT Infrastructure programs (including Networking, Systems, Cybersecurity, Cloud/AWS) require candidates who are within the defined age eligibility range specified by Awdiz and are fully willing to work in rotational shifts, extended hours, and travel to client locations as per company and client policies. Candidates unwilling to comply with shift timings or travel requirements may be deemed ineligible for placement support.</li>
+            <li>Software Development programs are primarily intended for younger candidates and recent IT graduates who have completed a valid IT-related degree with satisfactory academic performance. Preference is given to age eligibility range specified by Awdiz to align with fresher hiring trends in the software industry.</li>
+          </ol>
+        </p>
+
+
+
       <ul className="list-disc pl-6">
         <li>
-          For IT Infra course including Networking, System, Cybersecurity, AWS etc, we are taking admission majorly to male
-          candidates in the age group 21-32 years and Female candidates in the age group 21-25 years only as this industry
-          demands rotational shifts and occasional travel to client place so in both the conditions, should be ready for
-          Company rules and should not decline the offer for travel and shift timings.
+          To meet course completion requirements, students must fully complete all mandatory activities for each module, including attendance, assignments, quizzes, internships, mock sessions, internal assessments, and prescribed self-learning tasks, within the specified timelines. Failure to comply with these requirements may result in the student being declared ineligible for participation in Awdiz placement programs.
         </li>
         <li>
-          For Software Development courses, we are focusing on candidates under 25 years and has completed a Valid IT
-          degree with good percentage. Recent year Pass-outs are preferred.
+          Attendance in all mandatory soft-skills training sessions, including English communication, aptitude, and personality development, is compulsory for all candidates. 100% attendance will be recorded and is required for eligibility in the placement process. These sessions are generally conducted on weekends to ensure that regular technical training schedules remain unaffected.
         </li>
         <li>
-          To ensure successful completion of the course, attendance in all classroom or online sessions must exceed 85%. If a
-          session is missed, the student can attend it in another batch by notifying the HR team of Awdiz. Maximum 3 session
-          can be missed and backup is permitted per module beyond which you need to take a special approval from the
-          centre manager or you will not be permitted to attend our placement programs.
+          Batch changes are generally not permitted and will be considered only under exceptional circumstances, such as valid medical or educational reasons, subject to prior written approval from the Centre Manager. If approved, a one-time batch change processing fee of INR 15,000/- shall be applicable. Batch change, if granted, will be allowed only once during the entire training duration.
         </li>
         <li>
-          Mandatory 85% Marks in Daily, Weekly and Monthly Assessments, MCQ’s, Assignments, Mock Interviews and Soft
-          Skill training must be successfully completed for student to get into placement process. Failing the above criteria
-          will make the student ineligible for the placement process and such candidates have to take training and mock
-          repetitions, and become eligible again to start their interview process.
+          Any participant who chooses to withdraw, discontinue, or exit from a Job Guaranteed Program—either before the commencement of sessions or after training has begun—shall not be eligible for any refund, adjustment, or transfer of fees under any circumstances.
+        </li>
+        <li>
+          Ongoing students may be permitted to take a temporary break of up to fifteen (15) days, subject to prior written approval from the Centre Manager, and only in cases of examinations, medical emergencies, or other valid and justifiable reasons. Any break beyond this period or without approval may impact the student’s training continuity and placement eligibility.
+        </li>
+        <li>
+          Any act of misconduct, indiscipline, plagiarism, cheating during assessments, threatening behaviour, harassment, use of abusive language, violation of institute policies, or misuse of Awdiz resources may result in immediate termination from the program without any refund, at the sole discretion of Awdiz Management.
+        </li>
+        <li>
+          Students are required to strictly adhere to the prescribed fee payment schedule. Any delay or non-payment beyond the permitted due date may result in temporary or permanent suspension of training services and access to the Awdiz LMS, until dues are fully cleared.
+        </li>
+        <li>
+          A course shall be deemed successfully completed only when the candidate has cleared all fee obligations, completed all modules, assignments, assessments, mock sessions, and faculty-assigned final projects, and met the required attendance criteria for both technical and soft-skills training. Final course completion is subject to review and approval by the Centre Manager. Upon successful completion, a course completion certificate will be issued, and formal approval will be granted to the Placement Team to initiate placement services.
+        </li>
+        <li>
+         Students who score above 85% in mock evaluations and maintain more than 85% attendance will be automatically eligible for placement services. Such students will not be required to undergo training repetition and may be considered for internship opportunities, if deemed necessary, at the sole discretion of Awdiz Management and the Placement Team, to further enhance confidence and job readiness.
+        </li>
+        <li>
+          Students who score less than 85% in mock evaluations and/or maintain less than 85% attendance, and who wish to revise or improve their performance, may opt for a one-time batch repetition, subject to prior approval from Awdiz Management. Batch repetition may be permitted in any one of the following formats: after completing the current training, during the ongoing training to revise completed topics while continuing pending modules with a new batch, or by restarting the program afresh with a new batch. Any batch repetition, if approved, shall be allowed only once during the entire training duration and may attract applicable repetition or administrative fees as decided by Awdiz. Placement eligibility and timelines shall stand deferred until the candidate successfully completes the repeated training and meets all required performance and attendance criteria.
+          </li>
+        <li>
+          A candidate shall be deemed job-ready only upon receiving formal approval from the Centre Manager after verification of required attendance, successful completion of final training assessments, and confirmation of full fee payment. Upon such approval, the candidate becomes eligible to receive job opportunities shared by Awdiz. Awdiz endeavours to facilitate placement opportunities for job-ready candidates within a period of up to 180 days from the date of formal placement approval granted after successful training completion. Placement timelines may vary based on candidate performance, interview availability, and prevailing market conditions.
+        </li>
+        <li>
+          Awdiz shall not be held responsible for any delays, consequences, or commitments arising due to course interruptions or extensions caused by the student for personal, educational, or medical reasons. Such delays may impact course completion timelines and placement opportunities, for which Awdiz shall bear no liability.
+        </li>
+        <li>
+          Candidates must be willing to accept employment opportunities across PAN India and shall not decline job offers solely on the basis of location. Declining an offer for any reason may result in the candidate being removed from further placement services. In such cases, the candidate will be required to seek readmission into the program and pay the full applicable fees again in order to re-enter the interview process.
+        </li>
+        <li>
+          In exceptional circumstances, location-specific preferences may be considered at the time of admission, subject to prior written approval from the Centre Manager. However, in such cases, Awdiz does not guarantee the number of interview opportunities available for the preferred location.
+        </li>
+        <li>
+          Awdiz reserves the sole and absolute right to appoint, replace, or reassign trainers at its discretion based on academic, operational, or business requirements. Students shall not have the right to request, insist upon, or demand training from any specific trainer at any stage of the program. Any such change in trainer shall not affect the validity of the course, training outcomes, or the candidate’s placement eligibility.
+        </li>
+        <li>
+          Awdiz reserves the right to conduct re-tests, mock evaluations, and to review or accept assignments at any time within a period of up to thirty (30) days from the date of the student’s initial attempt or submission. In the event that a trainer, evaluator, or assessor is not immediately available, the student shall be required to wait until such evaluation or assessment is scheduled by Awdiz, without any claim or objection.
+        </li>
+        <li>
+          Candidates are expected to possess sufficient proficiency in English to communicate clearly and effectively during interviews and workplace interactions. Candidates who do not meet the required proficiency standards may be required to undergo additional language or communication training with a designated instructor until the expected level is achieved, which may impact placement timelines.
+        </li>
+        <li>
+          Students must be willing to attend interviews and participate in internships in any mode as determined by the employer, including in-person, online, or hybrid formats. Awdiz does not guarantee online interviews, work-from-home (WFH) roles, or remote internships. Candidates shall not refuse or decline any interview, job opportunity, or internship on the basis of interview mode, job location, work arrangement, or internship format. Any refusal or non-participation may result in the candidate being declared ineligible for further placement or internship opportunities, at the sole discretion of Awdiz.
         </li>
       </ul>
 
-
-
       <ul className="list-disc pl-6">
         <li>
-          To meet the requirements of the course, required attendance all assignments, quizzes, internships, mock sessions,
-          internal assessments and self-learning activities must be completed in full and before their respective deadlines for
-          each module. Failing on the above terms can make you ineligible for the placement programs.
+          PDFs, presentations, recorded videos, and other required study materials will be shared in digital format after each class or module, as applicable. Access to such videos and study materials will be provided for a defined and time-bound period to encourage timely completion of assignments, assessments, and self-learning activities. Student access, usage, and progress may be monitored through the Awdiz LMS. All study materials are the intellectual property of Awdiz and are strictly for personal learning use only. Sharing, copying, recording, downloading, redistribution, or commercial use of these materials, in any form, is strictly prohibited and may result in disciplinary action, including termination from the program.
         </li>
         <li>
-          Attending all soft skill trainings like English, Aptitude and Personality development sessions are mandatory for
-          candidates. 100% attendance will be recorded and is mandatory. Usually this are conducted on Weekends so that
-          student technical learning should not get effected during normal days.
+          If a student opts for an internship prior to placement, or if the Awdiz Placement Team determines that an internship is required to further enhance the candidate’s technical skills, the candidate must be willing to relocate to the location assigned by Awdiz and be available to commence the internship immediately upon completion of training. Internships may be paid or unpaid, depending on the opportunity and employer terms. The candidate shall not decline or refuse the internship on the basis of stipend status, location, or any other reason, failing which the candidate may be declared ineligible for further placement services.
         </li>
         <li>
-          Changing batches is generally not permitted, except under certain circumstances such as medical or educational
-          reasons. If approved by the Center Manager, a processing fee of INR 15,000/- will be charged for the batch change
-          and only once throughout the duration of the training.
+          Awdiz will make reasonable efforts to schedule interviews in virtual mode wherever possible, including for online or outstation candidates. However, if a client requires a face-to-face interview, the candidate must be physically available at the location assigned by Awdiz for a minimum period of sixty (60) days to participate in the placement process. Travel, accommodation, and related expenses during this period shall be the sole responsibility of the candidate. Availability at the assigned location does not guarantee a specific number of interviews, as interview opportunities depend on client requirements and hiring conditions. Failure to comply with these requirements may impact the candidate’s placement eligibility.
         </li>
         <li>
-          Ongoing students are permitted to take a break for a maximum of 15 days, which must be approved in writing by
-          the Center Manager and only in the case of exams, medical emergencies, or other valid, considerate reasons.
+          Candidates are required to attend all interviews arranged by Awdiz or its authorized placement partners. If a candidate is unable to attend a scheduled interview, prior written approval must be obtained from the Placement Manager via email. Valid justifications for non-attendance may include medical emergencies, officially scheduled examinations, or other exceptional circumstances supported by appropriate documentation. Missing two (2) or more interviews arranged by Awdiz without approved justification shall result in the candidate being declared ineligible for further placement services and interview opportunities.
         </li>
         <li>
-          If a candidate takes a break from the course for a period exceeding 7 days without obtaining prior written
-          permission or leave approval that has been approved by the Center Manager, their training admission would be
-          cancelled and no refund would be approved.
+          The Master Programs are offered as job-guaranteed packages; however, Awdiz does not commit to a fixed salary for any candidate. Offered compensation will be based on the role, company, market conditions, and candidate performance, and is generally expected to fall within a range of INR 2.0 LPA to INR 6.0 LPA. Salary discussions and negotiations are conducted directly between the candidate and the employer during the interview process. As part of the training, Awdiz provides guidance and preparation to help candidates approach salary discussions confidently and maximize their potential compensation for the offered role.
         </li>
         <li>
-          Any act of misconduct, plagiarism, threatening behaviour, harassment, cheating in assessments, use of abusive
-          language, or violation of institute norms and or misuse of AWDIZ resources may result in immediate expulsion from
-          the course without refund.
+          If an employer specifies a fixed-duration internship prior to confirmation on permanent payroll, or includes a defined employment bond period in the offer letter, the candidate must be willing to accept such conditions and sign the required bond agreement. These conditions are common for fresher-level roles and form part of the employer’s hiring policy. Declining a job offer on the basis of internship duration or bond requirements is not permitted and may result in the candidate being declared ineligible for further placement services. Any bond agreement, duration, or related obligations shall be strictly between the candidate and the employer, and Awdiz shall not be held responsible or liable for the terms, enforcement, or consequences arising from such agreements.
         </li>
         <li>
-          Students must adhere to the payment schedule. Delayed or incomplete payments beyond the allowed date may
-          lead to denial of training continuation and access to LMS.
+          Students must be willing to accept employment offers under direct payroll or third-party payroll arrangements, including roles involving client-site deployment. Candidates should be comfortable working with organizations of all sizes, including startups, service providers, multinational companies, banking and financial institutions, educational institutions, and other client-driven environments. Declining an offer based on payroll structure, company size, contract nature, work shifts, or deployment model shall not be permitted and may result in ineligibility for further placement services.
         </li>
         <li>
-          The course is considered complete when the candidate finishes complete fee payment, finishes all the modules,
-          assignments, assessments, mock sessions and submits the final project assigned by the faculty for each module.
-          Attendance for both technical soft skill trainings will be considered before giving a final go ahead by the Center
-          Manager. Upon completion, a final certificate will be issued and a go ahead would be given for the placement team
-          to initiate the placement services.
+          Based on the course selected by the student, the job-guaranteed programs cover multiple topics designed to prepare candidates for a wide range of IT infrastructure and software development roles. Training duration typically ranges between four and a half (4.5) to eight (8) months, depending on the course, and will be clearly communicated to the student at the commencement of training. The placement and interview process may begin after completion of certain key modules, even if the full course curriculum has not yet been completed. Training for the remaining modules will continue in parallel with interviews to ensure that capable and job-ready candidates can begin their careers without unnecessary delay.
         </li>
         <li>
-          Students scoring above 85% in mocks and have more than 85% attendance will be automatically eligible to for
-          placement services so they will not be considered for training repetition and can be considered for internship, if
-          needed to make them confident.
-        </li>
-        <li>
-          Students scoring less than 85% in mocks and / or have less than 85% attendance, who wish to revise or improve
-          their performance, may opt for one-time batch repetition, either:
-          <ul className="list-disc pl-6 mt-1">
-            <li>After completing their current training,</li>
-            <li>Or during the ongoing training to revise finished topics and continue pending ones with a new batch,</li>
-            <li>Or start fresh in a new batch altogether.</li>
-          </ul>
-        </li>
-        <li>
-          Once a candidate completes our master training program and has been approved for Placement services by Center
-          Manager after verification on full fee payment, they become eligible to receive job openings from our side. We take
-          our commitment to students very seriously, and we strive to place our job-ready candidates within 180 days after
-          the go-ahead for placement post successful training completion by the Center Manager.
-        </li>
-        <li>
-          In order to be deemed job-ready, a go ahead from Center Manager on student attendance, final training
-          assessments and complete fee payment confirmation would be needed.
-        </li>
-        <li>
-          Awdiz cannot be held responsible for any commitments or consequences that arise if the course is delayed by the
-          student for any personal, educational or medical reason, during the course which may result in delays in completing
-          the course or finding a job placement.
-        </li>
-        <li>
-          The candidate should be ready to work anywhere in PAN India; they will not be allowed to decline the offer based
-          on location as the criteria. Once offer is declined for any reason, student will be removed from further placement
-          and student has to take readmission in the program by paying the full fees again to start the interview process
-          again. In exceptional cases, we may accept candidates for a particular location but there will be no guarantee that
-          number of interviews for that location would be more. A special approval during admission has to be taken and
-          approved by Center Manager before admission.
-        </li>
-      </ul>
-
-
-
-      <ul className="list-disc pl-6">
-        <li>
-          <strong>PDF, PPT’s and Study Materials:</strong> PDFs, PPTs, and required study materials will be shared in digital format after each
-          class or module, enabling students to practice at home.
-        </li>
-        <li>
-          If student is opting for Internship before placement or a need may arise by Awdiz placement team to improve
-          technical skill of the candidate, then he must relocate to the location which Awdiz assigns immediately after the
-          training is completed and should be available to start internship immediately. Internship can be Paid or Unpaid so
-          student should not decline the same for any reason.
-        </li>
-        <li>
-          We will try our best to schedule all interviews virtually but if for any reason, there is a demand from the client for
-          Face-to-Face (F2F) interview then student needs to be physically present for a minimum of 60 Days for the
-          placement process at the assigned location by Awdiz.
-        </li>
-        <li>
-          Candidates are required to attend all interviews arranged by AWDIZ or its authorized placement associates. If a
-          candidate is unable to attend an interview, they must seek approval from the placement manager via email. If a
-          candidate misses two or more interviews arranged by AWDIZ, they will be ineligible to participate in the further
-          placement or interview process.
-        </li>
-        <li>
-          The Master programs are 100% Job guarantee package but we do not commit a fixed salary for the candidate but it
-          process so we train the students how to face that question so that our student gets maximum package for that
-          position.
-        </li>
-        <li>
-          If the client specifies a fixed duration internship before taking them on their permanent payroll or there is specific
-          duration of employment bond period in the offer letter, the candidate must be open to it, and should be ready to
-          sign a bond agreement as many clients are specific to offer job position to freshers on these conditions. Decline of
-          offer on the basis of both this condition is not permitted.
-        </li>
-        <li>
-          Student should accept the offer for direct payrolls and 3rd party payroll for their client locations. They should be
-          comfortable to work for small, medium and large sized companies, banking clients and educational institutions who
-          majorly hire for these resources.
-        </li>
-        <li>
-          Based on the course choice by the student, the job guaranteed courses covers many topics to help students get the
-          best opportunities in various IT infrastructure and Development roles and has a training duration between 4.5 – 7
-          months for different courses which will be briefed to student at the start of the training. We will begin the
-          placement and interview process once students complete some key modules in the course, even if the entire course
-          is not yet completed. Training for the remaining topics will continue alongside the job interviews, so that strong and
-          job-ready candidates do not have to wait long to begin their careers.
-        </li>
-        <li>
-          As part of AWDIZ’s Job Guarantee Programs, students are eligible for a wide range of fresher-level roles based on
-          the course they have enrolled in, including but not limited to Networking, System Administration, Cybersecurity,
-          AWS Cloud, Java Full Stack, and MERN Full Stack. Students may receive job offers under designations mentioned
-          below in the table according to the course enrolled, or other customized job titles used by hiring companies. The
-          exact title may vary depending on the company, but if the core responsibilities align with the skills and technologies
-          taught in the training, the student must accept the offer. Refusal to accept such offers merely based on designation,
-          employer type, or payroll model (direct or third-party) will be considered a violation of the placement policy. In such
-          cases, the student will be disqualified from further placement services unless they re-enrol into the program by
-          paying the full course fee again. AWDIZ reserves the right to validate job role alignment with the training before
-          enforcing this clause.
+          Under Awdiz’s Job Guarantee Programs, students are eligible for fresher-level roles relevant to the course enrolled. Job designations may vary across companies; however, if the offered role aligns with the skills and technologies covered in the training, the student is required to accept the offer. Refusal based solely on designation, employer type, or payroll model (direct or third-party) may result in disqualification from further placement services. Awdiz reserves the right to validate role alignment before enforcing this clause.
         </li>
       </ul>
 
@@ -242,10 +160,7 @@ export default function StudentsAgreement() {
                 <strong>Networking and System Expert course</strong>
               </td>
               <td className="border px-3 py-2">
-                As covers vast IT topics in various technologies of System, Server and Networking Ticketing Tool Monitoring
-                Tool so student can be placed in different L1 roles like Desktop Support Engineer, IT Support Engineer, Server
-                Administrator, Windows Admin, Server Engineer, NOC, Field Support Engineer, Technical Support Engineer, IT
-                Engineer, Network Engineer, System Admin, IT Field Engineer, Trainee and Network Support Engineer.
+                As covers vast IT topics in various technologies of System, Server and Networking Ticketing Tool Monitoring Tool so student can be placed in different L1 roles like Desktop Support Engineer, IT Support Engineer, Server Administrator, Windows Admin, Server Engineer, NOC, Field Support Engineer, Technical Support Engineer, IT Engineer, Network Engineer, System Admin, IT Field Engineer, Trainee, Network Support Engineer and similar positions in IT Infra Division.
               </td>
             </tr>
             <tr>
@@ -260,7 +175,7 @@ export default function StudentsAgreement() {
                 Salary negotiation has to be done by the candidate during their interview Support Engineer, Security Analyst - L1,
                 SOC Analyst - Trainee, NOC Engineer, Windows/Linux Admin, IT Security Support, Technical Support Engineer,
                 Network Support Engineer, Infrastructure Support Executive, Security Operations Intern, Helpdesk Engineer, IT
-                Field Engineer and Cybersecurity Analyst – Intern.
+                Field Engineer and Cybersecurity Analyst – Intern and similar positions in IT Infra Division.
               </td>
             </tr>
             <tr>
@@ -274,7 +189,7 @@ export default function StudentsAgreement() {
                 to: Cloud Support Engineer – L1, AWS Cloud Administrator – Trainee, System Administrator, Network Engineer,
                 Cloud Operations Associate, Infrastructure Support Engineer, Desktop Support Engineer, Server Admin, DevOps
                 Support – Intern, NOC Engineer, Cloud Technical Support, IT Support Engineer, AWS Trainee Engineer and Cloud
-                Helpdesk Engineer.
+                Helpdesk Engineer and similar positions in IT Infra Division.
               </td>
             </tr>
             <tr>
@@ -288,7 +203,7 @@ export default function StudentsAgreement() {
                 fresher-level software development roles. These roles include, but are not limited to: Full Stack Developer, Java
                 Developer, MERN Stack Developer, React Developer, Backend Developer (Java/Node.js), Frontend Developer, Web
                 Developer, Application Developer, Software Engineer, UI Developer, API Developer, Software Development Intern,
-                Trainee Software Engineer, Junior Full Stack Engineer and Graduate Engineer Trainee (GET).
+                Trainee Software Engineer, Junior Full Stack Engineer and Graduate Engineer Trainee (GET) and similar positions in IT Development.
               </td>
             </tr>
             <tr>
@@ -301,7 +216,7 @@ export default function StudentsAgreement() {
                 data-centric roles in IT and non-IT companies. These include, but are not limited to: Data Analyst, Business
                 Analyst, Data Science Intern, Junior Data Scientist, MIS Analyst, Reporting Analyst, BI Developer, Research
                 Analyst, SQL Analyst, Python Developer (Data Focused), Data Engineer - Intern, Associate Analyst, Insight Analyst,
-                Decision Science Analyst, Analytics Executive and ML Trainee.
+                Decision Science Analyst, Analytics Executive and ML Trainee and similar positions in IT Development.
               </td>
             </tr>
           </tbody>
@@ -310,37 +225,22 @@ export default function StudentsAgreement() {
 
       <ul className="list-disc pl-6">
         <li>
-          Once a student is shortlisted after final discussion or if he is offered, he can’t decline the opportunity. If declined,
-          his placement process stands cancelled and he has to take a re-admission by paying full course fee.
+          Once a student is shortlisted after final discussions or receives a job offer, the opportunity must be accepted. Declining such an opportunity will result in immediate cancellation of placement services, and the student will be required to seek re-admission by paying the full course fee again to re-enter the placement process.
         </li>
         <li>
-          AWDIZ will not be held responsible if a candidate leaves the company voluntarily or if they are terminated by the
-          employer due to poor performance or misbehaviour. If a candidate accepts a job offer from any company, whether
-          self-obtained or through AWDIZ, they will not be eligible for further job placements or refunds through AWDIZ 100%
-          job guarantee program.
+          Awdiz shall not be held responsible if a candidate voluntarily resigns from a company or is terminated by the employer due to performance issues, misconduct, or violation of company policies. Once a candidate accepts a job offer from any company, whether secured independently or through Awdiz, the candidate shall not be eligible for any further placement assistance or fee refunds under the Awdiz 100% Job Guarantee Program.
         </li>
         <li>
-          30 Days of post-placement support will be provided to the students whose complete payment has been received
-          and who have required percentage of attendance (85%) and mock exam assessment marks (85%) as per our policy.
-          This support will only be extended under specific conditions, such as: Layoffs/Downsizing, Offer Revoked, Non-IT
-          Role Offered, Unethical Conditions, Salary Not Honoured all supported by legal and official evidence.
+          Post-placement support of up to thirty (30) days will be provided to students who have completed full fee payment and have met the minimum eligibility criteria of 85% attendance and 85% mock assessment scores, as per Awdiz policy. Such support shall be extended only under specific circumstances, including layoffs or downsizing, offer revocation, assignment to a non-IT role, unethical working conditions, or salary terms not being honoured, provided that all such claims are supported by valid legal or official documentation.
         </li>
         <li>
-          Post-placement support will not be extended to the candidates who have been terminated due to misconduct,
-          behavioural issues, disciplinary action, or absconding from duty, Insufficient technical knowledge, irregular
-          attendance, Voluntary resignation, education and experience document mismatch, unrealistic salary expectations,
-          job stress, dissatisfaction with work culture, or unwillingness to relocate or work in rotational shifts.
+        	Post-placement support shall not be extended to candidates who are terminated or exit employment due to misconduct, behavioural or disciplinary issues, absconding from duty, inadequate technical competency, irregular attendance, voluntary resignation, mismatch in educational or experience documents, unrealistic salary expectations, inability to manage job-related stress, dissatisfaction with workplace culture, or unwillingness to relocate or work in rotational shifts.
         </li>
         <li>
-          Once a candidate has availed their second job opportunity through Awdiz meeting the criteria for post placement
-          support mentioned above, their training and placement services will be considered complete, and they will no
-          longer be eligible to reapproach for further placements or training repetitions.
+        	Once a candidate has availed a second job opportunity through Awdiz that meets the eligibility criteria for post-placement support, the candidate’s training and placement services shall be deemed complete. Thereafter, the candidate shall not be eligible to re-approach Awdiz for any further placement assistance or training repetitions under the program.
         </li>
         <li>
-          Only after three months of completing their graduation, students pursuing regular degree courses will
-          become eligible for the Job Guarantee programs provided by AWDIZ. If the candidate opts for further higher
-          education, the Job Guarantee agreement will be cancelled and the student would not be eligible for training
-          repetitions or fee refunds.
+          Students pursuing regular degree programs shall become eligible for participation in Awdiz Job Guarantee Programs only after a minimum period of three (3) months from the completion of their graduation. If a candidate chooses to pursue higher education at any stage after enrolment, the Job Guarantee agreement shall stand cancelled, and the candidate shall not be eligible for any training repetitions, placement support, or fee refunds under the program.
         </li>
       </ul>
 
@@ -348,76 +248,117 @@ export default function StudentsAgreement() {
 
       <ul className="list-disc pl-6">
         <li>
-          <strong>AWDIZ has the authority to utilize the placement information, images, and videos of the candidate for
-          promotional and marketing purposes, regardless of whether the candidate secured placement through
-          AWDIZ or by themselves.</strong>
+          <strong>Awdiz reserves the right to use a candidate’s placement-related information, name, photographs, images, and videos for promotional, marketing, branding, and website collateral purposes, irrespective of whether the placement was secured through Awdiz or independently by the candidate. In the event that a candidate declines to provide a testimonial after securing employment, Awdiz shall still be entitled to use such placement-related details and visual content without requiring any additional consent. No confidential or sensitive personal information shall be disclosed as part of such usage.</strong>
         </li>
         <br />
         <li>
-          Under no circumstances will AWDIZ refund fees or cancel the admission of students enrolled for job guaranteed
-          master programs.
+          For Awdiz to provide placement assistance, the learner must successfully complete the course in accordance with Awdiz’s prescribed academic standards and clear all mandatory career development activities, assignments, and evaluations as defined in the course curriculum or as assigned by the Awdiz career or placement team. In addition, the learner must have successfully completed their formal graduation. Learners who have not completed their graduation shall not be eligible to participate in placement services offered by Awdiz.
         </li>
         <li>
-          There is a non-refundable and non-transferable policy for all our courses at AWDIZ. AWDIZ does not offer refunds for
-          any reason after a candidate has been admitted into a course. Once the candidate pays the course fee and is
-          admitted, he/she is committed to completing the course. It is important for the candidate to fully understand the
-          course and the associated requirements before enrolling and making the payment. In case of any doubts or queries,
-          the candidate should get in touch with the Admissions team for clarification before making the payment.
+          All courses offered by Awdiz are governed by a non-refundable and non-transferable policy. Awdiz does not provide refunds under any circumstances once a candidate has been admitted into a course. Upon payment of the course fee and confirmation of admission, the candidate is deemed to have committed to completing the course. Candidates are advised to fully understand the course structure, requirements, and obligations prior to enrolment and fee payment. Any doubts or clarifications must be addressed with the Awdiz Admissions Team before making the payment, as post-admission requests for refunds, transfers, or cancellations shall not be entertained.
         </li>
         <li>
-          Under the AWDIZ 100% Job Guaranteed Program, if students are unable to crack minimum interviews outlined in this
-          agreement, they must be ready to accept job offers, at any location irrespective of qualification. This ensures that
-          AWDIZ upholds its commitment to 100% Placement for all its course. 100% Job Guarantee means we will provide job
-          interviews until placed or until minimum offer of ₹12,000–₹15,000 CTC is received. Students must accept such offers
-          to fulfil the 100% placement guarantee clause.
+          Under the Awdiz 100% Job Guaranteed Program, if a student is unable to secure placement after attending the minimum number of interviews specified in this agreement, the student must be willing to accept job offers at any location and across suitable entry-level roles, irrespective of specialization or qualification alignment. This provision enables Awdiz to fulfil its commitment to 100% placement support for enrolled candidates. The 100% Job Guarantee implies that Awdiz will continue to facilitate interview opportunities until the student is placed or receives a minimum job offer with a compensation range of INR 12,000 to INR 15,000 CTC. Acceptance of such an offer shall be mandatory to satisfy the job guarantee obligation under this program.
         </li>
         <li>
-          AWDIZ shall not be liable for delays or failure in job placements due to economic downturns, hiring freezes,
-          pandemics, or external events beyond its control.
+          Awdiz shall not be held responsible or liable for any delay or inability to provide job placement opportunities arising from economic downturns, hiring freezes, pandemics, government restrictions, or any other events beyond the reasonable control of Awdiz.
         </li>
         <li>
-          Awdiz can make changes to the course fee, the location of its office, the teachers, course content, schedule, timings,
-          and the start date of batches if they have good reasons. If any changes are made, Awdiz Institute will inform students
-          within appropriate time for them to manage the training continuity.
+          Learners are required to respond to all interview- or job-offer-related communications from Awdiz or its authorized representatives within twenty-four (24) hours, clearly confirming acceptance or rejection, as applicable. Such communication may be sent via email, phone call, messaging platforms including WhatsApp, or through the Awdiz LMS. Failure to respond within the stipulated timeframe may result in suspension or cancellation of placement eligibility and support.
         </li>
         <li>
-          Students must follow the agreed payment schedule provided at the time of admission. Delays beyond the due date
-          will lead to:
+          Awdiz reserves the right to make changes to course fees, office locations, trainers, course content, batch schedules, timings, and batch start dates based on academic, operational, or business requirements. In the event of any such changes, Awdiz shall make reasonable efforts to inform students within an appropriate timeframe to ensure continuity of training.
+        </li>
+        <li>
+          Students must strictly adhere to the payment schedule agreed upon at the time of admission. Any delay beyond the due date shall result in the following actions:
           <ul className="list-disc pl-6 mt-1">
-            <li>Immediate deactivation of LMS access, recorded lectures, test portals, and classroom/online participation.</li>
-            <li>If dues remain pending for more than 15 days, AWDIZ holds the right to terminate admission without any refund.</li>
-            <li>To resume training, students must clear all dues and pay a reactivation fee of ₹2,000 (if applicable), subject to approval by the Center Manager.</li>
+            <li>Immediate suspension of access to the Awdiz LMS, recorded lectures, assessments, test portals, and participation in classroom or online sessions.</li>
+            <li>If outstanding dues remain unpaid for more than fifteen (15) days, Awdiz reserves the right to terminate the student’s admission without any refund.</li>
+            <li>To resume training after suspension, the student must clear all pending dues and may be required to pay a reactivation fee of INR 2,000, subject to approval by the Centre Manager.</li>
+            <li>
+              During any period of payment default or suspension, the student’s placement eligibility and placement timelines shall remain paused and shall resume only after full clearance of dues and reinstatement of training access.
+            </li>
           </ul>
         </li>
         <li>
-          Students who opt for EMI (Equated Monthly Instalment) or instalment-based payment plans must make timely
-          payments on or before each due date without fail. Any missed or bounced EMI will lead to the following
-          consequences:
+          Students opting for EMI (Equated Monthly Instalment) or instalment-based payment plans are required to make all payments on or before the respective due dates without fail. Any missed, delayed, or bounced EMI shall attract the following consequences:
           <ul className="list-disc pl-6 mt-1">
-            <li>Immediate suspension of access to all training sessions, LMS platform, assessments, and placement-related services until dues are cleared.</li>
-            <li>If two or more EMIs are missed, the student will be considered a defaulter, and the entire remaining course fee becomes due immediately in one lump sum.</li>
-            <li>In the case of bounced EMIs or failed auto-debits, the student will be solely responsible for any legal action, penalties, late fees, or third-party recovery proceedings initiated by the financing partner or bank.</li>
-            <li>AWDIZ shall not be held responsible for any consequences, reputational damage, legal notices, or credit score issues that may arise due to the student’s non-payment or financial default with the EMI provider or bank.</li>
-            <li>Continued non-payment beyond 30 days will result in permanent cancellation of admission and job guarantee services, without refund.</li>
+            <li>Immediate suspension of access to all training sessions, the Awdiz LMS, assessments, recorded content, and placement-related services until all outstanding dues are cleared.</li>
+            <li>If two (2) or more EMIs are missed, the student shall be treated as a defaulter, and the entire remaining course fee shall become immediately payable in a single lump sum.</li>
+            <li>In the event of bounced EMIs, failed auto-debits, or payment defaults, the student shall be solely responsible for any penalties, late fees, legal action, recovery proceedings, or notices initiated by the financing partner, NBFC, or bank.</li>
+            <li>Awdiz shall not be held responsible or liable for any legal consequences, reputational impact, credit score deterioration, or third-party actions arising due to the student’s financial default with the EMI provider or bank.</li>
+            <li>Continued non-payment for a period exceeding thirty (30) days shall result in permanent cancellation of admission and Job Guarantee services, without any refund.</li>
+            <p>
+              In the event of default, delay, or non-payment of fees, including EMI or loan repayments to Awdiz, its NBFC/loan partners, or through NACH or any other approved payment mode, Awdiz reserves the right to restrict or revoke the participant’s access to the learning platform, training sessions, placement services, and related facilities. In such cases, the participant shall not be eligible for any course completion certificate.
+            </p>
           </ul>
         </li>
         <li>
-          AWDIZ management team may at any time in its sole discretion change the rules set forth above as per the market
-          demand and dynamics to stay updated. AWDIZ reserves the right to modify or change the course structure,
-          content, and syllabus at any point in time.
+          If a learner fails to demonstrate sincere, consistent, and genuine efforts toward securing employment, refuses to accept a job offer, or after accepting an offer fails to join or continue in the employment for any reason whatsoever, including roles requiring relocation to designated locations or any other cities as prescribed by Awdiz from time to time, Awdiz reserves the right to suspend or permanently withdraw placement support and related services.
         </li>
         <li>
-          The student agrees to fully indemnify and hold harmless Awdiz Institute from and against any and all claims, losses,
-          liabilities, damages, costs, or expenses (including reasonable legal fees) arising out of or in connection with any act,
-          omission, misrepresentation, or breach during the training and placement duration at Awdiz by the candidate.
+        	Awdiz retains sole and absolute discretion to introduce, modify, or withdraw scholarships, discounts, or special schemes from time to time for selected categories of participants, for specific periods, or under such terms and conditions as it may deem appropriate.
         </li>
         <li>
-          Any additions, deletions, or modifications to this agreement shall communicated in writing via official email or in
-          the official LMS App of Awdiz. Such changes shall be deemed effective immediately and should be accepted by the
-          students. Digital acknowledgment or email / LMS confirmation will be treated as legally binding consent equivalent
-          to physical signature.
+        	The student agrees to fully indemnify and hold harmless Awdiz Institute from and against any and all claims, losses, liabilities, damages, costs, or expenses (including reasonable legal fees) arising out of or in connection with any act, omission, misrepresentation, or breach during the training and placement duration at Awdiz by the candidate.
+        </li>
+        <li>
+          Awdiz reserves the sole and absolute right to approve or reject any request for batch change and/or adjustment. In the event of any violation of the code of conduct or other exceptional circumstances, Awdiz may take such action as it deems appropriate, including but not limited to denial of the request or reassignment, in accordance with its internal policies.
+        </li>
+        <li>
+          Awdiz Management reserves the right, at its sole discretion, to modify, amend, update, or revise the rules, policies, terms, course structure, content, curriculum, and syllabus at any time based on market conditions, industry demand, academic relevance, or operational requirements. Awdiz may also add to or update these Terms and Conditions from time to time. Any such changes shall be communicated through official channels including, but not limited to, the Awdiz website, official email communication, LMS notifications, or other authorized modes. All amendments shall take effect immediately upon notification. Continued access to or use of Awdiz’s services, training programs, platform, website, or LMS after such updates shall be deemed as unconditional acceptance of the revised Terms and Conditions. Any digital acknowledgment, confirmation via email or LMS, or continued usage shall constitute legally binding consent, equivalent to a physical signature.
+        </li>
+        <li>
+          If a learner is rejected by three (3) or more companies due to inadequate performance, negative recruiter feedback, or lack of preparedness, Awdiz reserves the right to temporarily limit or pause further interview opportunities. Placement support shall resume only after the learner completes additional training, corrective measures, or preparation as prescribed by Awdiz.
+        </li>
+        <li>
+          Failure to attend a scheduled interview without prior written approval from Awdiz shall be treated as a “No Show” and may result in immediate suspension or restriction of placement services.
         </li>
       </ul>
+      <li>
+          Learners must demonstrate willingness and availability for the following, as required by employers:
+          <ul className="list-disc pl-6 mt-1">
+            <li>Support roles, night shifts, or rotational shift schedules</li>
+            <li>Internship opportunities, including potential conversion to full-time employment</li>
+          </ul>
+        </li>
+      <li>
+          Fee Payment & Continuation of Training: The student acknowledges that payment of fees must be made strictly as per the agreed schedule. In case of delay or default, the institute reserves the right to:
+          <ul className="list-disc pl-6 mt-1">
+            <li>Suspend training access (online/offline)</li>
+            <li>Apply late payment penalties</li>
+            <li>Withhold certificates, assessments, or placement services</li>
+            <li>Until all outstanding dues are cleared.</li>
+          </ul>
+          <li>
+            No Liability for Emotional Distress Due to Fee or Placement Issues: The student agrees that Fee-related actions (late fees, penalties, suspension, termination) and Placement timelines, interview outcomes, or delays may cause disappointment but shall not be considered mental harassment, emotional abuse, or exploitation by the institute, its staff, trainers, placement team, management, or directors.
+          </li>
+        </li>
+        <li>
+          Self-Harm & Threat Disclaimer: The institute, its founders, directors, employees, placement officers, trainers, and representatives shall not be held responsible or liable for:
+          <ul className="list-disc pl-6 mt-1">
+            <li>Any self-harm, suicide attempt, threat, or emotional reaction by the student</li>
+            <li>Any statements, messages, or allegations made by the student blaming the institute or its staff for such actions</li>
+            <li>The student confirms that all decisions related to mental health, emotional well-being, and personal actions remain solely their own responsibility.</li>
+          </ul>
+          <p>Any attempt to threaten, blackmail, or pressure the institute using self-harm or suicide claims shall be treated as misconduct and may result in immediate termination without refund.</p>
+        </li>
+        <li>
+          Harassment & False Allegation Protection:  The student agrees that:
+          <ul className="list-disc pl-6 mt-1">
+            <li>Legitimate enforcement of institute policies does not amount to harassment</li>
+            <li>Making false, exaggerated, or defamatory claims against staff or management—verbally, in writing, or on social media—will be treated as a serious disciplinary violation</li>
+          </ul>
+          <p>The institute reserves the right to initiate legal action in such cases.</p>
+        </li>
+
+        <ul className="list-disc pl-6">
+          <li>
+            Jurisdiction & Legal Protection: Any dispute, claim, or legal proceeding arising out of or in connection with this admission, training, or services shall be subject exclusively to the jurisdiction of the competent courts in Mumbai. The Institute’s official records, including but not limited to written policies, payment receipts, LMS reports, emails, call records, SMS, and WhatsApp communication logs, shall be deemed valid, admissible, and conclusive legal evidence.
+          </li>
+          <br />
+          <p>Any actions taken by Awdiz in accordance with the rules, policies, terms, and procedures set forth in this agreement, including but not limited to enforcement of eligibility criteria, payment compliance, training discipline, placement conditions, administrative decisions, or legal remedies, shall not be construed as harassment, coercion, discrimination, emotional abuse, or unfair treatment. Such actions are undertaken solely to uphold academic standards, operational integrity, financial discipline, regulatory compliance, and placement effectiveness. The student acknowledges and agrees that compliance with these terms is mandatory and that enforcement of the same does not give rise to any claim, grievance, or liability against Awdiz, its management, staff, trainers, or representatives, thereby concluding this agreement in full and final understanding.</p>
+        </ul>
 
      <br />
 
@@ -428,9 +369,11 @@ export default function StudentsAgreement() {
       </p>
 <br />
       <p>
+        <strong>
         Kindly take admission at AWDIZ if the clauses of all the terms and conditions mentioned above are satisfying to
         you. Once you are admitted to our institute means you have read all our terms and conditions and you are
         agreeing with it.
+        </strong>
       </p>
       <br />
       <p>

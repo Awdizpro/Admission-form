@@ -479,6 +479,16 @@ function prepareRowValues(data, courseName) {
      // ✅ NEW
     feeAmount,
     feeMode,
+    // ✅ NEW - Extended fee details for counselor review
+    data?.fees?.totalFees || "",
+    data?.fees?.pendingFees || "",
+    data?.fees?.instalmentDates?.[0] ? new Date(data.fees.instalmentDates[0]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[0] || "",
+    data?.fees?.instalmentDates?.[1] ? new Date(data.fees.instalmentDates[1]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[1] || "",
+    data?.fees?.instalmentDates?.[2] ? new Date(data.fees.instalmentDates[2]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[2] || "",
+    data?.fees?.isBajajEMI ? "Yes" : "No",
   ];
 }
 
@@ -537,6 +547,16 @@ async function appendToSheet(sheets, spreadsheetId, sheetName, courseName, data)
     // ✅ NEW
     "Fees Amount",
     "Payment Mode",
+    // ✅ NEW - Extended fee details for counselor review
+    "Total Fees",
+    "Pending Fees",
+    "Instalment 1 Date",
+    "Instalment 1 Amount",
+    "Instalment 2 Date",
+    "Instalment 2 Amount",
+    "Instalment 3 Date",
+    "Instalment 3 Amount",
+    "Bajaj EMI Process",
   ];
 
   await ensureHeaderIfMissing(sheets, spreadsheetId, title, HEADERS);

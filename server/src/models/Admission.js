@@ -153,9 +153,19 @@ fees: {
   amount: { type: Number, default: 0 }, // counselor input (required on submit)
   paymentMode: {
     type: String,
-    enum: ["cash", "online", ""],
+    enum: ["cash", "online", "instalment", "bajaj_emi", ""],
     default: "",
   },
+  // ✅ NEW: Instalment/Bajaj EMI fields
+  totalFees: { type: Number, default: 0 }, // Total course fees
+  pendingFees: { type: Number, default: 0 }, // Calculated pending fees
+  instalmentPlan: { type: String, default: "" }, // "instalment_1", "instalment_2", "instalment_3"
+  instalmentCount: { type: Number, default: 0 }, // 1, 2, or 3
+  nextInstalmentDate: { type: Date, default: null }, // Date of next instalment (legacy)
+  perInstalmentAmount: { type: Number, default: 0 }, // Pending fees divided by instalment count
+  isBajajEMI: { type: Boolean, default: false }, // Flag for Bajaj EMI
+  instalmentDates: [{ type: Date, default: null }], // Array to store multiple instalment dates
+  instalmentAmounts: [{ type: Number, default: 0 }], // Array to store individual instalment amounts
 },
 
 workflow: {

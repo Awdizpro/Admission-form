@@ -71,12 +71,12 @@ const CONTENT_W = PAGE_W - MARGIN * 2; // inner width
 /* ---------------------- tiny utils ------------------------- */
 const keep = (v, d = "") => (v === 0 ? "0" : v ? String(v) : d);
 
-function ensureSpace(doc, needed = 80) {
+function ensureSpace(doc, needed = 50) {
   if (doc.y + needed > doc.page.height - MARGIN) doc.addPage();
 }
 
 function heading(doc, text) {
-  doc.font("Helvetica-Bold").fontSize(14).text(text, { align: "center" }).moveDown(0.5);
+  doc.font("Helvetica-Bold").fontSize(16).text(text, { align: "center" }).moveDown(0.4);
   doc.font("Helvetica");
 }
 
@@ -92,36 +92,36 @@ function heightOf(doc, text, { width, lineGap = 2, font = "Helvetica", size = 10
 
 /** Auto-height, full-width section with title bar. Awaits async content. */
 async function sectionBox(doc, titleText, draw) {
-  ensureSpace(doc, 60);
+  ensureSpace(doc, 45);
   const x = MARGIN, w = CONTENT_W, yTop = doc.y;
 
   // title stripe
   doc.save()
-    .rect(x, yTop, w, 22).fill("#f2f2f2")
-    .fillColor("#000").font("Helvetica-Bold").fontSize(12)
-    .text(titleText, x + 10, yTop + 5)
+    .rect(x, yTop, w, 26).fill("#f2f2f2")
+    .fillColor("#000").font("Helvetica-Bold").fontSize(13)
+    .text(titleText, x + 10, yTop + 6)
     .restore();
 
-  const area = { x, y: yTop + 28, w };
+  const area = { x, y: yTop + 32, w };
   doc.y = area.y;
 
   await draw(area);
 
-  const yBottom = doc.y + 10;
+  const yBottom = doc.y + 6;
   doc.rect(x, yTop, w, yBottom - yTop).stroke();
-  doc.y = yBottom + 8; // spacing
+  doc.y = yBottom + 4; // spacing
 }
 
 /** Two-column grid: each row’s height = max(left,right) (no overlap). */
 function twoColGrid(doc, area, pairs, opts = {}) {
   const pad = opts.pad ?? 10;
-  const gapCols = opts.gapCols ?? 28;
+  const gapCols = opts.gapCols ?? 20;
 
   const labelRatio = opts.labelRatio ?? 0.40;
   const colW = (area.w - pad * 2 - gapCols) / 2;
   const labelW = Math.max(110, Math.floor(colW * labelRatio));
-  const valueW = colW - labelW - 8;
-  const lineGap = 3;
+  const valueW = colW - labelW - 4;
+  const lineGap = 2;
 
   let y = doc.y;
 
@@ -130,33 +130,33 @@ function twoColGrid(doc, area, pairs, opts = {}) {
     const R = pairs[i + 1] || null;
 
     const lH = Math.max(
-      heightOf(doc, L.label, { width: labelW, lineGap, font: "Helvetica-Bold", size: 10 }),
-      heightOf(doc, keep(L.value, "-"), { width: valueW, lineGap, font: "Helvetica", size: 10 })
-    ) + 8;
+      heightOf(doc, L.label, { width: labelW, lineGap, font: "Helvetica-Bold", size: 11 }),
+      heightOf(doc, keep(L.value, "-"), { width: valueW, lineGap, font: "Helvetica", size: 11 })
+    ) + 4;
 
     let rowH = lH;
     if (R) {
       const rH = Math.max(
-        heightOf(doc, R.label, { width: labelW, lineGap, font: "Helvetica-Bold", size: 10 }),
-        heightOf(doc, keep(R.value, "-"), { width: valueW, lineGap, font: "Helvetica", size: 10 })
-      ) + 8;
+        heightOf(doc, R.label, { width: labelW, lineGap, font: "Helvetica-Bold", size: 11 }),
+        heightOf(doc, keep(R.value, "-"), { width: valueW, lineGap, font: "Helvetica", size: 11 })
+      ) + 4;
       rowH = Math.max(lH, rH);
     }
 
-    ensureSpace(doc, rowH + 8);
+    ensureSpace(doc, rowH + 4);
 
     // draw left
-    doc.font("Helvetica-Bold").fontSize(10)
+    doc.font("Helvetica-Bold").fontSize(11)
        .text(L.label, area.x + pad, y, { width: labelW, lineGap });
-    doc.font("Helvetica").fontSize(10)
+    doc.font("Helvetica").fontSize(11)
        .text(keep(L.value, "-"), area.x + pad + labelW + 8, y, { width: valueW, lineGap });
 
     // draw right
     if (R) {
       const rx = area.x + pad + colW + gapCols;
-      doc.font("Helvetica-Bold").fontSize(10)
+      doc.font("Helvetica-Bold").fontSize(11)
          .text(R.label, rx, y, { width: labelW, lineGap });
-      doc.font("Helvetica").fontSize(10)
+      doc.font("Helvetica").fontSize(11)
          .text(keep(R.value, "-"), rx + labelW + 8, y, { width: valueW, lineGap });
     }
 
@@ -177,16 +177,16 @@ function drawEduTable(doc, area, rows) {
   const gap = 8;
 
   const hY = doc.y;
-  doc.save().rect(area.x, hY - 2, area.w, 22).fill("#f2f2f2").restore();
+  doc.save().rect(area.x, hY - 2, area.w, 26).fill("#f2f2f2").restore();
 
-  doc.font("Helvetica-Bold").fontSize(10);
+  doc.font("Helvetica-Bold").fontSize(11);
   let cx = area.x + pad;
-  cols.forEach(c => { doc.text(c.title, cx, hY, { width: c.w }); cx += c.w + gap; });
-  doc.moveDown(0.8);
+  cols.forEach(c => { doc.text(c.title, cx, hY + 2, { width: c.w }); cx += c.w + gap; });
+  doc.moveDown(0.5);
 
-  doc.font("Helvetica").fontSize(10);
+  doc.font("Helvetica").fontSize(11);
   rows.forEach(r => {
-    ensureSpace(doc, 20);
+    ensureSpace(doc, 18);
     const y0 = doc.y;
     let cursor = area.x + pad;
     cols.forEach(c => {
@@ -195,21 +195,21 @@ function drawEduTable(doc, area, rows) {
     });
     const y1 = doc.y;
     doc.save().strokeColor("#e5e5e5").moveTo(area.x, y1).lineTo(area.x + area.w, y1).stroke().restore();
-    doc.moveDown(0.3);
+    doc.moveDown(0.4);
   });
 }
 
 /** Highlighted notice box */
 function noticeBox(doc, text) {
   const x = MARGIN, w = CONTENT_W, h = 40;
-  ensureSpace(doc, h + 12);
+  ensureSpace(doc, h + 6);
   const y = doc.y;
   doc.save()
     .rect(x, y, w, h).fill("#FFF9C4")
     .fillColor("#7A5E00").font("Helvetica-Bold").fontSize(11)
     .text(text, x + 12, y + 11, { width: w - 24, align: "center" })
     .restore();
-  doc.moveDown(1);
+  doc.moveDown(0.5);
 }
 
 /* ---------------------- defaults --------------------------- */
@@ -227,42 +227,49 @@ function statusBanner(doc, status) {
   };
   const cfg = map[String(status).toLowerCase()] || map.pending;
 
-  const x = MARGIN, w = CONTENT_W, h = 24;
-  ensureSpace(doc, h + 8);
+  const x = MARGIN, w = CONTENT_W, h = 28;
+  ensureSpace(doc, h + 4);
   const y = doc.y;
 
   doc.save()
     .rect(x, y, w, h).fill("#F8FAFC")
-    .fillColor(cfg.color).font("Helvetica-Bold").fontSize(11)
-    .text(cfg.text, x, y + 6, { width: w, align: "center" })
+    .fillColor(cfg.color).font("Helvetica-Bold").fontSize(12)
+    .text(cfg.text, x, y + 7, { width: w, align: "center" })
     .restore();
 
-  doc.moveDown(0.8);
+  doc.moveDown(0.5);
 }
 
 /* ===================  T&C helpers (UPDATED)  =================== */
 function drawStyledLine(doc, text, opts = {}) {
   const { width = CONTENT_W, align = "left", lineGap = 3 } = opts;
 
-  if (!text.includes("**") && /[^:]+:\s*\S/.test(text)) {
+  // Set font first before calculating height
+  doc.font("Helvetica").fontSize(11);
+  
+  // Calculate actual height needed for this text
+  const textHeight = doc.heightOfString(text, { width, lineGap });
+  const totalHeight = Math.max(textHeight + 8, 24);
+  
+  ensureSpace(doc, totalHeight);
+
+  if (!text.includes("**") && /[^/]+:\s*\S/.test(text)) {
     const m = text.match(/^([^:]+:)(\s*)(.*)$/);
     if (m) {
       const [, label, sp, rest] = m;
-      ensureSpace(doc, 18);
-      doc.font("Helvetica-Bold").fontSize(10).text(label, { width, continued: true, align, lineGap });
-      doc.font("Helvetica").fontSize(10).text(sp + rest, { width, align, lineGap });
+      doc.font("Helvetica-Bold").fontSize(11).text(label, { width, continued: true, align, lineGap });
+      doc.font("Helvetica").fontSize(11).text(sp + rest, { width, align, lineGap });
       doc.moveDown(0.2);
       return;
     }
   }
 
   const parts = text.split(/(\*\*[^*]+?\*\*)/g).filter(Boolean);
-  ensureSpace(doc, 18);
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i];
     const isBold = p.startsWith("**") && p.endsWith("**");
     const clean = isBold ? p.slice(2, -2) : p;
-    doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(10)
+    doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(11)
        .text(clean, { width, align, lineGap, continued: i !== parts.length - 1 });
   }
   doc.moveDown(0.2);
@@ -274,13 +281,23 @@ function drawBullet(doc, raw, level = 0) {
   const textX   = bulletX + 12;
   const usableW = CONTENT_W - (textX - MARGIN);
 
-  ensureSpace(doc, 18);
+  // Set font first before calculating height
+  doc.font("Helvetica").fontSize(11);
+  
+  // Calculate actual height needed for this bullet text
+  const textHeight = doc.heightOfString(text, { 
+    width: usableW, 
+    lineGap: 2
+  });
+  const totalHeight = Math.max(textHeight + 4, 20);
+
+  ensureSpace(doc, totalHeight);
   const y0 = doc.y;
 
-  doc.font("Helvetica").fontSize(11).text("•", bulletX, y0, { width: 10, continued: false });
+  doc.font("Helvetica").fontSize(12).text("•", bulletX, y0, { width: 10, continued: false });
 
   doc.x = textX; doc.y = y0;
-  drawStyledLine(doc, text, { width: usableW, align: "left", lineGap: 3 });
+  drawStyledLine(doc, text, { width: usableW, align: "left", lineGap: 2 });
   doc.moveDown(0.15);
 }
 
@@ -323,13 +340,13 @@ function drawTCFullTable(doc, header, rows) {
 
   // Header band (inside table)
   const drawHeader = () => {
-    ensureSpace(doc, 30);
+    ensureSpace(doc, 25);
     const hY = doc.y;
-    doc.save().rect(x, hY - 2, w, 22).fill("#f2f2f2").restore();
-    doc.font("Helvetica-Bold").fontSize(10)
-      .text(header[0] || "", x + pad, hY, { width: colW1 - pad })
-      .text(header[1] || "", x + pad + colW1, hY, { width: colW2 - pad });
-    doc.moveDown(0.7);
+    doc.save().rect(x, hY - 2, w, 26).fill("#f2f2f2").restore();
+    doc.font("Helvetica-Bold").fontSize(11)
+      .text(header[0] || "", x + pad, hY + 2, { width: colW1 - pad })
+      .text(header[1] || "", x + pad + colW1, hY + 2, { width: colW2 - pad });
+    doc.moveDown(0.5);
     return hY - 2; // return top for outer border
   };
 
@@ -339,13 +356,17 @@ function drawTCFullTable(doc, header, rows) {
   const writeRow = (course, details) => {
     const y0 = doc.y;
 
+    // Set font before calculating heights
+    doc.font("Helvetica").fontSize(11);
+
     const h = Math.max(
-      doc.heightOfString(course,  { width: colW1 - pad, lineGap: 3 }),
-      doc.heightOfString(details, { width: colW2 - pad, lineGap: 3 })
-    ) + 8;
+      doc.heightOfString(course,  { width: colW1 - pad, lineGap: 2 }),
+      doc.heightOfString(details, { width: colW2 - pad, lineGap: 2 })
+    ) + 4;
 
     // page break BEFORE drawing the row (avoid split)
-    if (y0 + h + 8 > pageBottom()) {
+    // Only add new page if row won't fit at all, otherwise continue on same page
+    if (y0 + h + 20 > pageBottom()) {
       // close current page border
       const endY = y0 + 2;
       doc.save().strokeColor("#bfbfbf")
@@ -361,8 +382,8 @@ function drawTCFullTable(doc, header, rows) {
     // left cell (course) — bold if wrapped with ** **
     const isBold = /^\*\*.*\*\*$/.test(course);
     const cleanCourse = isBold ? course.replace(/^\*\*|\*\*$/g, "") : course;
-    doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(10)
-       .text(cleanCourse, x + pad, y, { width: colW1 - pad, lineGap: 3 });
+    doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(11)
+       .text(cleanCourse, x + pad, y, { width: colW1 - pad, lineGap: 2 });
 
     // right cell (details) — supports **bold** spans
     const parts = String(details).split(/(\*\*[^*]+?\*\*)/g).filter(Boolean);
@@ -370,8 +391,8 @@ function drawTCFullTable(doc, header, rows) {
     parts.forEach((p, idx) => {
       const b = p.startsWith("**") && p.endsWith("**");
       const txt = b ? p.slice(2, -2) : p;
-      doc.font(b ? "Helvetica-Bold" : "Helvetica").fontSize(10)
-         .text(txt, { width: colW2 - pad, lineGap: 3, continued: idx !== parts.length - 1 });
+      doc.font(b ? "Helvetica-Bold" : "Helvetica").fontSize(11)
+         .text(txt, { width: colW2 - pad, lineGap: 2, continued: idx !== parts.length - 1 });
     });
 
     // row bottom line
@@ -411,20 +432,32 @@ function normalizeTableMarkdown(md) {
 
 /** Render multi-line T&C with bullets + bold segments + markdown table hook */
 function renderTerms(doc, tcText) {
-  const lines = (tcText || "").split("\n").map(s => s.replace(/\r/g, "").trim());
+  // Don't trim lines here - we need to detect leading spaces for nested bullets
+  const rawLines = (tcText || "").split("\n").map(s => s.replace(/\r/g, ""));
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (let i = 0; i < rawLines.length; i++) {
+    const rawLine = rawLines[i];
+    
+    // Count leading spaces to determine nesting level
+    const leadingSpaces = rawLine.match(/^(\s*)/)?.[1]?.length || 0;
+    const line = rawLine.trim();
+    const nestingLevel = Math.floor(leadingSpaces / 2); // 2 spaces = 1 level
 
-    if (!line) { doc.moveDown(0.25); continue; }
+    if (!line) { 
+      // Check if we need a page break even for empty lines
+      ensureSpace(doc, 8);
+      doc.moveDown(0.25); 
+      continue; 
+    }
 
     // Heading that precedes a table (kept compatible)
     if (/^#{2,3}\s*\**Eligible Fresher Roles.*\**\s*$/i.test(line)) {
-      doc.moveDown(0.6);
-      doc.font("Helvetica-Bold").fontSize(12).text(line.replace(/^#+\s*/, "").replace(/\*\*/g, ""), { align: "left" });
-      doc.font("Helvetica").fontSize(10).moveDown(0.4);
+      ensureSpace(doc, 30);
+      doc.moveDown(0.4);
+      doc.font("Helvetica-Bold").fontSize(14).text(line.replace(/^#+\s*/, "").replace(/\*\*/g, ""), { align: "left" });
+      doc.font("Helvetica").fontSize(12).moveDown(0.3);
 
-      const parsed = parseMarkdownTable(lines, i + 1);
+      const parsed = parseMarkdownTable(rawLines, i + 1);
       if (parsed.rows.length) {
         drawTCFullTable(doc, parsed.header, parsed.rows);  // ✅ full-page bordered table
         i = parsed.next - 1;
@@ -434,7 +467,7 @@ function renderTerms(doc, tcText) {
 
     // A table that starts immediately
     if (line.startsWith("|")) {
-      const parsed = parseMarkdownTable(lines, i);
+      const parsed = parseMarkdownTable(rawLines, i);
       if (parsed.rows.length) {
         drawTCFullTable(doc, parsed.header, parsed.rows);  // ✅ full-page bordered table
         i = parsed.next - 1;
@@ -442,11 +475,11 @@ function renderTerms(doc, tcText) {
       }
     }
 
-    // bullets or normal text
+    // bullets (with nesting support) or normal text
     if (/^[-•]\s+/.test(line)) {
-      drawBullet(doc, line, 0);
+      drawBullet(doc, line, nestingLevel);
     } else {
-      drawStyledLine(doc, line, { width: CONTENT_W, align: "left", lineGap: 3 });
+      drawStyledLine(doc, line, { width: CONTENT_W, align: "left", lineGap: 2 });
     }
   }
 }
@@ -474,7 +507,7 @@ export async function generateAdmissionPDF(payload, opts = {}) {
   // Logo (optional)
   if (process.env.AWDIZ_LOGO_URL) {
     const logo = await toImageBuffer(process.env.AWDIZ_LOGO_URL);
-    if (logo) { doc.image(logo, MARGIN + CONTENT_W/2 - 50, doc.y, { fit: [100, 60] }); doc.moveDown(3); }
+    if (logo) { doc.image(logo, MARGIN + CONTENT_W/2 - 50, doc.y, { fit: [100, 60] }); doc.moveDown(3.5); }
   }
   heading(
     doc,
@@ -586,12 +619,13 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     renderTerms(doc, finalTableMd);
   } else {
     // fallback to old behaviour (kept intact)
+    ensureSpace(doc, 30); // Ensure space for heading
     doc.font("Helvetica-Bold").fontSize(14)
       .text(
         isTrainingOnly ? "Training Terms & Conditions" : "Job Guarantee Terms & Conditions",
         { align: "center", underline: true }
       );
-    doc.font("Helvetica").moveDown(0.8);
+    doc.font("Helvetica").moveDown(0.4);
     if (isTrainingOnly) {
       noticeBox(doc, "Training-only enrollment: Fees are non-refundable. Please read the terms carefully.");
     }
@@ -602,14 +636,13 @@ export async function generateAdmissionPDF(payload, opts = {}) {
   }
 
   /* ---------- Signatures (UNCHANGED) ---------- */
-  doc.addPage();
-
-  doc.moveDown(1);
-  doc.fontSize(11)
+  // Continue on same page as T&C - removed doc.addPage()
+  doc.moveDown(0.3);
+  doc.fontSize(13)
     .text(`DATE: ${new Date().toLocaleDateString('en-IN')}`)
     .text(`PLACE OF ADMISSION: ${keep(CTR.placeOfAdmission, "-")}`)
     .text(`ONLINE / OFFLINE: ${keep(CTR.mode, "-")}`)
-    .moveDown(1.2);
+    .moveDown(1.0);
 
   const sigTop  = doc.y;
   const gapCols = 20;
@@ -617,14 +650,14 @@ export async function generateAdmissionPDF(payload, opts = {}) {
   const colX    = [ MARGIN, MARGIN + colW + gapCols, MARGIN + 2*(colW + gapCols) ];
 
   // Headings
-  doc.font("Helvetica-Bold")
+  doc.font("Helvetica-Bold").fontSize(12)
      .text("STUDENT",              colX[0], sigTop)
      .text("PARENT/GUARDIAN",      colX[1], sigTop)
      .text("For Awdiz Sign & Seal",colX[2], sigTop);
   doc.font("Helvetica");
 
-  const sigY = sigTop + 26;
-  const sigH = 110; // bigger slot (as you set earlier)
+  const sigY = sigTop + 30;
+  const sigH = 130; // bigger slot (as you set earlier)
   const pad  = 4;
 
   const loadImg = async (...candidates) => {
@@ -698,13 +731,13 @@ if (parentSignBuf) {
   }
 
   // Names row
-  doc.fontSize(10)
-     .text(`FULL NAME: ${keep(payload?.signatures?.student?.fullName)}`, colX[0], sigY + sigH + 16)
-     .text(`FULL NAME: ${keep(payload?.signatures?.parent?.fullName || payload?.signatures?.guardian?.fullName)}`,  colX[1], sigY + sigH + 16)
-     .text(``, colX[2], sigY + sigH + 16);
+  doc.fontSize(11)
+     .text(`FULL NAME: ${keep(payload?.signatures?.student?.fullName)}`, colX[0], sigY + sigH + 20)
+     .text(`FULL NAME: ${keep(payload?.signatures?.parent?.fullName || payload?.signatures?.guardian?.fullName)}`,  colX[1], sigY + sigH + 20)
+     .text(``, colX[2], sigY + sigH + 20);
 
-  doc.moveDown(1.5);
-  doc.fontSize(9)
+  doc.moveDown(1.0);
+  doc.fontSize(10)
      .text("NOTE: This contract is valid for 12 months from the date of signing. All disputes subject to Mumbai jurisdiction.")
      .text("Addresses: Vashi Plaza (Navi Mumbai) • Bandra (West) Mumbai");
 

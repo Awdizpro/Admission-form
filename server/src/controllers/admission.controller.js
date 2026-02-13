@@ -40,249 +40,6 @@ const toBool = (v, d = true) => {
   return d;
 };
 
-// // Convert uploaded image -> compact JPEG data URL
-// async function compressToJpegDataUrl(file, maxW = 600, maxH = 600, q = 80) {
-//   if (!file) return null;
-//   try {
-//     let buf = await sharp(file.buffer)
-//       .resize({
-//         width: maxW,
-//         height: maxH,
-//         fit: "inside",
-//         withoutEnlargement: true,
-//       })
-//       .jpeg({ quality: q })
-//       .toBuffer();
-
-//     if (buf.length > 2 * 1024 * 1024) {
-//       buf = await sharp(buf).jpeg({ quality: 60 }).toBuffer();
-//     }
-
-//     return `data:image/jpeg;base64,${buf.toString("base64")}`;
-//   } catch (e) {
-//     console.error("compressToJpegDataUrl failed:", e?.message);
-//     return null;
-//   }
-// }
-
-// const tryPickDataUrl = (v) =>
-//   typeof v === "string" && v.startsWith("data:image") ? v : null;
-
-// /* ==================== INIT ADMISSION ==================== */
-// async function initAdmission(req, res) {
-//   try {
-//     const body = JSON.parse(req.body.payload || "{}");
-
-//     // ✅ NEW: counselorKey resolve here (req/body available here only)
-//     const counselorKey =
-//       String(
-//         req.query?.c ||
-//           body?.counselorKey ||
-//           body?.meta?.counselorKey ||
-//           body?.course?.counselorKey ||
-//           "c1"
-//       )
-//         .trim()
-//         .toLowerCase() === "c2"
-//         ? "c2"
-//         : "c1";
-
-//     if (
-//       !body?.personal?.name ||
-//       !body?.personal?.studentMobile ||
-//       !body?.personal?.email ||
-//       (!body?.course?.name && !body?.course?.trainingOnlyCourse) ||
-//       body?.termsAccepted !== true
-//     ) {
-//       return res.status(400).json({
-//         message:
-//           "Please complete all required fields and accept Terms & Conditions.",
-//       });
-//     }
-
-//     // Upload files
-//     let photoUrl, panUrl, aadhaarUrl;
-
-//     try {
-//       if (req.files?.photo?.[0]) {
-//         const up = await uploadBuffer({
-//           buffer: req.files.photo[0].buffer,
-//           folder: "awdiz/admissions/photos",
-//           publicId: `photo-${Date.now()}`,
-//           resource_type: "image",
-//           extra: { format: "jpg" },
-//         });
-//         photoUrl = up?.secure_url;
-//       }
-//     } catch (e) {
-//       console.log("photo upload skipped:", e?.message);
-//     }
-
-//     try {
-//       if (req.files?.pan?.[0]) {
-//         const up = await uploadBuffer({
-//           buffer: req.files.pan[0].buffer,
-//           folder: "awdiz/admissions/pan",
-//           publicId: `pan-${Date.now()}`,
-//           resource_type: "raw",
-//           extra: { format: "pdf" },
-//         });
-//         panUrl = up?.secure_url;
-//       }
-//     } catch (e) {
-//       console.log("pan upload skipped:", e?.message);
-//     }
-
-//     try {
-//       if (req.files?.aadhaar?.[0]) {
-//         const up = await uploadBuffer({
-//           buffer: req.files.aadhaar[0].buffer,
-//           folder: "awdiz/admissions/aadhaar",
-//           publicId: `aadhaar-${Date.now()}`,
-//           resource_type: "raw",
-//           extra: { format: "pdf" },
-//         });
-//         aadhaarUrl = up?.secure_url;
-//       }
-//     } catch (e) {
-//       console.log("aadhaar upload skipped:", e?.message);
-//     }
-
-//     // Data URLs for PDF (photo/pan/aadhaar)
-//     const photoDataUrl = await compressToJpegDataUrl(req.files?.photo?.[0]);
-//     const panDataUrl = await compressToJpegDataUrl(req.files?.pan?.[0]);
-//     const aadhaarDataUrl = await compressToJpegDataUrl(req.files?.aadhaar?.[0]);
-
-//     /* ---------- Signatures (data URLs only; NO student->parent fallback) ---------- */
-//     const studentSignDataUrl =
-//       tryPickDataUrl(req.body?.studentSignDataUrl) ||
-//       tryPickDataUrl(body?.files?.studentSign) ||
-//       tryPickDataUrl(body?.signatures?.student?.signDataUrl) ||
-//       null;
-
-//     const parentSignDataUrl =
-//       tryPickDataUrl(req.body?.parentSignDataUrl) ||
-//       tryPickDataUrl(body?.files?.parentSign) ||
-//       tryPickDataUrl(body?.signatures?.parent?.signDataUrl) ||
-//       null;
-
-//     // Quick debug
-//     const _studLen = (studentSignDataUrl || "").length;
-//     const _parLen = (parentSignDataUrl || "").length;
-//     console.log("[SIG] student(len):", _studLen, " parent(len):", _parLen);
-
-//     // STRICT: Parent/Guardian sign is mandatory (no fallback)
-//     if (!_parLen) {
-//       return res.status(400).json({
-//         message:
-//           "Parent/Guardian signature is required (data URL missing or too large).",
-//         hint: "Ensure field name is 'parentSignDataUrl' and increase multer fieldSize to 10MB.",
-//       });
-//     }
-
-//     const payload = {
-//       ...body,
-//       personal: {
-//         ...body.personal,
-//         name: String(body.personal.name || "").trim(),
-//         studentMobile: String(body.personal.studentMobile || "").trim(),
-//         email: String(body.personal.email || "").trim(),
-//       },
-//       course: { ...body.course, enrolled: toBool(body?.course?.enrolled, true) },
-//       uploads: {
-//         photoUrl,
-//         panUrl,
-//         aadhaarUrl,
-//         photoDataUrl,
-//         panDataUrl,
-//         aadhaarDataUrl,
-//       },
-//       signatures: {
-//         ...body.signatures,
-//         student: {
-//           ...(body.signatures?.student || {}),
-//           signDataUrl:
-//             body.signatures?.student?.signDataUrl || studentSignDataUrl || null,
-//           signUrl: body.signatures?.student?.signUrl || studentSignDataUrl || null,
-//         },
-//         parent: {
-//           ...(body.signatures?.parent || {}),
-//           signDataUrl:
-//             body.signatures?.parent?.signDataUrl || parentSignDataUrl || null,
-//           signUrl: body.signatures?.parent?.signUrl || parentSignDataUrl || null,
-//         },
-//       },
-//       tc: {
-//         accepted: true,
-//         version: body.tcVersion || "",
-//         text: body.tcText || "",
-//         type: body.course.trainingOnly ? "training-only" : "job-guarantee",
-//       },
-//       meta: {
-//         planType: body.course.trainingOnly ? "training" : "job",
-//         counselorKey, // ✅ NEW (stored in DB)
-//       },
-//     };
-
-//     /* ==================== 2-OTP GENERATION ==================== */
-//     // (ENV OTP_ALWAYS ho to dono me wahi use hoga)
-//     const mobileOtpRaw = process.env.OTP_ALWAYS || generateOtp(6);
-//     const emailOtpRaw = process.env.OTP_ALWAYS || generateOtp(6);
-
-//     const mobileOtpHash = hashOtp(mobileOtpRaw);
-//     const emailOtpHash = hashOtp(emailOtpRaw);
-
-//     const pendingId = `p_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-//     const now = Date.now();
-//     const ttlMs = 15 * 60 * 1000; // 15 minutes
-
-//     pending.set(pendingId, {
-//       payload,
-//       mobile: payload.personal.studentMobile,
-//       email: payload.personal.email,
-//       mobileOtpHash,
-//       emailOtpHash,
-//       mobileVerified: false,
-//       emailVerified: false,
-//       createdAt: now,
-//       expiresAt: now + ttlMs,
-//     });
-
-//     // 📨 SEND MOBILE OTP (SMS)
-//     try {
-//       await sendOtpSms(payload.personal.studentMobile, mobileOtpRaw);
-//     } catch (err) {
-//       console.error("sendOtpSms failed:", err?.message || err);
-//     }
-
-//     // 📨 SEND EMAIL OTP
-//     try {
-//       await sendOtpEmail({
-//         to: payload.personal.email,
-//         name: payload.personal.name,
-//         otp: emailOtpRaw,
-//       });
-//     } catch (err) {
-//       console.error("sendOtpEmail failed:", err?.message || err);
-//     }
-
-//     // DEV log
-//     if (String(process.env.SMS_DUMMY || "true") === "true") {
-//       console.log("🧪 DEV Mobile OTP:", mobileOtpRaw);
-//       console.log("🧪 DEV Email  OTP:", emailOtpRaw);
-//     }
-
-//     return res.status(200).json({
-//       pendingId,
-//       message: "Mobile & Email OTP sent.",
-//     });
-//   } catch (e) {
-//     console.error("initAdmission failed:", e);
-//     return res.status(500).json({ message: "Server error" });
-//   }
-// }
-
 // Helper: is PDF?
 
 function pickCounselorEmailsByKey(key) {
@@ -799,9 +556,27 @@ async function submitToAdmin(req, res) {
     // 1️⃣ READ + VALIDATE FEES (ONLY ONCE)
     const feeAmountRaw = req.body?.feeAmount;
     const feeModeRaw = req.body?.feeMode;
+    const totalFeesRaw = req.body?.totalFees;
+    const pendingFeesRaw = req.body?.pendingFees;
+    const instalmentPlanRaw = req.body?.instalmentPlan;
+    const instalmentCountRaw = req.body?.instalmentCount;
+    const isBajajEMIRaw = req.body?.isBajajEMI;
+    
+    // Read multiple instalment dates and amounts
+    const instalmentDate1 = req.body?.instalmentDate1;
+    const instalmentDate2 = req.body?.instalmentDate2;
+    const instalmentDate3 = req.body?.instalmentDate3;
+    const instalmentAmount1 = Number(req.body?.instalmentAmount1) || 0;
+    const instalmentAmount2 = Number(req.body?.instalmentAmount2) || 0;
+    const instalmentAmount3 = Number(req.body?.instalmentAmount3) || 0;
 
     const feeAmount = Number(feeAmountRaw);
     const feeMode = String(feeModeRaw || "").trim().toLowerCase();
+    const totalFees = Number(totalFeesRaw) || 0;
+    const pendingFees = Number(pendingFeesRaw) || 0;
+    const instalmentPlan = String(instalmentPlanRaw || "").trim();
+    const instalmentCount = Number(instalmentCountRaw) || 0;
+    const isBajajEMI = isBajajEMIRaw === 'true' || isBajajEMIRaw === true;
 
     if (!Number.isFinite(feeAmount) || feeAmount < 0) {
       return res.status(400).send("Invalid fee amount");
@@ -811,16 +586,50 @@ async function submitToAdmin(req, res) {
       return res.status(400).send("Invalid payment mode");
     }
 
+    // Build instalment dates array
+    const instalmentDates = [];
+    const instalmentAmounts = [];
+    if (instalmentPlan.startsWith('instalment_')) {
+      if (instalmentDate1) {
+        instalmentDates.push(new Date(instalmentDate1));
+        instalmentAmounts.push(instalmentAmount1);
+      }
+      if (instalmentDate2) {
+        instalmentDates.push(new Date(instalmentDate2));
+        instalmentAmounts.push(instalmentAmount2);
+      }
+      if (instalmentDate3) {
+        instalmentDates.push(new Date(instalmentDate3));
+        instalmentAmounts.push(instalmentAmount3);
+      }
+      
+      // Validate that required dates are provided
+      if (instalmentDates.length !== instalmentCount) {
+        return res.status(400).send(`Please provide all ${instalmentCount} instalment dates`);
+      }
+    }
+
     // 2️⃣ FETCH DOCUMENT
     const doc = await Admission.findById(id);
     if (!doc) return res.status(404).send("Admission not found");
 
     // 3️⃣ SAVE FEES IN DB
     doc.fees = doc.fees || {};
-doc.fees.amount = feeAmount;
-doc.fees.paymentMode = feeMode;
+    doc.fees.amount = feeAmount;
+    doc.fees.paymentMode = feeMode;
+    doc.fees.totalFees = totalFees;
+    doc.fees.pendingFees = pendingFees;
+    doc.fees.instalmentPlan = instalmentPlan;
+    doc.fees.instalmentCount = instalmentCount;
+    doc.fees.isBajajEMI = isBajajEMI;
+    doc.fees.instalmentDates = instalmentDates;
+    doc.fees.instalmentAmounts = instalmentAmounts;
+    // Keep legacy fields for compatibility
+    doc.fees.nextInstalmentDate = instalmentDates[0] || null;
+    doc.fees.perInstalmentAmount = instalmentAmounts[0] || 0;
+    
     doc.workflow = doc.workflow || {};
-doc.workflow.counselorSubmittedToAdminAt = new Date();
+    doc.workflow.counselorSubmittedToAdminAt = new Date();
 
     await doc.save();
 
@@ -866,6 +675,44 @@ doc.workflow.counselorSubmittedToAdminAt = new Date();
 
     const reviewUrl = `${BASE_URL}/api/admissions/${doc._id}/admin-review`;
 
+    // Build fee details HTML with instalment schedule
+    let feeDetailsHtml = `
+      <p style="margin:0 0 8px"><b>Total Fees:</b> ₹${totalFees}</p>
+      <p style="margin:0 0 8px"><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
+      <p style="margin:0 0 8px"><b>Total Pending Fees:</b> ₹${pendingFees}</p>
+    `;
+
+    // Add instalment schedule if applicable
+    if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
+      feeDetailsHtml += `
+        <div style="margin:12px 0; padding:12px; background:#f0fdf4; border-radius:4px; border-left:4px solid #16a34a;">
+          <p style="margin:0 0 8px; font-weight:600; color:#15803d;">📅 Instalment Schedule:</p>
+          <p style="margin:0 0 8px; color:#166534;">
+            After the ₹${feeAmount} registration fee, the remaining ₹${pendingFees} will be paid in ${instalmentCount} installment${instalmentCount > 1 ? 's' : ''}.
+          </p>
+      `;
+      
+      for (let i = 0; i < instalmentCount; i++) {
+        const date = instalmentDates[i] ? new Date(instalmentDates[i]).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
+        const amount = instalmentAmounts[i] || 0;
+        feeDetailsHtml += `
+          <p style="margin:4px 0; color:#166534; padding-left:12px;">
+            <b>Instalment ${i + 1}:</b> ₹${amount} on ${date} 
+          </p>
+        `;
+      }
+      
+      feeDetailsHtml += `</div>`;
+    }
+
+    // Add Bajaj EMI notice if applicable
+    if (isBajajEMI) {
+      feeDetailsHtml += `
+        <p style="margin:8px 0; padding:8px; background:#fef3c7; border-radius:4px; color:#92400e;">
+          <b>⚠️ No Cost EMI PROCESS:</b> Student has selected Bajaj EMI option. Please process this separately.
+        </p>
+      `;
+    }
 
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.5">
@@ -874,7 +721,10 @@ doc.workflow.counselorSubmittedToAdminAt = new Date();
         <p style="margin:0 0 8px"><b>Course:</b> ${doc?.course?.name || "-"}</p>
         <p style="margin:0 0 8px"><b>Center:</b> ${doc?.center?.placeOfAdmission || "-"}</p>
 
-        <p style="margin:0 0 8px"><b>Fees:</b> ₹${feeAmount} &nbsp; <b>Mode:</b> ${feeMode}</p>
+        <div style="background:#f3f4f6; padding:12px; border-radius:8px; margin:12px 0;">
+          <h3 style="margin:0 0 8px; color:#374151;">💰 Fee Details</h3>
+          ${feeDetailsHtml}
+        </div>
 
         <p style="margin:12px 0 0">
           <a href="${reviewUrl}"
@@ -907,13 +757,50 @@ doc.workflow.counselorSubmittedToAdminAt = new Date();
 
     await transporter.sendMail(mail);
 
+    // Build success message with fee details and instalment schedule
+    let successMessage = `
+      <p><b>Total Fees:</b> ₹${totalFees}</p>
+      <p><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
+      <p><b>Total Pending Fees:</b> ₹${pendingFees}</p>
+    `;
+
+    // Add instalment schedule
+    if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
+      successMessage += `
+        <div style="margin-top:12px; padding:10px; background:#f0fdf4; border-radius:4px;">
+          <p style="margin:0 0 8px; color:#15803d; font-weight:600;">📅 Instalment Schedule:</p>
+          <p style="margin:0 0 8px; color:#166534;">
+            After the ₹${feeAmount} registration fee, the remaining ₹${pendingFees} will be paid in ${instalmentCount} installment${instalmentCount > 1 ? 's' : ''}.
+          </p>
+      `;
+      
+      for (let i = 0; i < instalmentCount; i++) {
+        const date = instalmentDates[i] ? new Date(instalmentDates[i]).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
+        const amount = instalmentAmounts[i] || 0;
+        successMessage += `
+          <p style="margin:4px 0; color:#166534; padding-left:12px;">
+            <b>Instalment ${i + 1}:</b> ₹${amount} on ${date}
+          </p>
+        `;
+      }
+      
+      successMessage += `</div>`;
+    }
+
+    if (isBajajEMI) {
+      successMessage += `<p style="color:#92400e; margin-top:12px;"><b>⚠️ No Cost EMI PROCESS SELECTED</b></p>`;
+    }
+
     // simple success page for counselor
     return res.send(`
       <html>
         <head><meta charset="utf-8"/><title>Submitted</title></head>
         <body style="font-family:Arial,sans-serif;padding:24px">
           <h2>✅ Submitted to Admin</h2>
-          <p>Student Registration Fees : ₹${feeAmount} | Mode : ${feeMode}</p>
+          <div style="background:#f3f4f6; padding:16px; border-radius:8px; margin:16px 0;">
+            <h3 style="margin-top:0;">💰 Fee Details</h3>
+            ${successMessage}
+          </div>
           <p>Admin has received the email with approval button.</p>
         </body>
       </html>
@@ -952,7 +839,7 @@ async function approveAdmission(req, res) {
 
     if (req.body?.feeMode) {
       const mode = String(req.body.feeMode).toLowerCase();
-      if (!["cash", "online"].includes(mode)) {
+      if (!["cash", "online", "instalment", "bajaj_emi"].includes(mode)) {
         return res.status(400).send("Invalid payment mode");
       }
       doc.fees.paymentMode = mode;
@@ -1068,6 +955,72 @@ try {
   const centerName = doc?.center?.placeOfAdmission || "-";
   const feeAmount = doc?.fees?.amount ?? "";
   const feeMode = doc?.fees?.paymentMode || "";
+  const totalFees = doc?.fees?.totalFees ?? 0;
+  const pendingFees = doc?.fees?.pendingFees ?? 0;
+  const isBajajEMI = doc?.fees?.isBajajEMI || feeMode === "bajaj_emi";
+  const instalmentPlan = doc?.fees?.instalmentPlan || "";
+  const instalmentCount = doc?.fees?.instalmentCount || 0;
+  const instalmentDates = doc?.fees?.instalmentDates || [];
+  const instalmentAmounts = doc?.fees?.instalmentAmounts || [];
+
+  // Build fee details section with instalment schedule
+  let feeDetailsHtml = `
+    <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:16px; margin:16px 0;">
+      <h3 style="margin:0 0 12px; color:#15803d;">💰 Fee Details</h3>
+      <p style="margin:0 0 6px"><b>Total Fees:</b> ₹${totalFees}</p>
+      <p style="margin:0 0 6px"><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
+      <p style="margin:0 0 6px"><b>Total Pending Fees:</b> ₹${pendingFees}</p>
+  `;
+
+  // Add instalment schedule if applicable
+  if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
+    feeDetailsHtml += `
+      <div style="margin-top:12px; padding-top:12px; border-top:1px solid #86efac;">
+        <p style="margin:0 0 12px; font-weight:600; color:#15803d;">📅 Instalment Schedule:</p>
+        <p style="margin:0 0 12px; color:#166534; line-height:1.6;">
+          After receiving the ₹${feeAmount} registration fees, it was discussed and mutually agreed that the student would pay the ₹${pendingFees} remaining fees in ${instalmentCount} installment${instalmentCount > 1 ? 's' : ''}.
+        </p>
+    `;
+    
+    for (let i = 0; i < instalmentCount; i++) {
+      const date = instalmentDates[i] ? new Date(instalmentDates[i]).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
+      const amount = instalmentAmounts[i] || 0;
+      feeDetailsHtml += `
+        <p style="margin:4px 0; color:#166534; padding-left:12px;">
+          <b>Instalment ${i + 1}:</b> ₹${amount} on ${date}
+        </p>
+      `;
+    }
+    
+    feeDetailsHtml += `</div>`;
+  }
+
+  feeDetailsHtml += `</div>`;
+
+  // Special message for Bajaj EMI
+  let bajajEMIHtml = "";
+  if (isBajajEMI) {
+    bajajEMIHtml = `
+      <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:8px; padding:16px; margin:16px 0;">
+        <h3 style="margin:0 0 12px; color:#92400e;">🏦 No Cost EMI Process</h3>
+        <p style="margin:0 0 12px; color:#78350f; line-height:1.6;">
+          The student has opted for the no-cost EMI option for fee payment.<br/>
+          The remaining balance of ₹${pendingFees}/- can be conveniently converted into No-cost EMIs, subject to submission of required financial documents.
+        </p>
+        <p style="margin:0 0 8px; color:#92400e; font-weight:600;">Below is the list of financial documents required:</p>
+        <ul style="margin:0; padding-left:20px; color:#78350f;">
+          <li>Aadhar card</li>
+          <li>PAN Card</li>
+          <li>Last 180 days' bank statement</li>
+          <li>1 Live photograph</li>
+          <li>Work proof (Salary Slip/Offer Letter)</li>
+        </ul>
+        <p style="margin:12px 0 0; color:#78350f;">
+          I trust this information is clear and helpful.
+        </p>
+      </div>
+    `;
+  }
 
   const commonHtml = `
     <div style="font-family:system-ui,Arial,sans-serif;line-height:1.6">
@@ -1076,7 +1029,9 @@ try {
       <p style="margin:0 0 6px"><b>Student:</b> ${studentName}</p>
       <p style="margin:0 0 6px"><b>Course:</b> ${courseName}</p>
       <p style="margin:0 0 6px"><b>Center:</b> ${centerName}</p>
-      <p style="margin:0 0 6px"><b>Registration Fees:</b> ₹${feeAmount} &nbsp; <b>Mode:</b> ${feeMode}</p>
+
+      ${feeDetailsHtml}
+      ${bajajEMIHtml}
 
       ${approvedUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${approvedUrl}" target="_blank">Open Approved PDF</a></p>` : ``}
 
@@ -1520,6 +1475,120 @@ const feeMode =
   to { transform: rotate(360deg); }
 }
 
+/* ==================== RESPONSIVE STYLES ==================== */
+@media (max-width: 768px) {
+  body {
+    padding: 12px 8px;
+  }
+  .page {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .title {
+    font-size: 18px;
+  }
+  .pdf-frame {
+    height: 300px;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .field-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-flags {
+    justify-content: flex-end;
+  }
+  .sec-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sec-badges {
+    flex-wrap: wrap;
+  }
+  .actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-primary, .btn-success, .btn-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+  .fee-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fee-input, .fee-select {
+    width: 100%;
+    min-width: auto;
+  }
+  table.edu {
+    font-size: 11px;
+  }
+  .edu th, .edu td {
+    padding: 3px 4px;
+  }
+  .pdf-pane-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  #totalRemainingDiv {
+    margin-top: 12px;
+  }
+  #totalRemainingDiv span:last-child {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 16px;
+  }
+  .subtitle {
+    font-size: 12px;
+  }
+  .pdf-frame {
+    height: 250px;
+  }
+  .section-card {
+    padding: 10px 12px;
+  }
+  .sec-title {
+    font-size: 13px;
+  }
+  .field-label {
+    font-size: 11px;
+  }
+  .field-value {
+    font-size: 12px;
+    padding: 3px 5px;
+  }
+  .btn-primary, .btn-success {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .badge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  .mini-badge {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+  .notes-box {
+    min-height: 60px;
+    font-size: 12px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2042,47 +2111,220 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         <p class="helper">Jo sections yahan ❌ select karenge, unhi ko baad me student ke form me editable rakha jaa sakta hai.</p>
       </div>
 
+      <!-- FEE SECTION -->
+      <div class="section-card" style="background:#f0f9ff; border-color:#bae6fd;">
+        <div class="sec-header">
+          <p class="sec-title" style="color:#0369a1;">💰 Fee Details</p>
+        </div>
+        
+        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; margin-bottom:12px;">
+          <!-- Total Fees -->
+          <div>
+            <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Total Fees (₹)</label>
+            <input
+              type="number"
+              id="totalFees"
+              name="totalFees"
+              min="0"
+              step="1"
+              placeholder="Enter total course fees"
+              value="${p?.fees?.totalFees || ''}"
+              class="fee-input"
+              style="width:100%; margin-top:4px;"
+              onchange="calculatePendingFees()"
+            />
+          </div>
+          
+          <!-- Paid Fees -->
+          <div>
+            <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Paid Fees (₹)</label>
+            <input
+              type="number"
+              id="paidFees"
+              name="feeAmount"
+              min="0"
+              step="1"
+              placeholder="Student Registration Fees"
+              value="${feeAmount !== "" ? feeAmount : ""}"
+              class="fee-input"
+              style="width:100%; margin-top:4px;"
+              required
+              onchange="calculatePendingFees()"
+            />
+          </div>
+        </div>
+        
+        <!-- Total Pending Fees - Auto Calculated -->
+        <div style="background:#fff; padding:12px; border-radius:8px; border:2px solid #0ea5e9; margin-bottom:12px;">
+          <label style="font-size:12px; color:#0284c7; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Total Pending Fees (Auto-calculated)</label>
+          <div style="font-size:20px; font-weight:700; color:#0369a1; margin-top:4px;">
+            ₹<span id="pendingFeesDisplay">${(p?.fees?.totalFees || 0) - (feeAmount !== "" ? feeAmount : 0)}</span>
+          </div>
+          <input type="hidden" id="pendingFees" name="pendingFees" value="${(p?.fees?.totalFees || 0) - (feeAmount !== "" ? feeAmount : 0)}" />
+        </div>
+        
+        <!-- Payment Mode - Cash/Online Only -->
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Payment Mode</label>
+          <select id="feeMode" name="feeMode" class="fee-select" style="width:100%; margin-top:4px;" required>
+            <option value="" disabled ${!feeMode ? "selected" : ""}>Select Payment Mode</option>
+            <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
+            <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
+          </select>
+        </div>
+        
+        <!-- Select Instalment Plan (Separate Dropdown) -->
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Select Instalment / EMI Option</label>
+          <select id="instalmentPlan" name="instalmentPlan" class="fee-select" style="width:100%; margin-top:4px;" onchange="handleInstalmentChange()">
+            <option value="" ${!p?.fees?.instalmentPlan ? "selected" : ""}>None (Full Payment)</option>
+            <option value="instalment_1" ${p?.fees?.instalmentPlan === 'instalment_1' ? 'selected' : ''}>Instalment 1</option>
+            <option value="instalment_2" ${p?.fees?.instalmentPlan === 'instalment_2' ? 'selected' : ''}>Instalment 2</option>
+            <option value="instalment_3" ${p?.fees?.instalmentPlan === 'instalment_3' ? 'selected' : ''}>Instalment 3</option>
+            <option value="bajaj_emi" ${p?.fees?.instalmentPlan === 'bajaj_emi' ? 'selected' : ''}>No Cost EMI</option>
+          </select>
+        </div>
+        
+        <!-- Instalment Dates Section (Dynamic based on selection) -->
+        <div id="instalmentDatesDiv" style="display:none; background:#ecfdf5; padding:12px; border-radius:8px; border:1px solid #6ee7b7;">
+          <label style="font-size:12px; color:#065f46; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; display:block; margin-bottom:8px;">Instalment Schedule</label>
+          
+          <!-- Dynamic Instalment Date Fields -->
+          <div id="instalmentDateFields">
+            <!-- Instalment 1 -->
+            <div id="instalment1Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Instalment 1 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate1"
+                    name="instalmentDate1"
+                    value="${p?.fees?.instalmentDates?.[0] ? new Date(p.fees.instalmentDates[0]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput1"
+                    name="instalmentAmountInput1"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter instalment 1 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- Instalment 2 -->
+            <div id="instalment2Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Instalment 2 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate2"
+                    name="instalmentDate2"
+                    value="${p?.fees?.instalmentDates?.[1] ? new Date(p.fees.instalmentDates[1]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput2"
+                    name="instalmentAmountInput2"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter instalment 2 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- Instalment 3 -->
+            <div id="instalment3Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Instalment 3 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate3"
+                    name="instalmentDate3"
+                    value="${p?.fees?.instalmentDates?.[2] ? new Date(p.fees.instalmentDates[2]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput3"
+                    name="instalmentAmountInput3"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter instalment 3 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Hidden fields for instalment data -->
+          <input type="hidden" id="instalmentCount" name="instalmentCount" value="0" />
+          <input type="hidden" id="instalmentAmountHidden1" name="instalmentAmount1" value="0" />
+          <input type="hidden" id="instalmentAmountHidden2" name="instalmentAmount2" value="0" />
+          <input type="hidden" id="instalmentAmountHidden3" name="instalmentAmount3" value="0" />
+          
+          <!-- Total Remaining Display -->
+          <div id="totalRemainingDiv" style="margin-top:16px; padding:12px; background:#fef2f2; border:2px solid #ef4444; border-radius:8px; display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:14px; color:#dc2626; font-weight:600;">Total Remaining:</span>
+              <span style="font-size:20px; font-weight:700; color:#dc2626;">₹<span id="totalRemainingAmount">0</span></span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Bajaj EMI Message (shown when Bajaj EMI selected) -->
+        <div id="bajajEMIDiv" style="display:none; background:#fef3c7; padding:12px; border-radius:8px; border:1px solid #fbbf24; margin-top:12px;">
+          <p style="margin:0; color:#92400e; font-weight:600;">🏦 No Cost EMI Process Selected</p>
+          <p style="margin:4px 0 0 0; color:#a16207; font-size:13px;">Student has chosen No Cost EMI option. Admin will be notified to process this separately.</p>
+          <input type="hidden" id="isBajajEMI" name="isBajajEMI" value="false" />
+        </div>
+      </div>
+
       <div class="actions-row">
-  <button type="submit" class="btn-primary" formnovalidate>
-  <span>✏️ Request Edit from Student</span>
-</button>
+        <button type="submit" class="btn-primary" formnovalidate>
+          <span>✏️ Request Edit from Student</span>
+        </button>
 
-  <div class="fee-row">
-    <input
-  class="fee-input"
-  type="number"
-  name="feeAmount"
-  min="0"
-  step="1"
-  placeholder="Student Registration Fees (required)"
-  value="${feeAmount !== "" ? feeAmount : ""}"
-  required
-/>
+        <button
+          type="submit"
+          class="btn-success"
+          formaction="/api/admissions/${doc._id}/submit-to-admin"
+          formmethod="POST"
+          onclick="return validateAndSubmit();"
+        >
+          <span>📤 Submit to Admin</span>
+        </button>
 
-<select class="fee-select" name="feeMode" required>
-  <option value="" disabled ${!feeMode ? "selected" : ""}>Cash / Online</option>
-  <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
-  <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
-</select>
-
-
-    <button
-      type="submit"
-      class="btn-success"
-      formaction="/api/admissions/${doc._id}/submit-to-admin"
-      formmethod="POST"
-      onclick="document.getElementById('loading-overlay').style.display='flex';this.style.opacity='0.6';this.style.cursor='not-allowed';this.innerHTML='<span>⏳ Submitting to Admin…</span>';"
-    >
-      <span>📤 Submit to Admin</span>
-    </button>
-  </div>
-
-  ${
-    pdfUrl
-      ? `<a href="${pdfUrl}" target="_blank" class="btn-ghost"><span>📄</span><span>Open PDF in new tab</span></a>`
-      : ""
-  }
-</div>
+        ${pdfUrl ? `<a href="${pdfUrl}" target="_blank" class="btn-ghost"><span>📄</span><span>Open PDF in new tab</span></a>` : ""}
+      </div>
 
     </form>
   </div>
@@ -2157,118 +2399,290 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   
 
 <script>
- document.addEventListener("DOMContentLoaded", function () {
-      // ==== 1) Section master auto-toggle (existing logic) ====
-      const radios = document.querySelectorAll('input[type="radio"][data-section]');
-      const sectionToRadios = {};
-
-      radios.forEach(function (r) {
-        const sec = r.getAttribute("data-section");
-        if (!sectionToRadios[sec]) sectionToRadios[sec] = [];
-        sectionToRadios[sec].push(r);
-      });
-
-      Object.keys(sectionToRadios).forEach(function (sec) {
-        const master = document.querySelector('input[data-section-master="' + sec + '"]');
-        if (!master) return;
-
-        const update = function () {
-          const anyBad = sectionToRadios[sec].some(function (r) {
-            return r.checked && r.value === "fix";
-          });
-          master.checked = anyBad;
-        };
-
-        sectionToRadios[sec].forEach(function (r) {
-          r.addEventListener("change", update);
-        });
-
-        // initial state
-        update();
-      });
-
-  /* ===============================
-     2) AUTO NOTES – FIELD LEVEL
-  =============================== */
-  var notesBox = document.querySelector('textarea[name="notes"]');
-  if (!notesBox) return;
-
-  var autoNotes = new Set();
-
-  radios.forEach(function (radio) {
-    radio.addEventListener("change", function () {
-      var fieldKey = radio.name;
-
-      var fieldLabel = fieldKey
-        .replace("pf_", "Personal: ")
-        .replace("up_", "Upload: ")
-        .replace("sg_", "Signature: ")
-        .replace(/_/g, " ");
-
-      var note = "• " + fieldLabel + " is missing or incorrect.";
-
-      var valueBox =
-  document.querySelector('.field-value[data-field="' + fieldKey + '"]') ||
-  document.querySelector('input[data-field="' + fieldKey + '"]') ||
-  document.querySelector('select[data-field="' + fieldKey + '"]');
-
-      if (radio.value === "fix") {
-        autoNotes.add(note);
-        if (valueBox) {
-          valueBox.classList.remove("field-ok");
-          valueBox.classList.add("field-flagged");
-        }
-      }
-
-      if (radio.value === "ok") {
-        autoNotes.delete(note);
-        if (valueBox) {
-          valueBox.classList.remove("field-flagged");
-          valueBox.classList.add("field-ok");
-        }
-      }
-
-      notesBox.value = Array.from(autoNotes).join("\\n");
-    });
-  });
-
-  /* ===============================
-     3) SECTION-LEVEL ❌ CHECKBOX
-     ✅ THIS IS THE FIX
-  =============================== */
-  var sectionFixCheckboxes = document.querySelectorAll(
-    'input[type="checkbox"][name="sections"]:not([disabled])'
-  );
-
-  function sectionHeading(section) {
-    var map = {
-      personal: "• Personal Information",
-      course: "• Course Details",
-      education: "• Educational Details",
-      ids: "• ID Details",
-      uploads: "• Uploads",
-      center: "• Center Details",
-      signatures: "• Signatures",
-      other: "• Other Issues"
-    };
-    return map[section] || "• " + section;
+  // ===============================
+  // FEE CALCULATION FUNCTIONS
+  // ===============================
+  function calculatePendingFees() {
+    var totalFees = parseFloat(document.getElementById('totalFees').value) || 0;
+    var paidFees = parseFloat(document.getElementById('paidFees').value) || 0;
+    var pendingFees = totalFees - paidFees;
+    
+    if (pendingFees < 0) pendingFees = 0;
+    
+    document.getElementById('pendingFees').value = pendingFees;
+    document.getElementById('pendingFeesDisplay').textContent = pendingFees.toLocaleString('en-IN');
+    
+    // Recalculate instalment amount if instalment is selected
+    handleInstalmentChange();
   }
-
-  sectionFixCheckboxes.forEach(function (chk) {
-    chk.addEventListener("change", function () {
-      var note = sectionHeading(chk.value);
-
-      if (chk.checked) {
-        autoNotes.add(note);
+  
+  function handleInstalmentChange() {
+    var instalmentPlan = document.getElementById('instalmentPlan').value;
+    var instalmentDatesDiv = document.getElementById('instalmentDatesDiv');
+    var bajajEMIDiv = document.getElementById('bajajEMIDiv');
+    var instalmentCountInput = document.getElementById('instalmentCount');
+    var isBajajEMIInput = document.getElementById('isBajajEMI');
+    
+    // Hide all first
+    instalmentDatesDiv.style.display = 'none';
+    bajajEMIDiv.style.display = 'none';
+    document.getElementById('instalment1Field').style.display = 'none';
+    document.getElementById('instalment2Field').style.display = 'none';
+    document.getElementById('instalment3Field').style.display = 'none';
+    
+    if (instalmentPlan === 'bajaj_emi') {
+      // Show Bajaj EMI message
+      bajajEMIDiv.style.display = 'block';
+      instalmentCountInput.value = 0;
+      isBajajEMIInput.value = 'true';
+    } else if (instalmentPlan.startsWith('instalment_')) {
+      // Show instalment dates section
+      instalmentDatesDiv.style.display = 'block';
+      
+      // Extract instalment count
+      var count = 0;
+      if (instalmentPlan === 'instalment_1') count = 1;
+      else if (instalmentPlan === 'instalment_2') count = 2;
+      else if (instalmentPlan === 'instalment_3') count = 3;
+      
+      instalmentCountInput.value = count;
+      isBajajEMIInput.value = 'false';
+      
+      // Show respective date fields
+      if (count >= 1) document.getElementById('instalment1Field').style.display = 'block';
+      if (count >= 2) document.getElementById('instalment2Field').style.display = 'block';
+      if (count >= 3) document.getElementById('instalment3Field').style.display = 'block';
+      
+      // Show total remaining div and update it
+      document.getElementById('totalRemainingDiv').style.display = 'block';
+      updateRemainingAmount();
+    } else {
+      // No instalment selected
+      instalmentCountInput.value = 0;
+      isBajajEMIInput.value = 'false';
+    }
+  }
+  
+  // This function is no longer used - kept for compatibility
+  function updateInstalmentAmounts() {
+    // Just update the remaining amount calculation
+    updateRemainingAmount();
+  }
+  
+  function updateRemainingAmount() {
+    var pendingFees = parseFloat(document.getElementById('pendingFees').value) || 0;
+    var instalmentPlan = document.getElementById('instalmentPlan').value;
+    
+    if (!instalmentPlan.startsWith('instalment_')) {
+      document.getElementById('totalRemainingDiv').style.display = 'none';
+      return;
+    }
+    
+    var count = 0;
+    if (instalmentPlan === 'instalment_1') count = 1;
+    else if (instalmentPlan === 'instalment_2') count = 2;
+    else if (instalmentPlan === 'instalment_3') count = 3;
+    
+    var totalEntered = 0;
+    for (var i = 1; i <= count; i++) {
+      var inputEl = document.getElementById('instalmentAmountInput' + i);
+      var hiddenEl = document.getElementById('instalmentAmountHidden' + i);
+      var amount = parseFloat(inputEl?.value) || 0;
+      
+      totalEntered += amount;
+      
+      // Update hidden field
+      if (hiddenEl) hiddenEl.value = amount;
+    }
+    
+    var remaining = pendingFees - totalEntered;
+    var remainingEl = document.getElementById('totalRemainingAmount');
+    var remainingDiv = document.getElementById('totalRemainingDiv');
+    
+    if (remainingEl) {
+      remainingEl.textContent = remaining.toLocaleString('en-IN');
+    }
+    
+    // Update color based on remaining amount
+    if (remainingDiv) {
+      if (remaining === 0) {
+        remainingDiv.style.background = '#f0fdf4';
+        remainingDiv.style.borderColor = '#22c55e';
+        remainingDiv.querySelector('span').style.color = '#16a34a';
+        remainingDiv.querySelector('span:last-child').style.color = '#16a34a';
+      } else if (remaining < 0) {
+        remainingDiv.style.background = '#fef2f2';
+        remainingDiv.style.borderColor = '#ef4444';
+        remainingDiv.querySelector('span').style.color = '#dc2626';
+        remainingDiv.querySelector('span:last-child').style.color = '#dc2626';
       } else {
-        autoNotes.delete(note);
+        remainingDiv.style.background = '#fef2f2';
+        remainingDiv.style.borderColor = '#ef4444';
+        remainingDiv.querySelector('span').style.color = '#dc2626';
+        remainingDiv.querySelector('span:last-child').style.color = '#dc2626';
       }
+    }
+  }
+  
+  function validateAndSubmit() {
+    var feeMode = document.getElementById('feeMode').value;
+    var instalmentPlan = document.getElementById('instalmentPlan').value;
+    var totalFees = parseFloat(document.getElementById('totalFees').value) || 0;
+    var paidFees = parseFloat(document.getElementById('paidFees').value) || 0;
+    
+    // Validation
+    if (totalFees <= 0) {
+      alert('Please enter Total Fees greater than 0');
+      return false;
+    }
+    
+    if (paidFees <= 0) {
+      alert('Please enter Paid Fees greater than 0');
+      return false;
+    }
+    
+    if (!feeMode) {
+      alert('Please select a Payment Mode');
+      return false;
+    }
+    
+    // Validate instalment dates
+    if (instalmentPlan.startsWith('instalment_')) {
+      var count = 0;
+      if (instalmentPlan === 'instalment_1') count = 1;
+      else if (instalmentPlan === 'instalment_2') count = 2;
+      else if (instalmentPlan === 'instalment_3') count = 3;
+      
+      for (var i = 1; i <= count; i++) {
+        var dateField = document.getElementById('instalmentDate' + i);
+        if (!dateField || !dateField.value) {
+          alert('Please select date for Instalment ' + i);
+          return false;
+        }
+      }
+    }
+    
+    // Show loading overlay
+    document.getElementById('loading-overlay').style.display = 'flex';
+    return true;
+  }
+  
+  // Initialize on page load
+  document.addEventListener("DOMContentLoaded", function () {
+    // Initialize fee calculations
+    calculatePendingFees();
+    handleInstalmentChange();
+    
+    // ==== 1) Section master auto-toggle (existing logic) ====
+    const radios = document.querySelectorAll('input[type="radio"][data-section]');
+    const sectionToRadios = {};
 
-      notesBox.value = Array.from(autoNotes).join("\\n");
+    radios.forEach(function (r) {
+      const sec = r.getAttribute("data-section");
+      if (!sectionToRadios[sec]) sectionToRadios[sec] = [];
+      sectionToRadios[sec].push(r);
+    });
+
+    Object.keys(sectionToRadios).forEach(function (sec) {
+      const master = document.querySelector('input[data-section-master="' + sec + '"]');
+      if (!master) return;
+
+      const update = function () {
+        const anyBad = sectionToRadios[sec].some(function (r) {
+          return r.checked && r.value === "fix";
+        });
+        master.checked = anyBad;
+      };
+
+      sectionToRadios[sec].forEach(function (r) {
+        r.addEventListener("change", update);
+      });
+
+      // initial state
+      update();
+    });
+
+    /* ===============================
+       2) AUTO NOTES – FIELD LEVEL
+    =============================== */
+    var notesBox = document.querySelector('textarea[name="notes"]');
+    if (!notesBox) return;
+
+    var autoNotes = new Set();
+
+    radios.forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        var fieldKey = radio.name;
+
+        var fieldLabel = fieldKey
+          .replace("pf_", "Personal: ")
+          .replace("up_", "Upload: ")
+          .replace("sg_", "Signature: ")
+          .replace(/_/g, " ");
+
+        var note = "• " + fieldLabel + " is missing or incorrect.";
+
+        var valueBox =
+          document.querySelector('.field-value[data-field="' + fieldKey + '"]') ||
+          document.querySelector('input[data-field="' + fieldKey + '"]') ||
+          document.querySelector('select[data-field="' + fieldKey + '"]');
+
+        if (radio.value === "fix") {
+          autoNotes.add(note);
+          if (valueBox) {
+            valueBox.classList.remove("field-ok");
+            valueBox.classList.add("field-flagged");
+          }
+        }
+
+        if (radio.value === "ok") {
+          autoNotes.delete(note);
+          if (valueBox) {
+            valueBox.classList.remove("field-flagged");
+            valueBox.classList.add("field-ok");
+          }
+        }
+
+        notesBox.value = Array.from(autoNotes).join("\\n");
+      });
+    });
+
+    /* ===============================
+       3) SECTION-LEVEL ❌ CHECKBOX
+       ✅ THIS IS THE FIX
+    =============================== */
+    var sectionFixCheckboxes = document.querySelectorAll(
+      'input[type="checkbox"][name="sections"]:not([disabled])'
+    );
+
+    function sectionHeading(section) {
+      var map = {
+        personal: "• Personal Information",
+        course: "• Course Details",
+        education: "• Educational Details",
+        ids: "• ID Details",
+        uploads: "• Uploads",
+        center: "• Center Details",
+        signatures: "• Signatures",
+        other: "• Other Issues"
+      };
+      return map[section] || "• " + section;
+    }
+
+    sectionFixCheckboxes.forEach(function (chk) {
+      chk.addEventListener("change", function () {
+        var note = sectionHeading(chk.value);
+
+        if (chk.checked) {
+          autoNotes.add(note);
+        } else {
+          autoNotes.delete(note);
+        }
+
+        notesBox.value = Array.from(autoNotes).join("\\n");
+      });
     });
   });
-
-});
 </script>
 
 
@@ -2698,6 +3112,120 @@ const feeMode =
   to { transform: rotate(360deg); }
 }
 
+/* ==================== RESPONSIVE STYLES ==================== */
+@media (max-width: 768px) {
+  body {
+    padding: 12px 8px;
+  }
+  .page {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .title {
+    font-size: 18px;
+  }
+  .pdf-frame {
+    height: 300px;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .field-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-flags {
+    justify-content: flex-end;
+  }
+  .sec-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sec-badges {
+    flex-wrap: wrap;
+  }
+  .actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-primary, .btn-success, .btn-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+  .fee-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fee-input, .fee-select {
+    width: 100%;
+    min-width: auto;
+  }
+  table.edu {
+    font-size: 11px;
+  }
+  .edu th, .edu td {
+    padding: 3px 4px;
+  }
+  .pdf-pane-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  #totalRemainingDiv {
+    margin-top: 12px;
+  }
+  #totalRemainingDiv span:last-child {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 16px;
+  }
+  .subtitle {
+    font-size: 12px;
+  }
+  .pdf-frame {
+    height: 250px;
+  }
+  .section-card {
+    padding: 10px 12px;
+  }
+  .sec-title {
+    font-size: 13px;
+  }
+  .field-label {
+    font-size: 11px;
+  }
+  .field-value {
+    font-size: 12px;
+    padding: 3px 5px;
+  }
+  .btn-primary, .btn-success {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .badge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  .mini-badge {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+  .notes-box {
+    min-height: 60px;
+    font-size: 12px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -3220,6 +3748,55 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         <p class="helper">Jo sections yahan ❌ select karenge, unhi ko baad me student ke form me editable rakha jaa sakta hai.</p>
       </div>
 
+      <!-- FEE DETAILS DISPLAY FOR ADMIN -->
+      <div class="section-card" style="background:#f0fdf4; border-color:#86efac;">
+        <div class="sec-header">
+          <p class="sec-title" style="color:#15803d;">💰 Fee Details (Submitted by Counselor)</p>
+        </div>
+        
+        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; font-size:13px;">
+          <div>
+            <div class="field-label">Total Fees</div>
+            <div class="field-value">₹${p?.fees?.totalFees || 0}</div>
+          </div>
+          <div>
+            <div class="field-label">Paid Fees</div>
+            <div class="field-value">₹${feeAmount !== "" ? feeAmount : 0}</div>
+          </div>
+          <div>
+            <div class="field-label">Pending Fees</div>
+            <div class="field-value">₹${p?.fees?.pendingFees || 0}</div>
+          </div>
+          <div>
+            <div class="field-label">Payment Mode</div>
+            <div class="field-value">${feeMode ? feeMode.toUpperCase() : "-"}</div>
+          </div>
+        </div>
+        
+        ${p?.fees?.instalmentPlan?.startsWith('instalment_') ? `
+        <div style="margin-top:12px; padding-top:12px; border-top:1px solid #86efac;">
+          <p style="margin:0 0 8px; font-weight:600; color:#15803d;">📅 Instalment Schedule:</p>
+          ${(p?.fees?.instalmentDates || []).map((date, idx) => {
+            const amount = p?.fees?.instalmentAmounts?.[idx] || 0;
+            const dateStr = date ? new Date(date).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
+            return `
+              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #86efac;">
+                <span style="color:#166534; font-weight:500;">Instalment ${idx + 1}</span>
+                <span style="color:#166534;">₹${amount} on ${dateStr}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        ` : ""}
+        
+        ${p?.fees?.instalmentPlan === "bajaj_emi" || p?.fees?.isBajajEMI ? `
+        <div style="margin-top:12px; padding:12px; background:#fef3c7; border-radius:8px; border:1px solid #fbbf24;">
+          <p style="margin:0; color:#92400e; font-weight:600;">🏦 No Cost EMI PROCESS SELECTED</p>
+          <p style="margin:4px 0 0 0; color:#78350f; font-size:13px;">Student has chosen No Cost EMI option for fee payment.</p>
+        </div>
+        ` : ""}
+      </div>
+
       <div class="actions-row admin-actions">
 
   <button
@@ -3245,6 +3822,8 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   <select name="feeMode" class="fee-select" required>
     <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
     <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
+    <option value="instalment" ${feeMode === "instalment" ? "selected" : ""}>Instalment</option>
+    <option value="bajaj_emi" ${feeMode === "bajaj_emi" ? "selected" : ""}>No Cost EMI</option>
   </select>
 
   <button
@@ -3252,6 +3831,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     class="btn-success"
     formaction="/api/admissions/${doc._id}/approve"
     formmethod="POST"
+    onclick="showApproveLoading()"
   >
     ✅ Approve Admission
   </button>
@@ -3377,7 +3957,30 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   });
 
 });
+
+// ✅ APPROVE LOADING FUNCTION
+function showApproveLoading() {
+  const overlay = document.getElementById('approve-loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+}
 </script>
+
+<!-- ✅ APPROVE LOADING OVERLAY -->
+<div id="approve-loading-overlay" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);">
+  <div style="background:#fff;padding:30px 40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;">
+    <div style="width:50px;height:50px;border:4px solid #e5e7eb;border-top-color:#16a34a;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;"></div>
+    <p style="font-weight:600;color:#374151;font-size:16px;margin:0;">Approving Admission...</p>
+    <p style="color:#6b7280;font-size:13px;margin:8px 0 0 0;">Please wait while we process the approval</p>
+  </div>
+</div>
+
+<style>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
 
 </body>
 </html>`;
