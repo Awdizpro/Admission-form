@@ -300,20 +300,29 @@ By signing this document, you acknowledge that you have received and agreed to l
   // ✅ Step 2: Verify EMAIL OTP + success
   const verifyEmailOtp = async (e) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (loading || emailVerifying) {
+      console.log('Already processing, ignoring duplicate click');
+      return;
+    }
+    
     setErr("");
     if (!pendingId || !emailOtp) return setErr("Enter the Email OTP");
     if (!mobileVerified) return setErr("Please verify Mobile OTP first.");
 
     try {
-  setEmailVerifying(true);   // ✅ START FULL PAGE LOADER
-  setLoading(true);          // button disable ke liye
+      setEmailVerifying(true);   // ✅ START FULL PAGE LOADER
+      setLoading(true);          // button disable ke liye
 
-  const { data } = await api.post("/admissions/verify", {
-    pendingId,
-    otp: emailOtp,
-    channel: "email",
-  });
-
+      // Add longer timeout for backend processing (PDF + emails take time)
+      const { data } = await api.post("/admissions/verify", {
+        pendingId,
+        otp: emailOtp,
+        channel: "email",
+      }, {
+        timeout: 120000 // 120 seconds timeout (2 minutes) for PDF generation + emails
+      });
 
       // ✅ IMPORTANT:
       // Google Sheet call yaha se REMOVE kiya, kyunki route 404 aa raha hai.
@@ -327,13 +336,55 @@ By signing this document, you acknowledge that you have received and agreed to l
     } catch (e) {
       console.error(
         "Email OTP verification failed:",
-        e.response?.data || e.message
+        e.response?.data || e.message,
+        "Error code:", e.code,
+        "Error name:", e.name
       );
+      
+      // Check if it's a network/timeout error but backend might have processed
+      const isNetworkError = e.code === 'ERR_NETWORK' || 
+                            e.code === 'ECONNABORTED' || 
+                            e.message?.includes('timeout') ||
+                            e.message?.includes('Network Error');
+      
+      // If it's a network error, check if admission was actually successful
+      if (isNetworkError) {
+        console.log('Network error occurred, checking if admission was successful...');
+        
+        // Wait a bit then check admission status
+        setTimeout(async () => {
+          try {
+            // Try to get admission status using pendingId
+            const checkRes = await api.get(`/admissions/check-status/${pendingId}`, {
+              timeout: 10000
+            });
+            
+            if (checkRes.data?.success) {
+              console.log('Admission was successful! Redirecting...');
+              clearAdmissionDraft();
+              nav("/admission-success", {
+                state: { pdfUrl: checkRes.data.pdfUrl, id: checkRes.data.id },
+              });
+              return;
+            }
+          } catch (checkErr) {
+            console.log('Status check failed:', checkErr.message);
+          }
+          
+          // If we reach here, admission failed
+          setEmailVerifying(false);
+          setLoading(false);
+          setErr("Network error. Please check your connection and try again.");
+        }, 3000); // Wait 3 seconds before checking
+        
+        return; // Don't show error yet, wait for status check
+      }
+      
+      // Show error for real errors
+      setEmailVerifying(false);
+      setLoading(false);
       setErr(e?.response?.data?.message || "Email OTP verification failed");
-    } finally {
-  setLoading(false);
-  setEmailVerifying(false);  // ✅ STOP FULL PAGE LOADER
-}
+    }
   };
   function FullPageSpinner() {
   return (
@@ -401,7 +452,10 @@ By signing this document, you acknowledge that you have received and agreed to l
             <input
               className="border p-2 rounded w-full"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => {
+                setOtp(e.target.value);
+                if (err) setErr(""); // Clear error when user types new OTP
+              }}
               placeholder="Enter 6-digit Mobile OTP"
               maxLength={6}
               inputMode="numeric"
@@ -433,7 +487,10 @@ By signing this document, you acknowledge that you have received and agreed to l
             <input
               className="border p-2 rounded w-full"
               value={emailOtp}
-              onChange={(e) => setEmailOtp(e.target.value)}
+              onChange={(e) => {
+                setEmailOtp(e.target.value);
+                if (err) setErr(""); // Clear error when user types new OTP
+              }}
               placeholder="Enter 6-digit Email OTP"
               maxLength={6}
               inputMode="numeric"
@@ -442,10 +499,10 @@ By signing this document, you acknowledge that you have received and agreed to l
               disabled={!mobileVerified}
             />
             <button
-              disabled={loading || !mobileVerified}
+              disabled={loading || emailVerifying || !mobileVerified}
               className="bg-black text-white px-5 py-2 rounded disabled:opacity-60"
             >
-              {loading ? "Verifying…" : "Verify Email OTP & Submit"}
+              {loading || emailVerifying ? "Verifying…" : "Verify Email OTP & Submit"}
             </button>
           </form>
         </>

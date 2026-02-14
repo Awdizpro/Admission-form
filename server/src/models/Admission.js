@@ -164,6 +164,7 @@ fees: {
   nextInstalmentDate: { type: Date, default: null }, // Date of next instalment (legacy)
   perInstalmentAmount: { type: Number, default: 0 }, // Pending fees divided by instalment count
   isBajajEMI: { type: Boolean, default: false }, // Flag for Bajaj EMI
+  isCheck: { type: Boolean, default: false }, // Flag for Check payment
   instalmentDates: [{ type: Date, default: null }], // Array to store multiple instalment dates
   instalmentAmounts: [{ type: Number, default: 0 }], // Array to store individual instalment amounts
 },

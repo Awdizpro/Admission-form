@@ -504,10 +504,49 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     .toLowerCase();
   if (status === "review") status = "pending";
 
-  // Logo (optional)
+  // Logo (optional) - First page (center)
+  let logoBuf = null;
   if (process.env.AWDIZ_LOGO_URL) {
-    const logo = await toImageBuffer(process.env.AWDIZ_LOGO_URL);
-    if (logo) { doc.image(logo, MARGIN + CONTENT_W/2 - 50, doc.y, { fit: [100, 60] }); doc.moveDown(3.5); }
+    logoBuf = await toImageBuffer(process.env.AWDIZ_LOGO_URL);
+    if (logoBuf) { doc.image(logoBuf, MARGIN + CONTENT_W/2 - 50, doc.y, { fit: [100, 60] }); doc.moveDown(3.5); }
+  }
+
+  // Add small logo to upper left corner of every page after the first
+  if (logoBuf) {
+    doc.on('pageAdded', () => {
+      // Draw small logo in upper left corner (page 2 onwards)
+      doc.image(logoBuf, MARGIN, MARGIN - 28, { fit: [45, 30] });
+    });
+  }
+
+  // Add center watermark to every page (including first page)
+  let watermarkBuf = null;
+  if (process.env.AWDIZ_CENTER_WATERMARK_URL) {
+    watermarkBuf = await toImageBuffer(process.env.AWDIZ_CENTER_WATERMARK_URL);
+  }
+  
+  if (watermarkBuf) {
+    const drawCenterWatermark = () => {
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const watermarkW = 300; // Bigger size
+      const watermarkH = 300;
+      const x = (pageWidth - watermarkW) / 2;
+      const y = (pageHeight - watermarkH) / 2;
+      
+      doc.save()
+        .opacity(0.05) // Very subtle watermark effect - barely visible
+        .image(watermarkBuf, x, y, { width: watermarkW, height: watermarkH })
+        .restore();
+    };
+    
+    // Draw on first page
+    drawCenterWatermark();
+    
+    // Draw on all subsequent pages
+    doc.on('pageAdded', () => {
+      drawCenterWatermark();
+    });
   }
   heading(
     doc,

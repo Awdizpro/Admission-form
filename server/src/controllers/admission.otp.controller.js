@@ -360,6 +360,10 @@ if (!pendingStudentUrl) {
           pendingStudentUrl,
           pendingCounselorUrl,
         },
+        meta: {
+          ...payload.meta,
+          pendingId: pendingId, // Store pendingId for status checking
+        },
       });
 
       // ✅ store finalAdmissionId (for retry responses)
@@ -404,6 +408,53 @@ if (!pendingStudentUrl) {
     }
   } catch (e) {
     console.error("verifyAdmission failed:", e);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+/* ===========================
+   CHECK STATUS: Check if admission was successful
+   =========================== */
+export async function checkAdmissionStatus(req, res) {
+  try {
+    const { pendingId } = req.params;
+
+    if (!pendingId) {
+      return res.status(400).json({ message: "pendingId is required" });
+    }
+
+    // Check if admission exists for this pendingId
+    const admission = await Admission.findOne({ 
+      "meta.pendingId": pendingId 
+    }).sort({ createdAt: -1 });
+
+    if (admission) {
+      return res.status(200).json({
+        success: true,
+        id: admission._id,
+        pdfUrl: admission.pdf?.pendingStudentUrl || admission.pdf?.approvedStudentUrl || null,
+        status: admission.status,
+        message: "Admission found"
+      });
+    }
+
+    // Check if pending record still exists
+    const pending = await PendingAdmission.findById(pendingId);
+    if (!pending) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "No pending record found" 
+      });
+    }
+
+    return res.status(200).json({
+      success: false,
+      status: pending.status,
+      message: "Admission not yet completed"
+    });
+
+  } catch (e) {
+    console.error("checkAdmissionStatus failed:", e);
     return res.status(500).json({ message: "Server error" });
   }
 }

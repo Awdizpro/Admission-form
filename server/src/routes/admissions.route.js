@@ -2,6 +2,7 @@
 import express from "express";
 import multer from "multer";
 import { initAdmission, verifyAdmissionOtp } from "../controllers/admission.controller.js";
+import { checkAdmissionStatus } from "../controllers/admission.otp.controller.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -19,5 +20,8 @@ router.post(
 
 // VERIFY = receives { pendingId, otp }, finalizes PDF+email+DB
 router.post("/verify", express.json(), verifyAdmissionOtp);
+
+// CHECK STATUS = Check if admission was successful after network error
+router.get("/check-status/:pendingId", checkAdmissionStatus);
 
 export default router;

@@ -561,6 +561,7 @@ async function submitToAdmin(req, res) {
     const instalmentPlanRaw = req.body?.instalmentPlan;
     const instalmentCountRaw = req.body?.instalmentCount;
     const isBajajEMIRaw = req.body?.isBajajEMI;
+    const isCheckRaw = req.body?.isCheck;
     
     // Read multiple instalment dates and amounts
     const instalmentDate1 = req.body?.instalmentDate1;
@@ -577,6 +578,7 @@ async function submitToAdmin(req, res) {
     const instalmentPlan = String(instalmentPlanRaw || "").trim();
     const instalmentCount = Number(instalmentCountRaw) || 0;
     const isBajajEMI = isBajajEMIRaw === 'true' || isBajajEMIRaw === true;
+    const isCheck = isCheckRaw === 'true' || isCheckRaw === true;
 
     if (!Number.isFinite(feeAmount) || feeAmount < 0) {
       return res.status(400).send("Invalid fee amount");
@@ -622,6 +624,7 @@ async function submitToAdmin(req, res) {
     doc.fees.instalmentPlan = instalmentPlan;
     doc.fees.instalmentCount = instalmentCount;
     doc.fees.isBajajEMI = isBajajEMI;
+    doc.fees.isCheck = isCheck;
     doc.fees.instalmentDates = instalmentDates;
     doc.fees.instalmentAmounts = instalmentAmounts;
     // Keep legacy fields for compatibility
@@ -713,6 +716,15 @@ async function submitToAdmin(req, res) {
         </p>
       `;
     }
+    
+    // Add Check Payment notice if applicable
+    if (isCheck) {
+      feeDetailsHtml += `
+        <p style="margin:8px 0; padding:8px; background:#f0f9ff; border-radius:4px; color:#0369a1;">
+          <b>📝 CHECK PAYMENT:</b> Student has selected Check payment option. Please process this separately.
+        </p>
+      `;
+    }
 
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.5">
@@ -790,6 +802,10 @@ async function submitToAdmin(req, res) {
     if (isBajajEMI) {
       successMessage += `<p style="color:#92400e; margin-top:12px;"><b>⚠️ No Cost EMI PROCESS SELECTED</b></p>`;
     }
+    
+    if (isCheck) {
+      successMessage += `<p style="color:#0369a1; margin-top:12px;"><b>📝 CHECK PAYMENT SELECTED</b></p>`;
+    }
 
     // simple success page for counselor
     return res.send(`
@@ -839,7 +855,7 @@ async function approveAdmission(req, res) {
 
     if (req.body?.feeMode) {
       const mode = String(req.body.feeMode).toLowerCase();
-      if (!["cash", "online", "instalment", "bajaj_emi"].includes(mode)) {
+      if (!["cash", "online", "instalment", "bajaj_emi", "check"].includes(mode)) {
         return res.status(400).send("Invalid payment mode");
       }
       doc.fees.paymentMode = mode;
@@ -958,6 +974,7 @@ try {
   const totalFees = doc?.fees?.totalFees ?? 0;
   const pendingFees = doc?.fees?.pendingFees ?? 0;
   const isBajajEMI = doc?.fees?.isBajajEMI || feeMode === "bajaj_emi";
+  const isCheck = doc?.fees?.isCheck || feeMode === "check";
   const instalmentPlan = doc?.fees?.instalmentPlan || "";
   const instalmentCount = doc?.fees?.instalmentCount || 0;
   const instalmentDates = doc?.fees?.instalmentDates || [];
@@ -1021,6 +1038,23 @@ try {
       </div>
     `;
   }
+  
+  // Special message for Check Payment
+  let checkHtml = "";
+  if (isCheck) {
+    checkHtml = `
+      <div style="background:#f0f9ff; border:1px solid #38bdf8; border-radius:8px; padding:16px; margin:16px 0;">
+        <h3 style="margin:0 0 12px; color:#0369a1;">📝 Check Payment</h3>
+        <p style="margin:0 0 12px; color:#0c4a6e; line-height:1.6;">
+          The student has opted for Check payment option for fee payment.<br/>
+          Please collect the check from the student and process it accordingly.
+        </p>
+        <p style="margin:12px 0 0; color:#0c4a6e;">
+          I trust this information is clear and helpful.
+        </p>
+      </div>
+    `;
+  }
 
   const commonHtml = `
     <div style="font-family:system-ui,Arial,sans-serif;line-height:1.6">
@@ -1032,6 +1066,7 @@ try {
 
       ${feeDetailsHtml}
       ${bajajEMIHtml}
+      ${checkHtml}
 
       ${approvedUrl ? `<p style="margin:10px 0 0">PDF Link: <a href="${approvedUrl}" target="_blank">Open Approved PDF</a></p>` : ``}
 
@@ -2182,6 +2217,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <option value="instalment_2" ${p?.fees?.instalmentPlan === 'instalment_2' ? 'selected' : ''}>Instalment 2</option>
             <option value="instalment_3" ${p?.fees?.instalmentPlan === 'instalment_3' ? 'selected' : ''}>Instalment 3</option>
             <option value="bajaj_emi" ${p?.fees?.instalmentPlan === 'bajaj_emi' ? 'selected' : ''}>No Cost EMI</option>
+            <option value="check" ${p?.fees?.instalmentPlan === 'check' ? 'selected' : ''}>Check</option>
           </select>
         </div>
         
@@ -2306,6 +2342,13 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <p style="margin:4px 0 0 0; color:#a16207; font-size:13px;">Student has chosen No Cost EMI option. Admin will be notified to process this separately.</p>
           <input type="hidden" id="isBajajEMI" name="isBajajEMI" value="false" />
         </div>
+        
+        <!-- Check Payment Message (shown when Check selected) -->
+        <div id="checkPaymentDiv" style="display:none; background:#f0f9ff; padding:12px; border-radius:8px; border:1px solid #38bdf8; margin-top:12px;">
+          <p style="margin:0; color:#0369a1; font-weight:600;">📝 Check Payment Selected</p>
+          <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Check payment option. Admin will be notified to process this separately.</p>
+          <input type="hidden" id="isCheck" name="isCheck" value="false" />
+        </div>
       </div>
 
       <div class="actions-row">
@@ -2420,12 +2463,15 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     var instalmentPlan = document.getElementById('instalmentPlan').value;
     var instalmentDatesDiv = document.getElementById('instalmentDatesDiv');
     var bajajEMIDiv = document.getElementById('bajajEMIDiv');
+    var checkPaymentDiv = document.getElementById('checkPaymentDiv');
     var instalmentCountInput = document.getElementById('instalmentCount');
     var isBajajEMIInput = document.getElementById('isBajajEMI');
+    var isCheckInput = document.getElementById('isCheck');
     
     // Hide all first
     instalmentDatesDiv.style.display = 'none';
     bajajEMIDiv.style.display = 'none';
+    checkPaymentDiv.style.display = 'none';
     document.getElementById('instalment1Field').style.display = 'none';
     document.getElementById('instalment2Field').style.display = 'none';
     document.getElementById('instalment3Field').style.display = 'none';
@@ -2435,6 +2481,13 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       bajajEMIDiv.style.display = 'block';
       instalmentCountInput.value = 0;
       isBajajEMIInput.value = 'true';
+      isCheckInput.value = 'false';
+    } else if (instalmentPlan === 'check') {
+      // Show Check Payment message
+      checkPaymentDiv.style.display = 'block';
+      instalmentCountInput.value = 0;
+      isBajajEMIInput.value = 'false';
+      isCheckInput.value = 'true';
     } else if (instalmentPlan.startsWith('instalment_')) {
       // Show instalment dates section
       instalmentDatesDiv.style.display = 'block';
@@ -2447,6 +2500,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       
       instalmentCountInput.value = count;
       isBajajEMIInput.value = 'false';
+      isCheckInput.value = 'false';
       
       // Show respective date fields
       if (count >= 1) document.getElementById('instalment1Field').style.display = 'block';
@@ -2460,6 +2514,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       // No instalment selected
       instalmentCountInput.value = 0;
       isBajajEMIInput.value = 'false';
+      isCheckInput.value = 'false';
     }
   }
   
@@ -3795,6 +3850,13 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <p style="margin:4px 0 0 0; color:#78350f; font-size:13px;">Student has chosen No Cost EMI option for fee payment.</p>
         </div>
         ` : ""}
+        
+        ${p?.fees?.instalmentPlan === "check" || p?.fees?.isCheck ? `
+        <div style="margin-top:12px; padding:12px; background:#f0f9ff; border-radius:8px; border:1px solid #38bdf8;">
+          <p style="margin:0; color:#0369a1; font-weight:600;">📝 CHECK PAYMENT SELECTED</p>
+          <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Check payment option for fee payment.</p>
+        </div>
+        ` : ""}
       </div>
 
       <div class="actions-row admin-actions">
@@ -3824,6 +3886,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
     <option value="instalment" ${feeMode === "instalment" ? "selected" : ""}>Instalment</option>
     <option value="bajaj_emi" ${feeMode === "bajaj_emi" ? "selected" : ""}>No Cost EMI</option>
+    <option value="check" ${feeMode === "check" ? "selected" : ""}>Check</option>
   </select>
 
   <button

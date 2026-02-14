@@ -489,6 +489,7 @@ function prepareRowValues(data, courseName) {
     data?.fees?.instalmentDates?.[2] ? new Date(data.fees.instalmentDates[2]).toLocaleDateString("en-IN") : "",
     data?.fees?.instalmentAmounts?.[2] || "",
     data?.fees?.isBajajEMI ? "Yes" : "No",
+    data?.fees?.isCheck ? "Yes" : "No",
   ];
 }
 
@@ -557,6 +558,7 @@ async function appendToSheet(sheets, spreadsheetId, sheetName, courseName, data)
     "Instalment 3 Date",
     "Instalment 3 Amount",
     "Bajaj EMI Process",
+    "Check Payment",
   ];
 
   await ensureHeaderIfMissing(sheets, spreadsheetId, title, HEADERS);

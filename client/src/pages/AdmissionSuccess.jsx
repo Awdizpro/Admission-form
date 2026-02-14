@@ -10,7 +10,7 @@ export default function AdmissionSuccess() {
   return (
     <div className="max-w-2xl mx-auto p-6 text-center bg-white rounded">
       <img
-        src="https://res.cloudinary.com/www-awdiz-in/image/upload/v1675932002/logo/awdiz.png"
+        src="https://res.cloudinary.com/www-awdiz-co-in/image/upload/v1768892280/awdiz-logo.svg"
         alt="AWDIZ Logo"
         className="mx-auto w-36 mb-4"
       />
