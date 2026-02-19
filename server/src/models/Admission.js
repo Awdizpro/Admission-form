@@ -153,7 +153,7 @@ fees: {
   amount: { type: Number, default: 0 }, // counselor input (required on submit)
   paymentMode: {
     type: String,
-    enum: ["cash", "online", "instalment", "bajaj_emi", ""],
+    enum: ["cash", "online", "instalment", "bajaj_emi", "cheque", ""],
     default: "",
   },
   // ✅ NEW: Instalment/Bajaj EMI fields
@@ -167,6 +167,8 @@ fees: {
   isCheck: { type: Boolean, default: false }, // Flag for Check payment
   instalmentDates: [{ type: Date, default: null }], // Array to store multiple instalment dates
   instalmentAmounts: [{ type: Number, default: 0 }], // Array to store individual instalment amounts
+  additionalFees: { type: Number, default: 0 }, // Additional fees amount (optional)
+  additionalFeeMode: { type: String, enum: ["cash", "online", "cheque", ""], default: "" }, // Payment mode for additional fees
 },
 
 workflow: {

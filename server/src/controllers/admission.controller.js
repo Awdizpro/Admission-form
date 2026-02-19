@@ -562,6 +562,8 @@ async function submitToAdmin(req, res) {
     const instalmentCountRaw = req.body?.instalmentCount;
     const isBajajEMIRaw = req.body?.isBajajEMI;
     const isCheckRaw = req.body?.isCheck;
+    const additionalFeesRaw = req.body?.additionalFees;
+    const additionalFeeModeRaw = req.body?.additionalFeeMode;
     
     // Read multiple instalment dates and amounts
     const instalmentDate1 = req.body?.instalmentDate1;
@@ -579,12 +581,14 @@ async function submitToAdmin(req, res) {
     const instalmentCount = Number(instalmentCountRaw) || 0;
     const isBajajEMI = isBajajEMIRaw === 'true' || isBajajEMIRaw === true;
     const isCheck = isCheckRaw === 'true' || isCheckRaw === true;
+    const additionalFees = additionalFeesRaw ? Number(additionalFeesRaw) : 0;
+    const additionalFeeMode = additionalFeeModeRaw ? String(additionalFeeModeRaw || "").trim().toLowerCase() : "";
 
     if (!Number.isFinite(feeAmount) || feeAmount < 0) {
       return res.status(400).send("Invalid fee amount");
     }
 
-    if (!["cash", "online"].includes(feeMode)) {
+    if (!["cash", "online", "cheque"].includes(feeMode)) {
       return res.status(400).send("Invalid payment mode");
     }
 
@@ -627,6 +631,8 @@ async function submitToAdmin(req, res) {
     doc.fees.isCheck = isCheck;
     doc.fees.instalmentDates = instalmentDates;
     doc.fees.instalmentAmounts = instalmentAmounts;
+    doc.fees.additionalFees = additionalFees || 0;
+    doc.fees.additionalFeeMode = additionalFeeMode || "";
     // Keep legacy fields for compatibility
     doc.fees.nextInstalmentDate = instalmentDates[0] || null;
     doc.fees.perInstalmentAmount = instalmentAmounts[0] || 0;
@@ -682,6 +688,7 @@ async function submitToAdmin(req, res) {
     let feeDetailsHtml = `
       <p style="margin:0 0 8px"><b>Total Fees:</b> ₹${totalFees}</p>
       <p style="margin:0 0 8px"><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
+      ${additionalFees > 0 ? `<p style="margin:0 0 8px"><b>Split Fees:</b> ₹${additionalFees}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Split Payment Mode:</b> ${additionalFeeMode.toUpperCase()}</p>` : ''}
       <p style="margin:0 0 8px"><b>Total Pending Fees:</b> ₹${pendingFees}</p>
     `;
 
@@ -717,11 +724,11 @@ async function submitToAdmin(req, res) {
       `;
     }
     
-    // Add Check Payment notice if applicable
+    // Add Cheque Payment notice if applicable
     if (isCheck) {
       feeDetailsHtml += `
         <p style="margin:8px 0; padding:8px; background:#f0f9ff; border-radius:4px; color:#0369a1;">
-          <b>📝 CHECK PAYMENT:</b> Student has selected Check payment option. Please process this separately.
+          <b>📝 CHEQUE PAYMENT:</b> Student has selected Cheque payment option. Please process this separately.
         </p>
       `;
     }
@@ -773,6 +780,7 @@ async function submitToAdmin(req, res) {
     let successMessage = `
       <p><b>Total Fees:</b> ₹${totalFees}</p>
       <p><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
+      ${additionalFees > 0 ? `<p><b>Split Fees:</b> ₹${additionalFees}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Split Payment Mode:</b> ${additionalFeeMode.toUpperCase()}</p>` : ''}
       <p><b>Total Pending Fees:</b> ₹${pendingFees}</p>
     `;
 
@@ -804,7 +812,7 @@ async function submitToAdmin(req, res) {
     }
     
     if (isCheck) {
-      successMessage += `<p style="color:#0369a1; margin-top:12px;"><b>📝 CHECK PAYMENT SELECTED</b></p>`;
+      successMessage += `<p style="color:#0369a1; margin-top:12px;"><b>📝 CHEQUE PAYMENT SELECTED</b></p>`;
     }
 
     // simple success page for counselor
@@ -855,7 +863,7 @@ async function approveAdmission(req, res) {
 
     if (req.body?.feeMode) {
       const mode = String(req.body.feeMode).toLowerCase();
-      if (!["cash", "online", "instalment", "bajaj_emi", "check"].includes(mode)) {
+      if (!["cash", "online", "instalment", "bajaj_emi", "cheque"].includes(mode)) {
         return res.status(400).send("Invalid payment mode");
       }
       doc.fees.paymentMode = mode;
@@ -973,8 +981,10 @@ try {
   const feeMode = doc?.fees?.paymentMode || "";
   const totalFees = doc?.fees?.totalFees ?? 0;
   const pendingFees = doc?.fees?.pendingFees ?? 0;
+  const additionalFees = doc?.fees?.additionalFees ?? 0;
+  const additionalFeeMode = doc?.fees?.additionalFeeMode || "";
   const isBajajEMI = doc?.fees?.isBajajEMI || feeMode === "bajaj_emi";
-  const isCheck = doc?.fees?.isCheck || feeMode === "check";
+  const isCheck = doc?.fees?.isCheck || feeMode === "cheque";
   const instalmentPlan = doc?.fees?.instalmentPlan || "";
   const instalmentCount = doc?.fees?.instalmentCount || 0;
   const instalmentDates = doc?.fees?.instalmentDates || [];
@@ -985,7 +995,22 @@ try {
     <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:16px; margin:16px 0;">
       <h3 style="margin:0 0 12px; color:#15803d;">💰 Fee Details</h3>
       <p style="margin:0 0 6px"><b>Total Fees:</b> ₹${totalFees}</p>
-      <p style="margin:0 0 6px"><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
+      <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 6px 0; font-size:14px;">
+        <tr>
+          <td style="padding:0; font-weight:bold;">Paid Fees:</td>
+          <td style="padding:0 8px 0 4px;">₹${feeAmount}</td>
+          <td style="padding:0; font-weight:bold;">Payment Mode:</td>
+          <td style="padding:0 0 0 4px; font-weight:bold;">${feeMode.toUpperCase()}</td>
+        </tr>
+        ${additionalFees > 0 ? `
+        <tr>
+          <td style="padding:0;"></td>
+          <td style="padding:0 8px 0 4px;">₹${additionalFees}</td>
+          <td style="padding:0; font-weight:bold;">Payment Mode:</td>
+          <td style="padding:0 0 0 4px; font-weight:bold;">${additionalFeeMode.toUpperCase()}</td>
+        </tr>
+        ` : ''}
+      </table>
       <p style="margin:0 0 6px"><b>Total Pending Fees:</b> ₹${pendingFees}</p>
   `;
 
@@ -1039,15 +1064,15 @@ try {
     `;
   }
   
-  // Special message for Check Payment
+  // Special message for Cheque Payment
   let checkHtml = "";
   if (isCheck) {
     checkHtml = `
       <div style="background:#f0f9ff; border:1px solid #38bdf8; border-radius:8px; padding:16px; margin:16px 0;">
-        <h3 style="margin:0 0 12px; color:#0369a1;">📝 Check Payment</h3>
+        <h3 style="margin:0 0 12px; color:#0369a1;">📝 Cheque Payment</h3>
         <p style="margin:0 0 12px; color:#0c4a6e; line-height:1.6;">
-          The student has opted for Check payment option for fee payment.<br/>
-          Please collect the check from the student and process it accordingly.
+          The student has opted for Cheque payment option for fee payment.<br/>
+          Please collect the cheque from the student and process it accordingly.
         </p>
         <p style="margin:12px 0 0; color:#0c4a6e;">
           I trust this information is clear and helpful.
@@ -2152,7 +2177,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <p class="sec-title" style="color:#0369a1;">💰 Fee Details</p>
         </div>
         
-        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; margin-bottom:12px;">
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:12px;">
           <!-- Total Fees -->
           <div>
             <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Total Fees (₹)</label>
@@ -2187,6 +2212,56 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
               onchange="calculatePendingFees()"
             />
           </div>
+          
+          <!-- Payment Mode - Moved next to Paid Fees -->
+          <div>
+            <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Payment Mode</label>
+            <select id="feeMode" name="feeMode" class="fee-select" style="width:100%; margin-top:4px;" required>
+              <option value="" disabled ${!feeMode ? "selected" : ""}>Select Payment Mode</option>
+              <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
+              <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
+              <option value="cheque" ${feeMode === "cheque" ? "selected" : ""}>Cheque</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Split Fees Checkbox -->
+        <div style="margin-bottom:12px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; color:#374151;">
+            <input type="checkbox" id="splitFeesCheckbox" onchange="toggleSplitFees()" ${p?.fees?.additionalFees > 0 ? 'checked' : ''} />
+            <span>Split Fees details</span>
+          </label>
+        </div>
+        
+        <!-- Split Fees (Optional) - Only shown when checkbox is checked -->
+        <div id="splitFeesSection" style="display:${p?.fees?.additionalFees > 0 ? 'grid' : 'none'}; grid-template-columns:repeat(2, 1fr); gap:12px; margin-bottom:12px;">
+          <!-- Split Fees Amount -->
+          <div>
+            <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Split Fees (₹) <span style="color:#9ca3af; font-weight:normal;">(Optional)</span></label>
+            <input
+              type="number"
+              id="additionalFees"
+              name="additionalFees"
+              min="0"
+              step="1"
+              placeholder="Enter split fees if any"
+              value="${p?.fees?.additionalFees || ''}"
+              class="fee-input"
+              style="width:100%; margin-top:4px;"
+              onchange="calculatePendingFees()"
+            />
+          </div>
+          
+          <!-- Split Fees Payment Mode -->
+          <div>
+            <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Split fees payment mode <span style="color:#9ca3af; font-weight:normal;">(Optional)</span></label>
+            <select id="additionalFeeMode" name="additionalFeeMode" class="fee-select" style="width:100%; margin-top:4px;">
+              <option value="" ${!p?.fees?.additionalFeeMode ? "selected" : ""}>Select Payment Mode</option>
+              <option value="cash" ${p?.fees?.additionalFeeMode === "cash" ? "selected" : ""}>Cash</option>
+              <option value="online" ${p?.fees?.additionalFeeMode === "online" ? "selected" : ""}>Online</option>
+              <option value="cheque" ${p?.fees?.additionalFeeMode === "cheque" ? "selected" : ""}>Cheque</option>
+            </select>
+          </div>
         </div>
         
         <!-- Total Pending Fees - Auto Calculated -->
@@ -2198,16 +2273,6 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <input type="hidden" id="pendingFees" name="pendingFees" value="${(p?.fees?.totalFees || 0) - (feeAmount !== "" ? feeAmount : 0)}" />
         </div>
         
-        <!-- Payment Mode - Cash/Online Only -->
-        <div style="margin-bottom:12px;">
-          <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Payment Mode</label>
-          <select id="feeMode" name="feeMode" class="fee-select" style="width:100%; margin-top:4px;" required>
-            <option value="" disabled ${!feeMode ? "selected" : ""}>Select Payment Mode</option>
-            <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
-            <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
-          </select>
-        </div>
-        
         <!-- Select Instalment Plan (Separate Dropdown) -->
         <div style="margin-bottom:12px;">
           <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Select Instalment / EMI Option</label>
@@ -2217,7 +2282,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <option value="instalment_2" ${p?.fees?.instalmentPlan === 'instalment_2' ? 'selected' : ''}>Instalment 2</option>
             <option value="instalment_3" ${p?.fees?.instalmentPlan === 'instalment_3' ? 'selected' : ''}>Instalment 3</option>
             <option value="bajaj_emi" ${p?.fees?.instalmentPlan === 'bajaj_emi' ? 'selected' : ''}>No Cost EMI</option>
-            <option value="check" ${p?.fees?.instalmentPlan === 'check' ? 'selected' : ''}>Check</option>
+            <option value="cheque" ${p?.fees?.instalmentPlan === 'cheque' ? 'selected' : ''}>Cheque</option>
           </select>
         </div>
         
@@ -2343,10 +2408,10 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <input type="hidden" id="isBajajEMI" name="isBajajEMI" value="false" />
         </div>
         
-        <!-- Check Payment Message (shown when Check selected) -->
+        <!-- Cheque Payment Message (shown when Cheque selected) -->
         <div id="checkPaymentDiv" style="display:none; background:#f0f9ff; padding:12px; border-radius:8px; border:1px solid #38bdf8; margin-top:12px;">
-          <p style="margin:0; color:#0369a1; font-weight:600;">📝 Check Payment Selected</p>
-          <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Check payment option. Admin will be notified to process this separately.</p>
+          <p style="margin:0; color:#0369a1; font-weight:600;">📝 Cheque Payment Selected</p>
+          <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Cheque payment option. Admin will be notified to process this separately.</p>
           <input type="hidden" id="isCheck" name="isCheck" value="false" />
         </div>
       </div>
@@ -2448,7 +2513,8 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   function calculatePendingFees() {
     var totalFees = parseFloat(document.getElementById('totalFees').value) || 0;
     var paidFees = parseFloat(document.getElementById('paidFees').value) || 0;
-    var pendingFees = totalFees - paidFees;
+    var additionalFees = parseFloat(document.getElementById('additionalFees').value) || 0;
+    var pendingFees = totalFees - paidFees - additionalFees;
     
     if (pendingFees < 0) pendingFees = 0;
     
@@ -2457,6 +2523,21 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     
     // Recalculate instalment amount if instalment is selected
     handleInstalmentChange();
+  }
+  
+  // Toggle Split Fees Section
+  function toggleSplitFees() {
+    var checkbox = document.getElementById('splitFeesCheckbox');
+    var section = document.getElementById('splitFeesSection');
+    if (checkbox.checked) {
+      section.style.display = 'grid';
+    } else {
+      section.style.display = 'none';
+      // Clear values when unchecked
+      document.getElementById('additionalFees').value = '';
+      document.getElementById('additionalFeeMode').value = '';
+      calculatePendingFees();
+    }
   }
   
   function handleInstalmentChange() {
@@ -2482,8 +2563,8 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       instalmentCountInput.value = 0;
       isBajajEMIInput.value = 'true';
       isCheckInput.value = 'false';
-    } else if (instalmentPlan === 'check') {
-      // Show Check Payment message
+    } else if (instalmentPlan === 'cheque') {
+      // Show Cheque Payment message
       checkPaymentDiv.style.display = 'block';
       instalmentCountInput.value = 0;
       isBajajEMIInput.value = 'false';
@@ -3826,6 +3907,16 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <div class="field-label">Payment Mode</div>
             <div class="field-value">${feeMode ? feeMode.toUpperCase() : "-"}</div>
           </div>
+          ${p?.fees?.additionalFees ? `
+          <div>
+            <div class="field-label">Split Fees</div>
+            <div class="field-value">₹${p?.fees?.additionalFees}</div>
+          </div>
+          <div>
+            <div class="field-label">Split Payment Mode</div>
+            <div class="field-value">${p?.fees?.additionalFeeMode ? p?.fees?.additionalFeeMode.toUpperCase() : "-"}</div>
+          </div>
+          ` : ""}
         </div>
         
         ${p?.fees?.instalmentPlan?.startsWith('instalment_') ? `
@@ -3851,10 +3942,10 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         </div>
         ` : ""}
         
-        ${p?.fees?.instalmentPlan === "check" || p?.fees?.isCheck ? `
+        ${p?.fees?.instalmentPlan === "cheque" || p?.fees?.isCheck ? `
         <div style="margin-top:12px; padding:12px; background:#f0f9ff; border-radius:8px; border:1px solid #38bdf8;">
-          <p style="margin:0; color:#0369a1; font-weight:600;">📝 CHECK PAYMENT SELECTED</p>
-          <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Check payment option for fee payment.</p>
+          <p style="margin:0; color:#0369a1; font-weight:600;">📝 CHEQUE PAYMENT SELECTED</p>
+          <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Cheque payment option for fee payment.</p>
         </div>
         ` : ""}
       </div>

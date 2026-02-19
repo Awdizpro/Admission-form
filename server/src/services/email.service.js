@@ -186,6 +186,12 @@ export async function sendAdmissionEmails({
     : "";
 
     // ✅ FEES DETAILS (for student approved mail)
+const totalFees =
+  payload?.fees?.totalFees !== undefined &&
+  payload?.fees?.totalFees !== null
+    ? payload.fees.totalFees
+    : null;
+
 const feeAmount =
   payload?.fees?.amount !== undefined &&
   payload?.fees?.amount !== null
@@ -195,6 +201,19 @@ const feeAmount =
 const paymentMode =
   payload?.fees?.paymentMode
     ? String(payload.fees.paymentMode).toUpperCase()
+    : null;
+
+// ✅ ADDITIONAL FEES DETAILS
+const additionalFees =
+  payload?.fees?.additionalFees !== undefined &&
+  payload?.fees?.additionalFees !== null &&
+  payload?.fees?.additionalFees > 0
+    ? payload.fees.additionalFees
+    : null;
+
+const additionalFeeMode =
+  payload?.fees?.additionalFeeMode
+    ? String(payload.fees.additionalFeeMode).toUpperCase()
     : null;
 
 
@@ -232,8 +251,23 @@ const paymentMode =
     ${
       isApproved && feeAmount !== null
         ? `
-        <p><b>Registration Fees:</b> ₹${feeAmount}</p>
-        <p><b>Payment Mode:</b> ${paymentMode}</p>
+        ${totalFees !== null ? `<p><b>Total Fees:</b> ₹${totalFees}</p>` : ""}
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0;">
+          <tr>
+            <td style="padding:0; font-weight:bold;">Paid Fees:</td>
+            <td style="padding:0 8px 0 4px;">₹${feeAmount}</td>
+            <td style="padding:0; font-weight:bold;">Payment Mode:</td>
+            <td style="padding:0 0 0 4px; font-weight:bold;">${paymentMode}</td>
+          </tr>
+          ${additionalFees !== null ? `
+          <tr>
+            <td style="padding:0;"></td>
+            <td style="padding:0 8px 0 4px;">₹${additionalFees}</td>
+            <td style="padding:0; font-weight:bold;">Payment Mode:</td>
+            <td style="padding:0 0 0 4px; font-weight:bold;">${additionalFeeMode}</td>
+          </tr>
+          ` : ""}
+        </table>
         `
         : ""
     }
@@ -478,7 +512,11 @@ export async function sendAdminApprovalMail({
 
   // required inputs from counselor submit
   feesAmount, // required
-  paymentMode, // required ("cash" | "online")
+  paymentMode, // required ("cash" | "online" | "cheque")
+  
+  // additional fees (optional)
+  additionalFees, // optional
+  additionalFeeMode, // optional ("cash" | "online" | "cheque")
 
   // optional overrides
   to, // admin emails override
@@ -498,6 +536,10 @@ export async function sendAdminApprovalMail({
   // Normalize fee + mode
   const feeText = keep(feesAmount, "");
   const modeText = normalizePaymentMode(paymentMode);
+  
+  // Normalize additional fees
+  const additionalFeeText = additionalFees && additionalFees > 0 ? keep(additionalFees, "") : null;
+  const additionalFeeModeText = additionalFeeMode ? normalizePaymentMode(additionalFeeMode) : null;
 
   // REQUIRED validation (soft, but prevents silent bad mails)
   if (!feeText || feeText === "-" || feeText === "0") {
@@ -535,6 +577,8 @@ export async function sendAdminApprovalMail({
       <td style="padding-left:12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;vertical-align:middle;">
         <div><b>Fees:</b> ${keep(feeText)}</div>
         <div><b>Mode:</b> ${keep(modeText)}</div>
+        ${additionalFeeText ? `<div><b>Split Fees:</b> ₹${additionalFeeText}</div>` : ""}
+        ${additionalFeeModeText ? `<div><b>Split Payment Mode:</b> ${additionalFeeModeText}</div>` : ""}
       </td>
     </tr>
   </table>`.trim();
@@ -551,6 +595,8 @@ export async function sendAdminApprovalMail({
       ${counselorKey ? `<b>Counselor Key:</b> ${keep(counselorKey)}<br/>` : ""}
       <b>Fees Amount:</b> ${keep(feeText)}<br/>
       <b>Payment Mode:</b> ${keep(modeText)}
+      ${additionalFeeText ? `<br/><b>Split Fees:</b> ₹${additionalFeeText}` : ""}
+      ${additionalFeeModeText ? `<br/><b>Split Payment Mode:</b> ${additionalFeeModeText}` : ""}
     </p>
 
     ${
@@ -633,6 +679,8 @@ else if (
       "X-Counselor-Key": counselorKey ? String(counselorKey) : "",
       "X-Fees-Amount": feeText ? String(feeText) : "",
       "X-Payment-Mode": modeText ? String(modeText) : "",
+      "X-Additional-Fees": additionalFeeText ? String(additionalFeeText) : "",
+      "X-Additional-Fee-Mode": additionalFeeModeText ? String(additionalFeeModeText) : "",
     },
     html,
     attachments,
@@ -643,6 +691,8 @@ else if (
     to: finalTo,
     fee: feeText,
     mode: modeText,
+    additionalFee: additionalFeeText || "N/A",
+    additionalFeeMode: additionalFeeModeText || "N/A",
     approveUrl: approveLink,
   });
 

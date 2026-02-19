@@ -490,6 +490,8 @@ function prepareRowValues(data, courseName) {
     data?.fees?.instalmentAmounts?.[2] || "",
     data?.fees?.isBajajEMI ? "Yes" : "No",
     data?.fees?.isCheck ? "Yes" : "No",
+    data?.fees?.additionalFees || "",
+    data?.fees?.additionalFeeMode || "",
   ];
 }
 
@@ -558,7 +560,9 @@ async function appendToSheet(sheets, spreadsheetId, sheetName, courseName, data)
     "Instalment 3 Date",
     "Instalment 3 Amount",
     "Bajaj EMI Process",
-    "Check Payment",
+    "Cheque Payment",
+    "Split Fees",
+    "Split Fees Mode",
   ];
 
   await ensureHeaderIfMissing(sheets, spreadsheetId, title, HEADERS);
