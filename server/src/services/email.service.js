@@ -151,6 +151,7 @@ function normalizePaymentMode(mode) {
   if (m === "cash") return "Cash";
   if (m === "online" || m === "upi" || m === "card" || m === "netbanking")
     return "Online";
+  if (m === "no_cost_emi") return "No Cost EMI";
   return String(mode);
 }
 
@@ -597,6 +598,7 @@ export async function sendAdminApprovalMail({
       <b>Payment Mode:</b> ${keep(modeText)}
       ${additionalFeeText ? `<br/><b>Split Fees:</b> ₹${additionalFeeText}` : ""}
       ${additionalFeeModeText ? `<br/><b>Split Payment Mode:</b> ${additionalFeeModeText}` : ""}
+      ${additionalFeeMode === 'no_cost_emi' ? `<br/><br/><span style="color:#15803d;font-weight:bold;">🏦 No Cost EMI Process Successfully Done</span>` : ""}
     </p>
 
     ${

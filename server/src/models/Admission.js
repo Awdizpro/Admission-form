@@ -168,7 +168,7 @@ fees: {
   instalmentDates: [{ type: Date, default: null }], // Array to store multiple instalment dates
   instalmentAmounts: [{ type: Number, default: 0 }], // Array to store individual instalment amounts
   additionalFees: { type: Number, default: 0 }, // Additional fees amount (optional)
-  additionalFeeMode: { type: String, enum: ["cash", "online", "cheque", ""], default: "" }, // Payment mode for additional fees
+  additionalFeeMode: { type: String, enum: ["cash", "online", "cheque", "no_cost_emi", ""], default: "" }, // Payment mode for additional fees
 },
 
 workflow: {

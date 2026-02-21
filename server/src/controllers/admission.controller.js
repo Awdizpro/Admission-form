@@ -692,6 +692,15 @@ async function submitToAdmin(req, res) {
       <p style="margin:0 0 8px"><b>Total Pending Fees:</b> ₹${pendingFees}</p>
     `;
 
+    // Add No Cost EMI message for split fees
+    if (additionalFeeMode === 'no_cost_emi') {
+      feeDetailsHtml += `
+        <div style="margin:12px 0; padding:12px; background:#dcfce7; border-radius:4px; border-left:4px solid #22c55e;">
+          <p style="margin:0; color:#15803d; font-weight:600;">🏦 No Cost EMI Process Successfully Done</p>
+        </div>
+      `;
+    }
+    
     // Add instalment schedule if applicable
     if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
       feeDetailsHtml += `
@@ -784,6 +793,15 @@ async function submitToAdmin(req, res) {
       <p><b>Total Pending Fees:</b> ₹${pendingFees}</p>
     `;
 
+    // Add No Cost EMI message for split fees
+    if (additionalFeeMode === 'no_cost_emi') {
+      successMessage += `
+        <div style="margin-top:12px; padding:10px; background:#dcfce7; border-radius:4px; border-left:4px solid #22c55e;">
+          <p style="margin:0; color:#15803d; font-weight:600;">🏦 No Cost EMI Process Successfully Done</p>
+        </div>
+      `;
+    }
+    
     // Add instalment schedule
     if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
       successMessage += `
@@ -1002,12 +1020,21 @@ try {
           <td style="padding:0; font-weight:bold;">Payment Mode:</td>
           <td style="padding:0 0 0 4px; font-weight:bold;">${feeMode.toUpperCase()}</td>
         </tr>
-        ${additionalFees > 0 ? `
+        ${(additionalFees > 0 || additionalFeeMode) ? `
         <tr>
           <td style="padding:0;"></td>
-          <td style="padding:0 8px 0 4px;">₹${additionalFees}</td>
+          <td style="padding:0 8px 0 4px;">₹${additionalFees || 0}</td>
           <td style="padding:0; font-weight:bold;">Payment Mode:</td>
           <td style="padding:0 0 0 4px; font-weight:bold;">${additionalFeeMode.toUpperCase()}</td>
+        </tr>
+        ` : ''}
+        ${additionalFeeMode === 'no_cost_emi' ? `
+        <tr>
+          <td colspan="4" style="padding:8px 0 0 0;">
+            <div style="padding:8px; background:#dcfce7; border-radius:4px; border-left:4px solid #22c55e;">
+              <p style="margin:0; color:#15803d; font-weight:600;">🏦 No Cost EMI Process Successfully Done</p>
+            </div>
+          </td>
         </tr>
         ` : ''}
       </table>
@@ -1193,6 +1220,9 @@ const feeMode =
   typeof p?.fees?.paymentMode === "string"
     ? p.fees.paymentMode
     : "";
+
+const additionalFees = p?.fees?.additionalFees ?? 0;
+const additionalFeeMode = p?.fees?.additionalFeeMode || "";
 
 
     const eduRows =
@@ -2255,11 +2285,12 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <!-- Split Fees Payment Mode -->
           <div>
             <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Split fees payment mode <span style="color:#9ca3af; font-weight:normal;">(Optional)</span></label>
-            <select id="additionalFeeMode" name="additionalFeeMode" class="fee-select" style="width:100%; margin-top:4px;">
+            <select id="additionalFeeMode" name="additionalFeeMode" class="fee-select" style="width:100%; margin-top:4px;" onchange="handleAdditionalFeeModeChange()">
               <option value="" ${!p?.fees?.additionalFeeMode ? "selected" : ""}>Select Payment Mode</option>
               <option value="cash" ${p?.fees?.additionalFeeMode === "cash" ? "selected" : ""}>Cash</option>
               <option value="online" ${p?.fees?.additionalFeeMode === "online" ? "selected" : ""}>Online</option>
               <option value="cheque" ${p?.fees?.additionalFeeMode === "cheque" ? "selected" : ""}>Cheque</option>
+              <option value="no_cost_emi" ${p?.fees?.additionalFeeMode === "no_cost_emi" ? "selected" : ""}>No Cost EMI</option>
             </select>
           </div>
         </div>
@@ -2413,6 +2444,13 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           <p style="margin:0; color:#0369a1; font-weight:600;">📝 Cheque Payment Selected</p>
           <p style="margin:4px 0 0 0; color:#0c4a6e; font-size:13px;">Student has chosen Cheque payment option. Admin will be notified to process this separately.</p>
           <input type="hidden" id="isCheck" name="isCheck" value="false" />
+        </div>
+        
+        <!-- No Cost EMI Message (shown when No Cost EMI selected in split fees) -->
+        <div id="noCostEMISplitDiv" style="display:none; background:#dcfce7; padding:12px; border-radius:8px; border:1px solid #22c55e; margin-top:12px;">
+          <p style="margin:0; color:#15803d; font-weight:600;">🏦 No Cost EMI Process Successfully Done</p>
+          <p style="margin:4px 0 0 0; color:#166534; font-size:13px;">Counselor has selected No Cost EMI option for split fees payment. Admin will be notified to process this separately.</p>
+          <input type="hidden" id="isNoCostEMISplit" name="isNoCostEMISplit" value="false" />
         </div>
       </div>
 
@@ -2596,6 +2634,20 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       instalmentCountInput.value = 0;
       isBajajEMIInput.value = 'false';
       isCheckInput.value = 'false';
+    }
+  }
+  
+  function handleAdditionalFeeModeChange() {
+    var additionalFeeMode = document.getElementById('additionalFeeMode').value;
+    var noCostEMISplitDiv = document.getElementById('noCostEMISplitDiv');
+    var isNoCostEMISplitInput = document.getElementById('isNoCostEMISplit');
+    
+    if (additionalFeeMode === 'no_cost_emi') {
+      noCostEMISplitDiv.style.display = 'block';
+      isNoCostEMISplitInput.value = 'true';
+    } else {
+      noCostEMISplitDiv.style.display = 'none';
+      isNoCostEMISplitInput.value = 'false';
     }
   }
   
@@ -3907,15 +3959,20 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <div class="field-label">Payment Mode</div>
             <div class="field-value">${feeMode ? feeMode.toUpperCase() : "-"}</div>
           </div>
-          ${p?.fees?.additionalFees ? `
+          ${(p?.fees?.additionalFees > 0 || p?.fees?.additionalFeeMode) ? `
           <div>
             <div class="field-label">Split Fees</div>
-            <div class="field-value">₹${p?.fees?.additionalFees}</div>
+            <div class="field-value">₹${p?.fees?.additionalFees || 0}</div>
           </div>
           <div>
             <div class="field-label">Split Payment Mode</div>
             <div class="field-value">${p?.fees?.additionalFeeMode ? p?.fees?.additionalFeeMode.toUpperCase() : "-"}</div>
           </div>
+          ${p?.fees?.additionalFeeMode === 'no_cost_emi' ? `
+          <div style="margin-top:8px; padding:10px; background:#dcfce7; border-radius:4px; border-left:4px solid #22c55e;">
+            <p style="margin:0; color:#15803d; font-weight:600;">🏦 No Cost EMI Process Successfully Done</p>
+          </div>
+          ` : ""}
           ` : ""}
         </div>
         
