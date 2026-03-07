@@ -152,6 +152,8 @@ function normalizePaymentMode(mode) {
   if (m === "online" || m === "upi" || m === "card" || m === "netbanking")
     return "Online";
   if (m === "no_cost_emi") return "No Cost EMI";
+  if (m === "pos") return "PoS";
+  if (m === "cheque") return "Cheque";
   return String(mode);
 }
 
@@ -201,7 +203,7 @@ const feeAmount =
 
 const paymentMode =
   payload?.fees?.paymentMode
-    ? String(payload.fees.paymentMode).toUpperCase()
+    ? normalizePaymentMode(payload.fees.paymentMode)
     : null;
 
 // ✅ ADDITIONAL FEES DETAILS
@@ -214,7 +216,7 @@ const additionalFees =
 
 const additionalFeeMode =
   payload?.fees?.additionalFeeMode
-    ? String(payload.fees.additionalFeeMode).toUpperCase()
+    ? normalizePaymentMode(payload.fees.additionalFeeMode)
     : null;
 
 

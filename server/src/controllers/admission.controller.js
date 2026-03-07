@@ -584,11 +584,22 @@ async function submitToAdmin(req, res) {
     const additionalFees = additionalFeesRaw ? Number(additionalFeesRaw) : 0;
     const additionalFeeMode = additionalFeeModeRaw ? String(additionalFeeModeRaw || "").trim().toLowerCase() : "";
 
+    const normalizeMode = (mode) => {
+      if (!mode) return "-";
+      const m = String(mode).toLowerCase();
+      if (m === "cash") return "Cash";
+      if (m === "online" || m === "upi" || m === "card" || m === "netbanking") return "Online";
+      if (m === "no_cost_emi") return "No Cost EMI";
+      if (m === "pos") return "PoS";
+      if (m === "cheque") return "Cheque";
+      return mode.toUpperCase();
+    };
+
     if (!Number.isFinite(feeAmount) || feeAmount < 0) {
       return res.status(400).send("Invalid fee amount");
     }
 
-    if (!["cash", "online", "cheque"].includes(feeMode)) {
+    if (!["cash", "online", "cheque", "pos"].includes(feeMode)) {
       return res.status(400).send("Invalid payment mode");
     }
 
@@ -687,8 +698,8 @@ async function submitToAdmin(req, res) {
     // Build fee details HTML with instalment schedule
     let feeDetailsHtml = `
       <p style="margin:0 0 8px"><b>Total Fees:</b> ₹${totalFees}</p>
-      <p style="margin:0 0 8px"><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
-      ${additionalFees > 0 ? `<p style="margin:0 0 8px"><b>Split Fees:</b> ₹${additionalFees}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Split Payment Mode:</b> ${additionalFeeMode.toUpperCase()}</p>` : ''}
+      <p style="margin:0 0 8px"><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${normalizeMode(feeMode)}</p>
+      ${additionalFees > 0 ? `<p style="margin:0 0 8px"><b>Split Fees:</b> ₹${additionalFees}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Split Payment Mode:</b> ${normalizeMode(additionalFeeMode)}</p>` : ''}
       <p style="margin:0 0 8px"><b>Total Pending Fees:</b> ₹${pendingFees}</p>
     `;
 
@@ -783,13 +794,18 @@ async function submitToAdmin(req, res) {
       });
     }
 
-    await transporter.sendMail(mail);
+    try {
+      await transporter.sendMail(mail);
+    } catch (emailErr) {
+      console.error("❌ Email send failed:", emailErr.message);
+      throw emailErr;
+    }
 
     // Build success message with fee details and instalment schedule
     let successMessage = `
       <p><b>Total Fees:</b> ₹${totalFees}</p>
-      <p><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${feeMode.toUpperCase()}</p>
-      ${additionalFees > 0 ? `<p><b>Split Fees:</b> ₹${additionalFees}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Split Payment Mode:</b> ${additionalFeeMode.toUpperCase()}</p>` : ''}
+      <p><b>Paid Fees:</b> ₹${feeAmount}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Payment Mode:</b> ${normalizeMode(feeMode)}</p>
+      ${additionalFees > 0 ? `<p><b>Split Fees:</b> ₹${additionalFees}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Split Payment Mode:</b> ${normalizeMode(additionalFeeMode)}</p>` : ''}
       <p><b>Total Pending Fees:</b> ₹${pendingFees}</p>
     `;
 
@@ -849,7 +865,7 @@ async function submitToAdmin(req, res) {
     `);
   } catch (err) {
     console.error("submitToAdmin error:", err);
-    return res.status(500).send("Submit to Admin failed.");
+    return res.status(500).send("Submit to Admin failed: " + err.message);
   }
 }
 
@@ -881,7 +897,7 @@ async function approveAdmission(req, res) {
 
     if (req.body?.feeMode) {
       const mode = String(req.body.feeMode).toLowerCase();
-      if (!["cash", "online", "instalment", "bajaj_emi", "cheque"].includes(mode)) {
+      if (!["cash", "online", "instalment", "bajaj_emi", "cheque", "pos"].includes(mode)) {
         return res.status(400).send("Invalid payment mode");
       }
       doc.fees.paymentMode = mode;
@@ -1008,6 +1024,17 @@ try {
   const instalmentDates = doc?.fees?.instalmentDates || [];
   const instalmentAmounts = doc?.fees?.instalmentAmounts || [];
 
+  const normalizeMode = (mode) => {
+    if (!mode) return "-";
+    const m = String(mode).toLowerCase();
+    if (m === "cash") return "Cash";
+    if (m === "online" || m === "upi" || m === "card" || m === "netbanking") return "Online";
+    if (m === "no_cost_emi") return "No Cost EMI";
+    if (m === "pos") return "PoS";
+    if (m === "cheque") return "Cheque";
+    return mode.toUpperCase();
+  };
+
   // Build fee details section with instalment schedule
   let feeDetailsHtml = `
     <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:16px; margin:16px 0;">
@@ -1018,14 +1045,14 @@ try {
           <td style="padding:0; font-weight:bold;">Paid Fees:</td>
           <td style="padding:0 8px 0 4px;">₹${feeAmount}</td>
           <td style="padding:0; font-weight:bold;">Payment Mode:</td>
-          <td style="padding:0 0 0 4px; font-weight:bold;">${feeMode.toUpperCase()}</td>
+          <td style="padding:0 0 0 4px; font-weight:bold;">${normalizeMode(feeMode)}</td>
         </tr>
         ${(additionalFees > 0 || additionalFeeMode) ? `
         <tr>
           <td style="padding:0;"></td>
           <td style="padding:0 8px 0 4px;">₹${additionalFees || 0}</td>
           <td style="padding:0; font-weight:bold;">Payment Mode:</td>
-          <td style="padding:0 0 0 4px; font-weight:bold;">${additionalFeeMode.toUpperCase()}</td>
+          <td style="padding:0 0 0 4px; font-weight:bold;">${normalizeMode(additionalFeeMode)}</td>
         </tr>
         ` : ''}
         ${additionalFeeMode === 'no_cost_emi' ? `
@@ -2251,6 +2278,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
               <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
               <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
               <option value="cheque" ${feeMode === "cheque" ? "selected" : ""}>Cheque</option>
+              <option value="pos" ${feeMode === "pos" ? "selected" : ""}>PoS</option>
             </select>
           </div>
         </div>
@@ -2290,6 +2318,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
               <option value="cash" ${p?.fees?.additionalFeeMode === "cash" ? "selected" : ""}>Cash</option>
               <option value="online" ${p?.fees?.additionalFeeMode === "online" ? "selected" : ""}>Online</option>
               <option value="cheque" ${p?.fees?.additionalFeeMode === "cheque" ? "selected" : ""}>Cheque</option>
+              <option value="pos" ${p?.fees?.additionalFeeMode === "pos" ? "selected" : ""}>PoS</option>
               <option value="no_cost_emi" ${p?.fees?.additionalFeeMode === "no_cost_emi" ? "selected" : ""}>No Cost EMI</option>
             </select>
           </div>
@@ -2914,6 +2943,17 @@ const feeMode =
   typeof p?.fees?.paymentMode === "string"
     ? p.fees.paymentMode
     : "";
+
+const normalizeMode = (mode) => {
+  if (!mode) return "-";
+  const m = String(mode).toLowerCase();
+  if (m === "cash") return "Cash";
+  if (m === "online" || m === "upi" || m === "card" || m === "netbanking") return "Online";
+  if (m === "no_cost_emi") return "No Cost EMI";
+  if (m === "pos") return "PoS";
+  if (m === "cheque") return "Cheque";
+  return mode.toUpperCase();
+};
 
    const eduRows =
   (p.education || []).length > 0
@@ -3957,7 +3997,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
           <div>
             <div class="field-label">Payment Mode</div>
-            <div class="field-value">${feeMode ? feeMode.toUpperCase() : "-"}</div>
+            <div class="field-value">${feeMode ? normalizeMode(feeMode) : "-"}</div>
           </div>
           ${(p?.fees?.additionalFees > 0 || p?.fees?.additionalFeeMode) ? `
           <div>
@@ -3966,7 +4006,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           </div>
           <div>
             <div class="field-label">Split Payment Mode</div>
-            <div class="field-value">${p?.fees?.additionalFeeMode ? p?.fees?.additionalFeeMode.toUpperCase() : "-"}</div>
+            <div class="field-value">${p?.fees?.additionalFeeMode ? normalizeMode(p?.fees?.additionalFeeMode) : "-"}</div>
           </div>
           ${p?.fees?.additionalFeeMode === 'no_cost_emi' ? `
           <div style="margin-top:8px; padding:10px; background:#dcfce7; border-radius:4px; border-left:4px solid #22c55e;">
@@ -4032,9 +4072,9 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   <select name="feeMode" class="fee-select" required>
     <option value="cash" ${feeMode === "cash" ? "selected" : ""}>Cash</option>
     <option value="online" ${feeMode === "online" ? "selected" : ""}>Online</option>
-    <option value="instalment" ${feeMode === "instalment" ? "selected" : ""}>Instalment</option>
+    <option value="pos" ${feeMode === "pos" ? "selected" : ""}>PoS</option>
+    <option value="cheque" ${feeMode === "cheque" ? "selected" : ""}>Cheque</option>
     <option value="bajaj_emi" ${feeMode === "bajaj_emi" ? "selected" : ""}>No Cost EMI</option>
-    <option value="check" ${feeMode === "check" ? "selected" : ""}>Check</option>
   </select>
 
   <button

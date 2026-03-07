@@ -151,11 +151,11 @@ const AdmissionSchema = new mongoose.Schema(
     // ✅ NEW: Counselor → Admin submission + Fees info (DON'T REMOVE ANYTHING ELSE)
 fees: {
   amount: { type: Number, default: 0 }, // counselor input (required on submit)
-  paymentMode: {
-    type: String,
-    enum: ["cash", "online", "instalment", "bajaj_emi", "cheque", ""],
-    default: "",
-  },
+    paymentMode: {
+      type: String,
+      enum: ["cash", "online", "instalment", "bajaj_emi", "cheque", "pos", ""],
+      default: "",
+    },
   // ✅ NEW: Instalment/Bajaj EMI fields
   totalFees: { type: Number, default: 0 }, // Total course fees
   pendingFees: { type: Number, default: 0 }, // Calculated pending fees
@@ -168,7 +168,7 @@ fees: {
   instalmentDates: [{ type: Date, default: null }], // Array to store multiple instalment dates
   instalmentAmounts: [{ type: Number, default: 0 }], // Array to store individual instalment amounts
   additionalFees: { type: Number, default: 0 }, // Additional fees amount (optional)
-  additionalFeeMode: { type: String, enum: ["cash", "online", "cheque", "no_cost_emi", ""], default: "" }, // Payment mode for additional fees
+    additionalFeeMode: { type: String, enum: ["cash", "online", "cheque", "no_cost_emi", "pos", ""], default: "" }, // Payment mode for additional fees
 },
 
 workflow: {

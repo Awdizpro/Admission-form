@@ -423,11 +423,11 @@ function prepareRowValues(data, courseName) {
     data?.meta?.feeAmount ||
     data?.feeAmount ||
     "";
-    const feeMode =
-  data?.fees?.paymentMode ||   // ✅ FIX
-  data?.meta?.feeMode ||
-  data?.feeMode ||
-  "";
+  const feeModeRaw = data?.fees?.paymentMode ||   // ✅ FIX
+    data?.meta?.feeMode ||
+    data?.feeMode ||
+    "";
+  const feeMode = feeModeRaw ? feeModeRaw.toUpperCase() : "";
 
   const counselorKey = counselorKeyFromData(data);
 
@@ -491,7 +491,7 @@ function prepareRowValues(data, courseName) {
     data?.fees?.isBajajEMI ? "Yes" : "No",
     data?.fees?.isCheck ? "Yes" : "No",
     data?.fees?.additionalFees || "",
-    data?.fees?.additionalFeeMode || "",
+    data?.fees?.additionalFeeMode ? data.fees.additionalFeeMode.toUpperCase() : "",
   ];
 }
 
