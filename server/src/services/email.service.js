@@ -115,12 +115,19 @@ function getCounselorEmailsByKey(key) {
     process.env.COUNSELOR2_EMAILS ||
     process.env.COUNSELOR_2_EMAILS ||
     "";
+  const C3 =
+    process.env.COUNSELOR3_EMAILS ||
+    process.env.COUNSELOR_3_EMAILS ||
+    "";
 
   if (k === "counselor1" || k === "c1" || k === "sheet1" || k === "1") {
     return normalizeEmails(C1);
   }
   if (k === "counselor2" || k === "c2" || k === "sheet2" || k === "2") {
     return normalizeEmails(C2);
+  }
+  if (k === "counselor3" || k === "c3" || k === "sheet3" || k === "3") {
+    return normalizeEmails(C3);
   }
 
   const rawMap = process.env.COUNSELOR_KEY_MAP || "";

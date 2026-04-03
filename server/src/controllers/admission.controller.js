@@ -43,9 +43,12 @@ const toBool = (v, d = true) => {
 // Helper: is PDF?
 
 function pickCounselorEmailsByKey(key) {
-  const k = String(key || "").trim().toLowerCase() === "c2" ? "c2" : "c1";
+  const k = String(key || "").trim().toLowerCase();
+  let counselorKey = "c1";
+  if (k === "c3" || k === "3") counselorKey = "c3";
+  else if (k === "c2" || k === "2") counselorKey = "c2";
 
-  const envKey = k === "c2" ? "COUNSELOR2_EMAILS" : "COUNSELOR1_EMAILS";
+  const envKey = counselorKey === "c3" ? "COUNSELOR3_EMAILS" : counselorKey === "c2" ? "COUNSELOR2_EMAILS" : "COUNSELOR1_EMAILS";
   const raw = String(process.env[envKey] || "");
 
   const list = raw
@@ -173,18 +176,17 @@ const tryPickDataUrl = (v) =>
     const body = JSON.parse(req.body.payload || "{}");
 
     // counselorKey resolve
-    const counselorKey =
-      String(
-        req.query?.c ||
-          body?.counselorKey ||
-          body?.meta?.counselorKey ||
-          body?.course?.counselorKey ||
-          "c1"
-      )
-        .trim()
-        .toLowerCase() === "c2"
-        ? "c2"
-        : "c1";
+    const rawCounselorKey = String(
+      req.query?.c ||
+        body?.counselorKey ||
+        body?.meta?.counselorKey ||
+        body?.course?.counselorKey ||
+        "c1"
+    ).trim().toLowerCase();
+    
+    let counselorKey = "c1";
+    if (rawCounselorKey === "c2" || rawCounselorKey === "2") counselorKey = "c2";
+    else if (rawCounselorKey === "c3" || rawCounselorKey === "3") counselorKey = "c3";
 
     if (
       !body?.personal?.name ||
@@ -565,13 +567,27 @@ async function submitToAdmin(req, res) {
     const additionalFeesRaw = req.body?.additionalFees;
     const additionalFeeModeRaw = req.body?.additionalFeeMode;
     
-    // Read multiple instalment dates and amounts
+    // Read multiple instalment dates and amounts (1-10 for FlashAid)
     const instalmentDate1 = req.body?.instalmentDate1;
     const instalmentDate2 = req.body?.instalmentDate2;
     const instalmentDate3 = req.body?.instalmentDate3;
+    const instalmentDate4 = req.body?.instalmentDate4;
+    const instalmentDate5 = req.body?.instalmentDate5;
+    const instalmentDate6 = req.body?.instalmentDate6;
+    const instalmentDate7 = req.body?.instalmentDate7;
+    const instalmentDate8 = req.body?.instalmentDate8;
+    const instalmentDate9 = req.body?.instalmentDate9;
+    const instalmentDate10 = req.body?.instalmentDate10;
     const instalmentAmount1 = Number(req.body?.instalmentAmount1) || 0;
     const instalmentAmount2 = Number(req.body?.instalmentAmount2) || 0;
     const instalmentAmount3 = Number(req.body?.instalmentAmount3) || 0;
+    const instalmentAmount4 = Number(req.body?.instalmentAmount4) || 0;
+    const instalmentAmount5 = Number(req.body?.instalmentAmount5) || 0;
+    const instalmentAmount6 = Number(req.body?.instalmentAmount6) || 0;
+    const instalmentAmount7 = Number(req.body?.instalmentAmount7) || 0;
+    const instalmentAmount8 = Number(req.body?.instalmentAmount8) || 0;
+    const instalmentAmount9 = Number(req.body?.instalmentAmount9) || 0;
+    const instalmentAmount10 = Number(req.body?.instalmentAmount10) || 0;
 
     const feeAmount = Number(feeAmountRaw);
     const feeMode = String(feeModeRaw || "").trim().toLowerCase();
@@ -592,6 +608,7 @@ async function submitToAdmin(req, res) {
       if (m === "no_cost_emi") return "No Cost EMI";
       if (m === "pos") return "PoS";
       if (m === "cheque") return "Cheque";
+      if (m.startsWith("flashaid_")) return "FlashAid Instalment";
       return mode.toUpperCase();
     };
 
@@ -606,7 +623,7 @@ async function submitToAdmin(req, res) {
     // Build instalment dates array
     const instalmentDates = [];
     const instalmentAmounts = [];
-    if (instalmentPlan.startsWith('instalment_')) {
+    if (instalmentPlan.startsWith('instalment_') || instalmentPlan.startsWith('flashaid_')) {
       if (instalmentDate1) {
         instalmentDates.push(new Date(instalmentDate1));
         instalmentAmounts.push(instalmentAmount1);
@@ -618,6 +635,34 @@ async function submitToAdmin(req, res) {
       if (instalmentDate3) {
         instalmentDates.push(new Date(instalmentDate3));
         instalmentAmounts.push(instalmentAmount3);
+      }
+      if (instalmentDate4) {
+        instalmentDates.push(new Date(instalmentDate4));
+        instalmentAmounts.push(instalmentAmount4);
+      }
+      if (instalmentDate5) {
+        instalmentDates.push(new Date(instalmentDate5));
+        instalmentAmounts.push(instalmentAmount5);
+      }
+      if (instalmentDate6) {
+        instalmentDates.push(new Date(instalmentDate6));
+        instalmentAmounts.push(instalmentAmount6);
+      }
+      if (instalmentDate7) {
+        instalmentDates.push(new Date(instalmentDate7));
+        instalmentAmounts.push(instalmentAmount7);
+      }
+      if (instalmentDate8) {
+        instalmentDates.push(new Date(instalmentDate8));
+        instalmentAmounts.push(instalmentAmount8);
+      }
+      if (instalmentDate9) {
+        instalmentDates.push(new Date(instalmentDate9));
+        instalmentAmounts.push(instalmentAmount9);
+      }
+      if (instalmentDate10) {
+        instalmentDates.push(new Date(instalmentDate10));
+        instalmentAmounts.push(instalmentAmount10);
       }
       
       // Validate that required dates are provided
@@ -713,21 +758,22 @@ async function submitToAdmin(req, res) {
     }
     
     // Add instalment schedule if applicable
-    if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
+    if ((instalmentPlan.startsWith('instalment_') || instalmentPlan.startsWith('flashaid_')) && instalmentCount > 0) {
       feeDetailsHtml += `
         <div style="margin:12px 0; padding:12px; background:#f0fdf4; border-radius:4px; border-left:4px solid #16a34a;">
-          <p style="margin:0 0 8px; font-weight:600; color:#15803d;">📅 Instalment Schedule:</p>
+          <p style="margin:0 0 8px; font-weight:600; color:#15803d;">${instalmentPlan?.startsWith('flashaid_') ? '📅 FlashAid Instalment Schedule:' : '📅 Instalment Schedule:'}</p>
           <p style="margin:0 0 8px; color:#166534;">
-            After the ₹${feeAmount} registration fee, the remaining ₹${pendingFees} will be paid in ${instalmentCount} installment${instalmentCount > 1 ? 's' : ''}.
+            After the ₹${feeAmount} registration fee, the remaining ₹${pendingFees} will be paid in ${instalmentCount} ${instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : ''}installment${instalmentCount > 1 ? 's' : ''}.
           </p>
       `;
       
       for (let i = 0; i < instalmentCount; i++) {
         const date = instalmentDates[i] ? new Date(instalmentDates[i]).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
         const amount = instalmentAmounts[i] || 0;
+        const prefix = instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : '';
         feeDetailsHtml += `
           <p style="margin:4px 0; color:#166534; padding-left:12px;">
-            <b>Instalment ${i + 1}:</b> ₹${amount} on ${date} 
+            <b>${prefix}Instalment ${i + 1}:</b> ₹${amount} on ${date} 
           </p>
         `;
       }
@@ -819,21 +865,22 @@ async function submitToAdmin(req, res) {
     }
     
     // Add instalment schedule
-    if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
+    if ((instalmentPlan.startsWith('instalment_') || instalmentPlan.startsWith('flashaid_')) && instalmentCount > 0) {
       successMessage += `
         <div style="margin-top:12px; padding:10px; background:#f0fdf4; border-radius:4px;">
-          <p style="margin:0 0 8px; color:#15803d; font-weight:600;">📅 Instalment Schedule:</p>
+          <p style="margin:0 0 8px; color:#15803d; font-weight:600;">${instalmentPlan?.startsWith('flashaid_') ? '📅 FlashAid Instalment Schedule:' : '📅 Instalment Schedule:'}</p>
           <p style="margin:0 0 8px; color:#166534;">
-            After the ₹${feeAmount} registration fee, the remaining ₹${pendingFees} will be paid in ${instalmentCount} installment${instalmentCount > 1 ? 's' : ''}.
+            After the ₹${feeAmount} registration fee, the remaining ₹${pendingFees} will be paid in ${instalmentCount} ${instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : ''}installment${instalmentCount > 1 ? 's' : ''}.
           </p>
       `;
       
       for (let i = 0; i < instalmentCount; i++) {
         const date = instalmentDates[i] ? new Date(instalmentDates[i]).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
         const amount = instalmentAmounts[i] || 0;
+        const prefix = instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : '';
         successMessage += `
           <p style="margin:4px 0; color:#166534; padding-left:12px;">
-            <b>Instalment ${i + 1}:</b> ₹${amount} on ${date}
+            <b>${prefix}Instalment ${i + 1}:</b> ₹${amount} on ${date}
           </p>
         `;
       }
@@ -910,7 +957,7 @@ async function approveAdmission(req, res) {
       .trim()
       .toLowerCase();
 
-    if (!["c1", "c2"].includes(counselorKey)) {
+    if (!["c1", "c2", "c3"].includes(counselorKey)) {
       console.error("❌ counselorKey missing/invalid:", counselorKey, doc._id);
       return res
         .status(400)
@@ -1032,6 +1079,7 @@ try {
     if (m === "no_cost_emi") return "No Cost EMI";
     if (m === "pos") return "PoS";
     if (m === "cheque") return "Cheque";
+    if (m.startsWith("flashaid_")) return "FlashAid Instalment";
     return mode.toUpperCase();
   };
 
@@ -1069,21 +1117,22 @@ try {
   `;
 
   // Add instalment schedule if applicable
-  if (instalmentPlan.startsWith('instalment_') && instalmentCount > 0) {
+  if ((instalmentPlan.startsWith('instalment_') || instalmentPlan.startsWith('flashaid_')) && instalmentCount > 0) {
     feeDetailsHtml += `
       <div style="margin-top:12px; padding-top:12px; border-top:1px solid #86efac;">
-        <p style="margin:0 0 12px; font-weight:600; color:#15803d;">📅 Instalment Schedule:</p>
+        <p style="margin:0 0 12px; font-weight:600; color:#15803d;">${instalmentPlan?.startsWith('flashaid_') ? '📅 FlashAid Instalment Schedule:' : '📅 Instalment Schedule:'}</p>
         <p style="margin:0 0 12px; color:#166534; line-height:1.6;">
-          After receiving the ₹${feeAmount} registration fees, it was discussed and mutually agreed that the student would pay the ₹${pendingFees} remaining fees in ${instalmentCount} installment${instalmentCount > 1 ? 's' : ''}.
+          After receiving the ₹${feeAmount} registration fees, it was discussed and mutually agreed that the student would pay the ₹${pendingFees} remaining fees in ${instalmentCount} ${instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : ''}installment${instalmentCount > 1 ? 's' : ''}.
         </p>
     `;
     
     for (let i = 0; i < instalmentCount; i++) {
       const date = instalmentDates[i] ? new Date(instalmentDates[i]).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
       const amount = instalmentAmounts[i] || 0;
+      const prefix = instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : '';
       feeDetailsHtml += `
         <p style="margin:4px 0; color:#166534; padding-left:12px;">
-          <b>Instalment ${i + 1}:</b> ₹${amount} on ${date}
+          <b>${prefix}Instalment ${i + 1}:</b> ₹${amount} on ${date}
         </p>
       `;
     }
@@ -2336,13 +2385,34 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
         <!-- Select Instalment Plan (Separate Dropdown) -->
         <div style="margin-bottom:12px;">
           <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Select Instalment / EMI Option</label>
-          <select id="instalmentPlan" name="instalmentPlan" class="fee-select" style="width:100%; margin-top:4px;" onchange="handleInstalmentChange()">
+          <select id="instalmentPlanSelect" class="fee-select" style="width:100%; margin-top:4px;" onchange="handleInstalmentChange()">
             <option value="" ${!p?.fees?.instalmentPlan ? "selected" : ""}>None (Full Payment)</option>
-            <option value="instalment_1" ${p?.fees?.instalmentPlan === 'instalment_1' ? 'selected' : ''}>Instalment 1</option>
-            <option value="instalment_2" ${p?.fees?.instalmentPlan === 'instalment_2' ? 'selected' : ''}>Instalment 2</option>
-            <option value="instalment_3" ${p?.fees?.instalmentPlan === 'instalment_3' ? 'selected' : ''}>Instalment 3</option>
+            <optgroup label="Instalment">
+              <option value="instalment_1" ${p?.fees?.instalmentPlan === 'instalment_1' ? 'selected' : ''}>Instalment 1</option>
+              <option value="instalment_2" ${p?.fees?.instalmentPlan === 'instalment_2' ? 'selected' : ''}>Instalment 2</option>
+              <option value="instalment_3" ${p?.fees?.instalmentPlan === 'instalment_3' ? 'selected' : ''}>Instalment 3</option>
+            </optgroup>
             <option value="bajaj_emi" ${p?.fees?.instalmentPlan === 'bajaj_emi' ? 'selected' : ''}>No Cost EMI</option>
             <option value="cheque" ${p?.fees?.instalmentPlan === 'cheque' ? 'selected' : ''}>Cheque</option>
+            <option value="flashaid" ${p?.fees?.instalmentPlan?.startsWith('flashaid_') ? 'selected' : ''}>FlashAid Instalment</option>
+          </select>
+        </div>
+        
+        <!-- FlashAid Sub-Dropdown (shows when FlashAid is selected) -->
+        <div id="flashaidSubDiv" style="margin-bottom:12px; display:none;">
+          <label style="font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Select FlashAid Instalment</label>
+          <select id="flashaidPlan" name="flashaidPlan" class="fee-select" style="width:100%; margin-top:4px;" onchange="handleFlashAidChange()">
+            <option value="">Select</option>
+            <option value="flashaid_1" ${p?.fees?.instalmentPlan === 'flashaid_1' ? 'selected' : ''}>FlashAid Instalment 1</option>
+            <option value="flashaid_2" ${p?.fees?.instalmentPlan === 'flashaid_2' ? 'selected' : ''}>FlashAid Instalment 2</option>
+            <option value="flashaid_3" ${p?.fees?.instalmentPlan === 'flashaid_3' ? 'selected' : ''}>FlashAid Instalment 3</option>
+            <option value="flashaid_4" ${p?.fees?.instalmentPlan === 'flashaid_4' ? 'selected' : ''}>FlashAid Instalment 4</option>
+            <option value="flashaid_5" ${p?.fees?.instalmentPlan === 'flashaid_5' ? 'selected' : ''}>FlashAid Instalment 5</option>
+            <option value="flashaid_6" ${p?.fees?.instalmentPlan === 'flashaid_6' ? 'selected' : ''}>FlashAid Instalment 6</option>
+            <option value="flashaid_7" ${p?.fees?.instalmentPlan === 'flashaid_7' ? 'selected' : ''}>FlashAid Instalment 7</option>
+            <option value="flashaid_8" ${p?.fees?.instalmentPlan === 'flashaid_8' ? 'selected' : ''}>FlashAid Instalment 8</option>
+            <option value="flashaid_9" ${p?.fees?.instalmentPlan === 'flashaid_9' ? 'selected' : ''}>FlashAid Instalment 9</option>
+            <option value="flashaid_10" ${p?.fees?.instalmentPlan === 'flashaid_10' ? 'selected' : ''}>FlashAid Instalment 10</option>
           </select>
         </div>
         
@@ -2356,7 +2426,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <div id="instalment1Field" style="display:none; margin-bottom:12px;">
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
                 <div>
-                  <label style="font-size:12px; color:#047857; font-weight:500;">Instalment 1 Date</label>
+                  <label style="font-size:12px; color:#047857; font-weight:500;" id="instalment1Label">Instalment 1 Date</label>
                   <input
                     type="date"
                     id="instalmentDate1"
@@ -2387,7 +2457,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <div id="instalment2Field" style="display:none; margin-bottom:12px;">
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
                 <div>
-                  <label style="font-size:12px; color:#047857; font-weight:500;">Instalment 2 Date</label>
+                  <label style="font-size:12px; color:#047857; font-weight:500;" id="instalment2Label">Instalment 2 Date</label>
                   <input
                     type="date"
                     id="instalmentDate2"
@@ -2418,7 +2488,7 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <div id="instalment3Field" style="display:none; margin-bottom:12px;">
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
                 <div>
-                  <label style="font-size:12px; color:#047857; font-weight:500;">Instalment 3 Date</label>
+                  <label style="font-size:12px; color:#047857; font-weight:500;" id="instalment3Label">Instalment 3 Date</label>
                   <input
                     type="date"
                     id="instalmentDate3"
@@ -2444,13 +2514,238 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
                 </div>
               </div>
             </div>
+            
+            <!-- FlashAid Instalment 4 -->
+            <div id="instalment4Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 4 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate4"
+                    name="instalmentDate4"
+                    value="${p?.fees?.instalmentDates?.[3] ? new Date(p.fees.instalmentDates[3]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput4"
+                    name="instalmentAmountInput4"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 4 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- FlashAid Instalment 5 -->
+            <div id="instalment5Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 5 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate5"
+                    name="instalmentDate5"
+                    value="${p?.fees?.instalmentDates?.[4] ? new Date(p.fees.instalmentDates[4]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput5"
+                    name="instalmentAmountInput5"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 5 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- FlashAid Instalment 6 -->
+            <div id="instalment6Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 6 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate6"
+                    name="instalmentDate6"
+                    value="${p?.fees?.instalmentDates?.[5] ? new Date(p.fees.instalmentDates[5]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput6"
+                    name="instalmentAmountInput6"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 6 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- FlashAid Instalment 7 -->
+            <div id="instalment7Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 7 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate7"
+                    name="instalmentDate7"
+                    value="${p?.fees?.instalmentDates?.[6] ? new Date(p.fees.instalmentDates[6]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput7"
+                    name="instalmentAmountInput7"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 7 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- FlashAid Instalment 8 -->
+            <div id="instalment8Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 8 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate8"
+                    name="instalmentDate8"
+                    value="${p?.fees?.instalmentDates?.[7] ? new Date(p.fees.instalmentDates[7]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput8"
+                    name="instalmentAmountInput8"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 8 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- FlashAid Instalment 9 -->
+            <div id="instalment9Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 9 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate9"
+                    name="instalmentDate9"
+                    value="${p?.fees?.instalmentDates?.[8] ? new Date(p.fees.instalmentDates[8]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput9"
+                    name="instalmentAmountInput9"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 9 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <!-- FlashAid Instalment 10 -->
+            <div id="instalment10Field" style="display:none; margin-bottom:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">FlashAid Instalment 10 Date</label>
+                  <input
+                    type="date"
+                    id="instalmentDate10"
+                    name="instalmentDate10"
+                    value="${p?.fees?.instalmentDates?.[9] ? new Date(p.fees.instalmentDates[9]).toISOString().split('T')[0] : ''}"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    onchange="updateRemainingAmount()"
+                  />
+                </div>
+                <div>
+                  <label style="font-size:12px; color:#047857; font-weight:500;">Amount (₹)</label>
+                  <input
+                    type="number"
+                    id="instalmentAmountInput10"
+                    name="instalmentAmountInput10"
+                    class="fee-input"
+                    style="width:100%; margin-top:4px; border-color:#10b981;"
+                    placeholder="Enter FlashAid instalment 10 amount"
+                    onchange="updateRemainingAmount()"
+                    oninput="updateRemainingAmount()"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           
           <!-- Hidden fields for instalment data -->
+          <input type="hidden" id="instalmentPlan" name="instalmentPlan" value="${p?.fees?.instalmentPlan || ''}" />
           <input type="hidden" id="instalmentCount" name="instalmentCount" value="0" />
           <input type="hidden" id="instalmentAmountHidden1" name="instalmentAmount1" value="0" />
           <input type="hidden" id="instalmentAmountHidden2" name="instalmentAmount2" value="0" />
           <input type="hidden" id="instalmentAmountHidden3" name="instalmentAmount3" value="0" />
+          <input type="hidden" id="instalmentAmountHidden4" name="instalmentAmount4" value="0" />
+          <input type="hidden" id="instalmentAmountHidden5" name="instalmentAmount5" value="0" />
+          <input type="hidden" id="instalmentAmountHidden6" name="instalmentAmount6" value="0" />
+          <input type="hidden" id="instalmentAmountHidden7" name="instalmentAmount7" value="0" />
+          <input type="hidden" id="instalmentAmountHidden8" name="instalmentAmount8" value="0" />
+          <input type="hidden" id="instalmentAmountHidden9" name="instalmentAmount9" value="0" />
+          <input type="hidden" id="instalmentAmountHidden10" name="instalmentAmount10" value="0" />
           
           <!-- Total Remaining Display -->
           <div id="totalRemainingDiv" style="margin-top:16px; padding:12px; background:#fef2f2; border:2px solid #ef4444; border-radius:8px; display:none;">
@@ -2608,21 +2903,31 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   }
   
   function handleInstalmentChange() {
-    var instalmentPlan = document.getElementById('instalmentPlan').value;
+    var instalmentPlan = document.getElementById('instalmentPlanSelect').value;
     var instalmentDatesDiv = document.getElementById('instalmentDatesDiv');
     var bajajEMIDiv = document.getElementById('bajajEMIDiv');
     var checkPaymentDiv = document.getElementById('checkPaymentDiv');
+    var flashaidSubDiv = document.getElementById('flashaidSubDiv');
     var instalmentCountInput = document.getElementById('instalmentCount');
     var isBajajEMIInput = document.getElementById('isBajajEMI');
     var isCheckInput = document.getElementById('isCheck');
+    var flashaidSubDiv = document.getElementById('flashaidSubDiv');
     
     // Hide all first
     instalmentDatesDiv.style.display = 'none';
     bajajEMIDiv.style.display = 'none';
     checkPaymentDiv.style.display = 'none';
+    flashaidSubDiv.style.display = 'none';
     document.getElementById('instalment1Field').style.display = 'none';
     document.getElementById('instalment2Field').style.display = 'none';
     document.getElementById('instalment3Field').style.display = 'none';
+    document.getElementById('instalment4Field').style.display = 'none';
+    document.getElementById('instalment5Field').style.display = 'none';
+    document.getElementById('instalment6Field').style.display = 'none';
+    document.getElementById('instalment7Field').style.display = 'none';
+    document.getElementById('instalment8Field').style.display = 'none';
+    document.getElementById('instalment9Field').style.display = 'none';
+    document.getElementById('instalment10Field').style.display = 'none';
     
     if (instalmentPlan === 'bajaj_emi') {
       // Show Bajaj EMI message
@@ -2636,15 +2941,67 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
       instalmentCountInput.value = 0;
       isBajajEMIInput.value = 'false';
       isCheckInput.value = 'true';
-    } else if (instalmentPlan.startsWith('instalment_')) {
-      // Show instalment dates section
+    } else if (instalmentPlan === 'flashaid') {
+      // Show FlashAid sub-dropdown
+      flashaidSubDiv.style.display = 'block';
+      // If already has a flashaid plan selected, trigger that handler
+      var flashaidPlan = document.getElementById('flashaidPlan').value;
+      if (flashaidPlan && flashaidPlan.startsWith('flashaid_')) {
+        handleFlashAidChange();
+      }
+    } else if (instalmentPlan.startsWith('flashaid_')) {
+      // Show FlashAid instalment dates section
       instalmentDatesDiv.style.display = 'block';
       
-      // Extract instalment count
+      // Extract FlashAid instalment count (1-10)
+      var count = 0;
+      if (instalmentPlan === 'flashaid_1') count = 1;
+      else if (instalmentPlan === 'flashaid_2') count = 2;
+      else if (instalmentPlan === 'flashaid_3') count = 3;
+      else if (instalmentPlan === 'flashaid_4') count = 4;
+      else if (instalmentPlan === 'flashaid_5') count = 5;
+      else if (instalmentPlan === 'flashaid_6') count = 6;
+      else if (instalmentPlan === 'flashaid_7') count = 7;
+      else if (instalmentPlan === 'flashaid_8') count = 8;
+      else if (instalmentPlan === 'flashaid_9') count = 9;
+      else if (instalmentPlan === 'flashaid_10') count = 10;
+      
+      instalmentCountInput.value = count;
+      isBajajEMIInput.value = 'false';
+      isCheckInput.value = 'false';
+      
+      // Show respective FlashAid date fields
+      if (count >= 1) document.getElementById('instalment1Field').style.display = 'block';
+      if (count >= 2) document.getElementById('instalment2Field').style.display = 'block';
+      if (count >= 3) document.getElementById('instalment3Field').style.display = 'block';
+      if (count >= 4) document.getElementById('instalment4Field').style.display = 'block';
+      if (count >= 5) document.getElementById('instalment5Field').style.display = 'block';
+      if (count >= 6) document.getElementById('instalment6Field').style.display = 'block';
+      if (count >= 7) document.getElementById('instalment7Field').style.display = 'block';
+      if (count >= 8) document.getElementById('instalment8Field').style.display = 'block';
+      if (count >= 9) document.getElementById('instalment9Field').style.display = 'block';
+      if (count >= 10) document.getElementById('instalment10Field').style.display = 'block';
+      
+      // Show total remaining div and update it
+      document.getElementById('totalRemainingDiv').style.display = 'block';
+      updateRemainingAmount();
+    } else if (instalmentPlan.startsWith('instalment_')) {
+      // Show regular instalment dates section (1-3 only)
+      instalmentDatesDiv.style.display = 'block';
+      
+      // Extract regular instalment count (1-3)
       var count = 0;
       if (instalmentPlan === 'instalment_1') count = 1;
       else if (instalmentPlan === 'instalment_2') count = 2;
       else if (instalmentPlan === 'instalment_3') count = 3;
+      
+      // Reset labels to regular Instalment
+      document.getElementById('instalment1Label').textContent = 'Instalment 1 Date';
+      document.getElementById('instalmentAmountInput1').placeholder = 'Enter instalment 1 amount';
+      document.getElementById('instalment2Label').textContent = 'Instalment 2 Date';
+      document.getElementById('instalmentAmountInput2').placeholder = 'Enter instalment 2 amount';
+      document.getElementById('instalment3Label').textContent = 'Instalment 3 Date';
+      document.getElementById('instalmentAmountInput3').placeholder = 'Enter instalment 3 amount';
       
       instalmentCountInput.value = count;
       isBajajEMIInput.value = 'false';
@@ -2680,6 +3037,83 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     }
   }
   
+  function handleFlashAidChange() {
+    var instalmentPlan = document.getElementById('flashaidPlan').value;
+    var instalmentDatesDiv = document.getElementById('instalmentDatesDiv');
+    var instalmentCountInput = document.getElementById('instalmentCount');
+    var isBajajEMIInput = document.getElementById('isBajajEMI');
+    var isCheckInput = document.getElementById('isCheck');
+    
+    // Hide all fields first
+    document.getElementById('instalment1Field').style.display = 'none';
+    document.getElementById('instalment2Field').style.display = 'none';
+    document.getElementById('instalment3Field').style.display = 'none';
+    document.getElementById('instalment4Field').style.display = 'none';
+    document.getElementById('instalment5Field').style.display = 'none';
+    document.getElementById('instalment6Field').style.display = 'none';
+    document.getElementById('instalment7Field').style.display = 'none';
+    document.getElementById('instalment8Field').style.display = 'none';
+    document.getElementById('instalment9Field').style.display = 'none';
+    document.getElementById('instalment10Field').style.display = 'none';
+    
+    if (!instalmentPlan) {
+      instalmentDatesDiv.style.display = 'none';
+      instalmentCountInput.value = 0;
+      return;
+    }
+    
+    // Set main dropdown to flashaid
+    var selectEl = document.getElementById('instalmentPlanSelect');
+    if (selectEl) {
+      selectEl.value = 'flashaid';
+    }
+    document.getElementById('instalmentPlan').value = instalmentPlan;
+    
+    // Show instalment dates section
+    instalmentDatesDiv.style.display = 'block';
+    
+    // Extract FlashAid instalment count (1-10)
+    var count = 0;
+    if (instalmentPlan === 'flashaid_1') count = 1;
+    else if (instalmentPlan === 'flashaid_2') count = 2;
+    else if (instalmentPlan === 'flashaid_3') count = 3;
+    else if (instalmentPlan === 'flashaid_4') count = 4;
+    else if (instalmentPlan === 'flashaid_5') count = 5;
+    else if (instalmentPlan === 'flashaid_6') count = 6;
+    else if (instalmentPlan === 'flashaid_7') count = 7;
+    else if (instalmentPlan === 'flashaid_8') count = 8;
+    else if (instalmentPlan === 'flashaid_9') count = 9;
+    else if (instalmentPlan === 'flashaid_10') count = 10;
+    
+    // Update labels to show FlashAid
+    document.getElementById('instalment1Label').textContent = 'FlashAid Instalment 1 Date';
+    document.getElementById('instalmentAmountInput1').placeholder = 'Enter FlashAid instalment 1 amount';
+    document.getElementById('instalment2Label').textContent = 'FlashAid Instalment 2 Date';
+    document.getElementById('instalmentAmountInput2').placeholder = 'Enter FlashAid instalment 2 amount';
+    document.getElementById('instalment3Label').textContent = 'FlashAid Instalment 3 Date';
+    document.getElementById('instalmentAmountInput3').placeholder = 'Enter FlashAid instalment 3 amount';
+    
+    instalmentCountInput.value = count;
+    isBajajEMIInput.value = 'false';
+    isCheckInput.value = 'false';
+    
+    // Show respective date fields
+    if (count >= 1) document.getElementById('instalment1Field').style.display = 'block';
+    if (count >= 2) document.getElementById('instalment2Field').style.display = 'block';
+    if (count >= 3) document.getElementById('instalment3Field').style.display = 'block';
+    if (count >= 4) document.getElementById('instalment4Field').style.display = 'block';
+    if (count >= 5) document.getElementById('instalment5Field').style.display = 'block';
+    if (count >= 6) document.getElementById('instalment6Field').style.display = 'block';
+    if (count >= 7) document.getElementById('instalment7Field').style.display = 'block';
+    if (count >= 8) document.getElementById('instalment8Field').style.display = 'block';
+    if (count >= 9) document.getElementById('instalment9Field').style.display = 'block';
+    if (count >= 10) document.getElementById('instalment10Field').style.display = 'block';
+    
+    // Show total remaining div and update it
+    document.getElementById('totalRemainingDiv').style.display = 'block';
+    updateRemainingAmount();
+  }
+  
   // This function is no longer used - kept for compatibility
   function updateInstalmentAmounts() {
     // Just update the remaining amount calculation
@@ -2688,17 +3122,36 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   
   function updateRemainingAmount() {
     var pendingFees = parseFloat(document.getElementById('pendingFees').value) || 0;
-    var instalmentPlan = document.getElementById('instalmentPlan').value;
+    var instalmentPlan = document.getElementById('instalmentPlanSelect') ? document.getElementById('instalmentPlanSelect').value : document.getElementById('instalmentPlan').value;
+    var flashaidPlan = document.getElementById('flashaidPlan').value;
     
-    if (!instalmentPlan.startsWith('instalment_')) {
+    // If main dropdown is 'flashaid', use the sub-dropdown value
+    if (instalmentPlan === 'flashaid' && flashaidPlan) {
+      instalmentPlan = flashaidPlan;
+    }
+    
+    if (!instalmentPlan.startsWith('instalment_') && !instalmentPlan.startsWith('flashaid_')) {
       document.getElementById('totalRemainingDiv').style.display = 'none';
       return;
     }
     
     var count = 0;
-    if (instalmentPlan === 'instalment_1') count = 1;
-    else if (instalmentPlan === 'instalment_2') count = 2;
-    else if (instalmentPlan === 'instalment_3') count = 3;
+    if (instalmentPlan.startsWith('flashaid_')) {
+      if (instalmentPlan === 'flashaid_1') count = 1;
+      else if (instalmentPlan === 'flashaid_2') count = 2;
+      else if (instalmentPlan === 'flashaid_3') count = 3;
+      else if (instalmentPlan === 'flashaid_4') count = 4;
+      else if (instalmentPlan === 'flashaid_5') count = 5;
+      else if (instalmentPlan === 'flashaid_6') count = 6;
+      else if (instalmentPlan === 'flashaid_7') count = 7;
+      else if (instalmentPlan === 'flashaid_8') count = 8;
+      else if (instalmentPlan === 'flashaid_9') count = 9;
+      else if (instalmentPlan === 'flashaid_10') count = 10;
+    } else if (instalmentPlan.startsWith('instalment_')) {
+      if (instalmentPlan === 'instalment_1') count = 1;
+      else if (instalmentPlan === 'instalment_2') count = 2;
+      else if (instalmentPlan === 'instalment_3') count = 3;
+    }
     
     var totalEntered = 0;
     for (var i = 1; i <= count; i++) {
@@ -2743,9 +3196,18 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
   
   function validateAndSubmit() {
     var feeMode = document.getElementById('feeMode').value;
-    var instalmentPlan = document.getElementById('instalmentPlan').value;
+    var instalmentPlan = document.getElementById('instalmentPlanSelect') ? document.getElementById('instalmentPlanSelect').value : document.getElementById('instalmentPlan').value;
+    var flashaidPlan = document.getElementById('flashaidPlan').value;
     var totalFees = parseFloat(document.getElementById('totalFees').value) || 0;
     var paidFees = parseFloat(document.getElementById('paidFees').value) || 0;
+    
+    // If main dropdown is 'flashaid', use the sub-dropdown value and update hidden field
+    if (instalmentPlan === 'flashaid' && flashaidPlan) {
+      instalmentPlan = flashaidPlan;
+    }
+    
+    // Update the hidden instalmentPlan field to send correct value
+    document.getElementById('instalmentPlan').value = instalmentPlan;
     
     // Validation
     if (totalFees <= 0) {
@@ -2764,7 +3226,27 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     }
     
     // Validate instalment dates
-    if (instalmentPlan.startsWith('instalment_')) {
+    if (instalmentPlan.startsWith('flashaid_')) {
+      var count = 0;
+      if (instalmentPlan === 'flashaid_1') count = 1;
+      else if (instalmentPlan === 'flashaid_2') count = 2;
+      else if (instalmentPlan === 'flashaid_3') count = 3;
+      else if (instalmentPlan === 'flashaid_4') count = 4;
+      else if (instalmentPlan === 'flashaid_5') count = 5;
+      else if (instalmentPlan === 'flashaid_6') count = 6;
+      else if (instalmentPlan === 'flashaid_7') count = 7;
+      else if (instalmentPlan === 'flashaid_8') count = 8;
+      else if (instalmentPlan === 'flashaid_9') count = 9;
+      else if (instalmentPlan === 'flashaid_10') count = 10;
+      
+      for (var i = 1; i <= count; i++) {
+        var dateField = document.getElementById('instalmentDate' + i);
+        if (!dateField || !dateField.value) {
+          alert('Please select date for FlashAid Instalment ' + i);
+          return false;
+        }
+      }
+    } else if (instalmentPlan.startsWith('instalment_')) {
       var count = 0;
       if (instalmentPlan === 'instalment_1') count = 1;
       else if (instalmentPlan === 'instalment_2') count = 2;
@@ -2789,6 +3271,16 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
     // Initialize fee calculations
     calculatePendingFees();
     handleInstalmentChange();
+    
+    // If FlashAid plan is already selected, trigger the flashaid handler
+    setTimeout(function() {
+      var instalmentPlan = document.getElementById('instalmentPlanSelect') ? document.getElementById('instalmentPlanSelect').value : document.getElementById('instalmentPlan').value;
+      if (instalmentPlan && instalmentPlan.startsWith('flashaid_')) {
+        document.getElementById('flashaidSubDiv').style.display = 'block';
+        document.getElementById('flashaidPlan').value = instalmentPlan;
+        handleFlashAidChange();
+      }
+    }, 100);
     
     // ==== 1) Section master auto-toggle (existing logic) ====
     const radios = document.querySelectorAll('input[type="radio"][data-section]');
@@ -2952,6 +3444,7 @@ const normalizeMode = (mode) => {
   if (m === "no_cost_emi") return "No Cost EMI";
   if (m === "pos") return "PoS";
   if (m === "cheque") return "Cheque";
+  if (m.startsWith("flashaid_")) return "FlashAid Instalment";
   return mode.toUpperCase();
 };
 
@@ -3999,6 +4492,12 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
             <div class="field-label">Payment Mode</div>
             <div class="field-value">${feeMode ? normalizeMode(feeMode) : "-"}</div>
           </div>
+          ${p?.fees?.instalmentPlan ? `
+          <div>
+            <div class="field-label">Instalment Plan</div>
+            <div class="field-value">${p.fees.instalmentPlan.startsWith('flashaid_') ? 'FlashAid ' + p.fees.instalmentPlan.replace('flashaid_', 'Instalment ') : p.fees.instalmentPlan.replace('_', ' ')}</div>
+          </div>
+          ` : ""}
           ${(p?.fees?.additionalFees > 0 || p?.fees?.additionalFeeMode) ? `
           <div>
             <div class="field-label">Split Fees</div>
@@ -4016,15 +4515,15 @@ ${p.personal?.salutation || ""} ${p.personal?.name || "-"}</div>
           ` : ""}
         </div>
         
-        ${p?.fees?.instalmentPlan?.startsWith('instalment_') ? `
+        ${p?.fees?.instalmentPlan?.startsWith('instalment_') || p?.fees?.instalmentPlan?.startsWith('flashaid_') ? `
         <div style="margin-top:12px; padding-top:12px; border-top:1px solid #86efac;">
-          <p style="margin:0 0 8px; font-weight:600; color:#15803d;">📅 Instalment Schedule:</p>
+          <p style="margin:0 0 8px; font-weight:600; color:#15803d;">${p?.fees?.instalmentPlan?.startsWith('flashaid_') ? '📅 FlashAid Instalment Schedule:' : '📅 Instalment Schedule:'}</p>
           ${(p?.fees?.instalmentDates || []).map((date, idx) => {
             const amount = p?.fees?.instalmentAmounts?.[idx] || 0;
             const dateStr = date ? new Date(date).toLocaleDateString("en-IN", { day: 'numeric', month: 'long' }) : 'TBD';
             return `
               <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #86efac;">
-                <span style="color:#166534; font-weight:500;">Instalment ${idx + 1}</span>
+                <span style="color:#166534; font-weight:500;">${p?.fees?.instalmentPlan?.startsWith('flashaid_') ? 'FlashAid ' : ''}Instalment ${idx + 1}</span>
                 <span style="color:#166534;">₹${amount} on ${dateStr}</span>
               </div>
             `;
@@ -4386,7 +4885,15 @@ const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
 
 // ✅ counselor resolve (ab EMAIL / EMAILS dono support)
 const counselor =
-  counselorKey === "c2"
+  counselorKey === "c3"
+    ? {
+        name: process.env.COUNSELOR3_NAME || "HARIS",
+        email:
+          process.env.COUNSELOR3_EMAIL ||
+          pickFirstEmail(process.env.COUNSELOR3_EMAILS) ||
+          "", // blank allowed
+      }
+    : counselorKey === "c2"
     ? {
         name: process.env.COUNSELOR2_NAME || "NISHA",
         email:

@@ -497,6 +497,7 @@ export async function generateAdmissionPDF(payload, opts = {}) {
 
   const tcType = payload?.tc?.type || (payload?.course?.trainingOnly ? "training-only" : "job-guarantee");
   const isTrainingOnly = tcType === "training-only";
+  const isBootcamp = tcType === "bootcamp" || payload?.course?.bootcampTraining === true;
 
   // ✅ force "review" → "pending"
   let status = (opts.status || payload?.status || payload?.statusBanner || "")
@@ -529,13 +530,13 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     const drawCenterWatermark = () => {
       const pageWidth = doc.page.width;
       const pageHeight = doc.page.height;
-      const watermarkW = 300; // Bigger size
+      const watermarkW = 300;
       const watermarkH = 300;
       const x = (pageWidth - watermarkW) / 2;
       const y = (pageHeight - watermarkH) / 2;
       
       doc.save()
-        .opacity(0.05) // Very subtle watermark effect - barely visible
+        .opacity(0.05)
         .image(watermarkBuf, x, y, { width: watermarkW, height: watermarkH })
         .restore();
     };
@@ -585,8 +586,9 @@ export async function generateAdmissionPDF(payload, opts = {}) {
 
   /* ---------- Course ---------- */
   await sectionBox(doc, "Course Details", async (area) => {
+    const admissionTypeValue = isBootcamp ? "Bootcamp Training Program" : (isTrainingOnly ? "Training-only (No Guarantee)" : "Job Guarantee Program");
     const rows = [
-      { label: "Admission Type", value: isTrainingOnly ? "Training-only (No Guarantee)" : "Job Guarantee Program" },
+      { label: "Admission Type", value: admissionTypeValue },
       { label: "Course Enrolled", value: keep(C.name) },
       { label: "Reference (Friend/Colleague/Relative)", value: keep(C.reference) },
     ];
@@ -661,7 +663,7 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     ensureSpace(doc, 30); // Ensure space for heading
     doc.font("Helvetica-Bold").fontSize(14)
       .text(
-        isTrainingOnly ? "Training Terms & Conditions" : "Job Guarantee Terms & Conditions",
+        isBootcamp ? "Bootcamp Training Terms & Conditions" : (isTrainingOnly ? "Training Terms & Conditions" : "Job Guarantee Terms & Conditions"),
         { align: "center", underline: true }
       );
     doc.font("Helvetica").moveDown(0.4);
@@ -669,35 +671,36 @@ export async function generateAdmissionPDF(payload, opts = {}) {
       noticeBox(doc, "Training-only enrollment: Fees are non-refundable. Please read the terms carefully.");
     }
     const tcTextRaw = (payload.tc?.text || "").trim();
-    const tcText = tcTextRaw || (isTrainingOnly ? DEFAULT_TRAINING_ONLY_TNC : "");
+    const tcText = tcTextRaw || (isBootcamp ? DEFAULT_BOOTCAMP_TNC : (isTrainingOnly ? DEFAULT_TRAINING_ONLY_TNC : ""));
     if (tcText) renderTerms(doc, tcText);
     else doc.text("No Terms & Conditions provided.", { align: "center" });
   }
 
-  /* ---------- Signatures (UNCHANGED) ---------- */
-  // Continue on same page as T&C - removed doc.addPage()
+  // Add document submission note before DATE/PLACE/MODE
   doc.moveDown(0.3);
-  doc.fontSize(13)
-    .text(`DATE: ${new Date().toLocaleDateString('en-IN')}`)
-    .text(`PLACE OF ADMISSION: ${keep(CTR.placeOfAdmission, "-")}`)
-    .text(`ONLINE / OFFLINE: ${keep(CTR.mode, "-")}`)
-    .moveDown(1.0);
-
-  const sigTop  = doc.y;
+  doc.fontSize(9).text("Note: Kindly submit 2 Passport Size Photographs, One Digital Photograph for online records, PAN Card and Aadhar/Driving License photocopy along with signed copy of this agreement.");
+  
+  // DATE PLACE MODE - each on separate line
+  doc.moveDown(0.2);
+  doc.fontSize(10).text(`DATE: ${new Date().toLocaleDateString('en-IN')}`);
+  doc.fontSize(10).text(`PLACE OF ADMISSION: ${keep(CTR.placeOfAdmission, "-")}`);
+  doc.fontSize(10).text(`ONLINE / OFFLINE: ${keep(CTR.mode, "-")}`);
+  
+  doc.moveDown(0.3);
   const gapCols = 20;
   const colW    = (CONTENT_W - 2 * gapCols) / 3;
   const colX    = [ MARGIN, MARGIN + colW + gapCols, MARGIN + 2*(colW + gapCols) ];
 
-  // Headings
-  doc.font("Helvetica-Bold").fontSize(12)
-     .text("STUDENT",              colX[0], sigTop)
-     .text("PARENT/GUARDIAN",      colX[1], sigTop)
-     .text("For Awdiz Sign & Seal",colX[2], sigTop);
+  // Headings - all on same line
+  doc.font("Helvetica-Bold").fontSize(11)
+     .text("STUDENT",              colX[0], doc.y)
+     .text("PARENT/GUARDIAN",      colX[1], doc.y)
+     .text("For Awdiz Sign & Seal",colX[2], doc.y);
   doc.font("Helvetica");
+  doc.moveDown(0.2);
 
-  const sigY = sigTop + 30;
-  const sigH = 130; // bigger slot (as you set earlier)
-  const pad  = 4;
+  const sigH = 50; // smaller slot
+  const pad  = 3;
 
   const loadImg = async (...candidates) => {
     for (const c of candidates) {
@@ -707,6 +710,9 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     return null;
   };
 
+  // Get current Y position for all signature boxes
+  const signStartY = doc.y;
+
   // Student signature
   const studentSignBuf = await loadImg(
     payload?.signatures?.student?.signDataUrl,
@@ -715,36 +721,35 @@ export async function generateAdmissionPDF(payload, opts = {}) {
     payload?.files?.studentSignUrl
   );
   if (studentSignBuf) {
-    await drawCenteredImage(doc, studentSignBuf, colX[0] + pad, sigY + pad, colW - 10 - pad*2, sigH - pad*2);
+    await drawCenteredImage(doc, studentSignBuf, colX[0] + pad, signStartY + pad, colW - 10 - pad*2, sigH - pad*2);
+  } else {
+    doc.rect(colX[0] + pad, signStartY + pad, colW - 10 - pad*2, sigH - pad*2).stroke();
   }
 
-  // Parent/Guardian signature — same auto-fallback as before (if you added earlier)
-
-const parentSignBuf = await loadImg(
-  payload?.signatures?.parent?.signDataUrl,
-  payload?.signatures?.parent?.signUrl,
-  payload?.parentSignatureUrl,
-  payload?.guardianSignatureUrl,
-  payload?.files?.parentSign,
-  payload?.files?.guardianSign,
-  payload?.files?.parentSignUrl,
-  payload?.files?.guardianSignUrl
-);
-
-if (parentSignBuf) {
-  await drawCenteredImage(
-    doc,
-    parentSignBuf,
-    colX[1] + pad,
-    sigY + pad,
-    colW - 10 - pad * 2,
-    sigH - pad * 2
+  // Parent/Guardian signature
+  const parentSignBuf = await loadImg(
+    payload?.signatures?.parent?.signDataUrl,
+    payload?.signatures?.parent?.signUrl,
+    payload?.parentSignatureUrl,
+    payload?.guardianSignatureUrl,
+    payload?.files?.parentSign,
+    payload?.files?.guardianSign,
+    payload?.files?.parentSignUrl,
+    payload?.files?.guardianSignUrl
   );
-} else {
-  // OPTIONAL debug box so you can SEE the slot + confirm coords
-  doc.rect(colX[1] + pad, sigY + pad, colW - 10 - pad * 2, sigH - pad * 2).stroke();
-  doc.fontSize(8).text("PARENT SIGN MISSING", colX[1] + pad + 4, sigY + pad + 4);
-}
+
+  if (parentSignBuf) {
+    await drawCenteredImage(
+      doc,
+      parentSignBuf,
+      colX[1] + pad,
+      signStartY + pad,
+      colW - 10 - pad * 2,
+      sigH - pad * 2
+    );
+  } else {
+    doc.rect(colX[1] + pad, signStartY + pad, colW - 10 - pad * 2, sigH - pad * 2).stroke();
+  }
 
   // Right column: Awdiz sign (top) + seal (bottom)
   const awdizSignBuf = await loadImg(
@@ -763,22 +768,25 @@ if (parentSignBuf) {
   const slotH = Math.floor((rightInnerH - miniGap) / 2);
 
   if (awdizSignBuf) {
-    await drawCenteredImage(doc, awdizSignBuf, rightInnerX, sigY + pad, rightInnerW, slotH);
+    await drawCenteredImage(doc, awdizSignBuf, rightInnerX, signStartY + pad, rightInnerW, slotH);
   }
   if (awdizSealBuf) {
-    await drawCenteredImage(doc, awdizSealBuf, rightInnerX, sigY + pad + slotH + miniGap, rightInnerW, slotH);
+    await drawCenteredImage(doc, awdizSealBuf, rightInnerX, signStartY + pad + slotH + miniGap, rightInnerW, slotH);
   }
 
-  // Names row
-  doc.fontSize(11)
-     .text(`FULL NAME: ${keep(payload?.signatures?.student?.fullName)}`, colX[0], sigY + sigH + 20)
-     .text(`FULL NAME: ${keep(payload?.signatures?.parent?.fullName || payload?.signatures?.guardian?.fullName)}`,  colX[1], sigY + sigH + 20)
-     .text(``, colX[2], sigY + sigH + 20);
+  // Move to below signature boxes
+  doc.y = signStartY + sigH + 5;
 
-  doc.moveDown(1.0);
-  doc.fontSize(10)
-     .text("NOTE: This contract is valid for 12 months from the date of signing. All disputes subject to Mumbai jurisdiction.")
-     .text("Addresses: Vashi Plaza (Navi Mumbai) • Bandra (West) Mumbai");
+  // Names row - below signature boxes
+  doc.moveDown(0.2);
+  doc.fontSize(9).text("FULL NAME: " + keep(payload?.signatures?.student?.fullName), colX[0], doc.y);
+  doc.fontSize(9).text("FULL NAME: " + keep(payload?.signatures?.parent?.fullName || payload?.signatures?.guardian?.fullName), colX[1], doc.y);
+
+  // Contract note - below names
+  doc.moveDown(0.3);
+  doc.fontSize(8)
+     .text("NOTE: This contract is valid for 12 months from the date of signing. All disputes subject to Mumbai jurisdiction.", { align: "left" })
+     .text("Addresses: Vashi Plaza (Navi Mumbai) • Bandra (West) Mumbai", { align: "left" });
 
   doc.end();
 const pdfBuffer = await done;

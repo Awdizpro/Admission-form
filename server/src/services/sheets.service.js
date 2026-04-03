@@ -11,6 +11,7 @@ const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 // Center-wise sheet IDs
 const SHEET_ID_VASHI = process.env.SHEET_ID_VASHI || "";
 const SHEET_ID_BANDRA = process.env.SHEET_ID_BANDRA || "";
+const SHEET_ID_BTL = process.env.SHEET_ID_BTL || "";
 
 // ✅ Master Sheet ID (AWDIZ Master Sheet)
 const SHEET_ID_AWDIZ_MASTER_SHEET = process.env.SHEET_ID_AWDIZ_MASTER_SHEET || "";
@@ -18,6 +19,7 @@ const SHEET_ID_AWDIZ_MASTER_SHEET = process.env.SHEET_ID_AWDIZ_MASTER_SHEET || "
 // ✅ Counselor-wise separate spreadsheets (privacy separation)
 const SHEET_ID_COUNSELOR_1 = process.env.SHEET_COUNSELOR_1_ID || "";
 const SHEET_ID_COUNSELOR_2 = process.env.SHEET_COUNSELOR_2_ID || "";
+const SHEET_ID_COUNSELOR_3 = process.env.SHEET_COUNSELOR_3_ID || "";
 
 /**
  * ✅ FIX (DON'T REMOVE COMMENTS ABOVE):
@@ -29,6 +31,8 @@ const MASTER_TAB_COUNSELOR_1 =
   process.env.MASTER_TAB_COUNSELOR_1 || "Counselor 1 Sheet";
 const MASTER_TAB_COUNSELOR_2 =
   process.env.MASTER_TAB_COUNSELOR_2 || "Counselor 2 Sheet";
+const MASTER_TAB_COUNSELOR_3 =
+  process.env.MASTER_TAB_COUNSELOR_3 || "Counselor 3 Sheet";
 const MASTER_TAB_ALL_ADMISSIONS =
   process.env.MASTER_TAB_ALL_ADMISSIONS || "All Admissions";
 
@@ -66,7 +70,7 @@ function masterTabNameForCenter(centerPlace) {
   return "Master Sheet General";
 }
 
-// ✅ counselorKey resolver (c1 / c2)
+// ✅ counselorKey resolver (c1 / c2 / c3)
 function counselorKeyFromData(data) {
   const k =
     data?.counselorKey ||
@@ -77,15 +81,18 @@ function counselorKeyFromData(data) {
 
   const key = String(k || "").trim().toLowerCase();
   if (key === "c2" || key === "counselor2" || key === "2") return "c2";
+  if (key === "c3" || key === "counselor3" || key === "3") return "c3";
   return "c1"; // default
 }
 
 // ✅ map counselorKey -> spreadsheetId + master tab name
 function counselorSpreadsheetIdForKey(key) {
+  if (key === "c3") return SHEET_ID_BTL || SHEET_ID_COUNSELOR_3;
   if (key === "c2") return SHEET_ID_COUNSELOR_2;
   return SHEET_ID_COUNSELOR_1;
 }
 function counselorMasterTabForKey(key) {
+  if (key === "c3") return "BTL Admissions";
   if (key === "c2") return MASTER_TAB_COUNSELOR_2;
   return MASTER_TAB_COUNSELOR_1;
 }
@@ -492,6 +499,23 @@ function prepareRowValues(data, courseName) {
     data?.fees?.isCheck ? "Yes" : "No",
     data?.fees?.additionalFees || "",
     data?.fees?.additionalFeeMode ? data.fees.additionalFeeMode.toUpperCase() : "",
+    // ✅ FlashAid Instalment (4-10)
+    data?.fees?.instalmentDates?.[3] ? new Date(data.fees.instalmentDates[3]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[3] || "",
+    data?.fees?.instalmentDates?.[4] ? new Date(data.fees.instalmentDates[4]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[4] || "",
+    data?.fees?.instalmentDates?.[5] ? new Date(data.fees.instalmentDates[5]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[5] || "",
+    data?.fees?.instalmentDates?.[6] ? new Date(data.fees.instalmentDates[6]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[6] || "",
+    data?.fees?.instalmentDates?.[7] ? new Date(data.fees.instalmentDates[7]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[7] || "",
+    data?.fees?.instalmentDates?.[8] ? new Date(data.fees.instalmentDates[8]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[8] || "",
+    data?.fees?.instalmentDates?.[9] ? new Date(data.fees.instalmentDates[9]).toLocaleDateString("en-IN") : "",
+    data?.fees?.instalmentAmounts?.[9] || "",
+    // ✅ FlashAid flag
+    data?.fees?.instalmentPlan?.startsWith('flashaid_') ? "Yes" : "No",
   ];
 }
 
@@ -559,10 +583,27 @@ async function appendToSheet(sheets, spreadsheetId, sheetName, courseName, data)
     "Instalment 2 Amount",
     "Instalment 3 Date",
     "Instalment 3 Amount",
+    // ✅ FlashAid Instalments 4-10
+    "FlashAid Instalment 4 Date",
+    "FlashAid Instalment 4 Amount",
+    "FlashAid Instalment 5 Date",
+    "FlashAid Instalment 5 Amount",
+    "FlashAid Instalment 6 Date",
+    "FlashAid Instalment 6 Amount",
+    "FlashAid Instalment 7 Date",
+    "FlashAid Instalment 7 Amount",
+    "FlashAid Instalment 8 Date",
+    "FlashAid Instalment 8 Amount",
+    "FlashAid Instalment 9 Date",
+    "FlashAid Instalment 9 Amount",
+    "FlashAid Instalment 10 Date",
+    "FlashAid Instalment 10 Amount",
     "Bajaj EMI Process",
     "Cheque Payment",
     "Split Fees",
     "Split Fees Mode",
+    // ✅ FlashAid
+    "FlashAid Instalment",
   ];
 
   await ensureHeaderIfMissing(sheets, spreadsheetId, title, HEADERS);

@@ -13,6 +13,7 @@ export function adminEmails() {
 export function counselorEmailsByKey(counselorKey) {
   if (counselorKey === "c1") return listFromEnv("COUNSELOR_1_EMAILS");
   if (counselorKey === "c2") return listFromEnv("COUNSELOR_2_EMAILS");
+  if (counselorKey === "c3") return listFromEnv("COUNSELOR_3_EMAILS");
   return []; // fallback
 }
 
@@ -20,11 +21,13 @@ export function counselorEmailsByKey(counselorKey) {
  * Routing rule:
  * - Vashi -> c1
  * - Bandra -> c2
+ * - BTL -> c3
  * (Tum chaaho to later round-robin / percentage routing kar denge)
  */
 export function pickCounselorKeyFromCenter(placeOfAdmission) {
   const center = String(placeOfAdmission || "").toLowerCase();
   if (center.includes("vashi")) return "c1";
   if (center.includes("bandra")) return "c2";
+  if (center.includes("btl")) return "c3";
   return "c1"; // default
 }

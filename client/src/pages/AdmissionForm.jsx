@@ -6,8 +6,10 @@ import { setAdmissionDraft } from "../lib/formStore";
 import { useEffect, useRef, useState } from "react";
 import SignaturePad from "../components/SignaturePad.jsx";
 import TermsAndConditions from "../components/TermsAndConditions.jsx";
+import BootcampTerms from "../components/BootcampTerms.jsx";
 import { TERMS_TEXT } from "../components/termsText";
 import { api } from "../lib/api";
+import { BOOTCAMP_TERMS as BOOTCAMP_TERMS_TEXT } from "../components/bootcampTermsText";
 
 
 
@@ -25,7 +27,7 @@ export default function AdmissionForm() {
 
   const rawC = (searchParams.get("c") || "c1").toLowerCase();
 
-  const allowed = new Set(["c1", "1", "counselor1", "c2", "2", "counselor2"]);
+  const allowed = new Set(["c1", "1", "counselor1", "c2", "2", "counselor2", "c3", "3", "counselor3"]);
   if (!allowed.has(rawC)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -40,6 +42,7 @@ export default function AdmissionForm() {
   }
 
   const counselorKey =
+    rawC === "c3" || rawC === "3" || rawC === "counselor3" ? "c3" :
     rawC === "c2" || rawC === "2" || rawC === "counselor2" ? "c2" : "c1";
 
   // 🔐 LocalStorage key (counselor-wise)
@@ -66,7 +69,8 @@ export default function AdmissionForm() {
     course: {
       name: "",
       reference: "",
-      trainingOnly: false, // <-- radio decides this (Job = false, Training-only = true)
+      trainingOnly: false,
+      bootcampTraining: false,
     },
     education: [
       { qualification: "", school: "", year: "", percentage: "" },
@@ -683,7 +687,8 @@ export default function AdmissionForm() {
     if (key === "cr_name") return srcForm.course?.name ?? "";
     if (key === "cr_reference") return srcForm.course?.reference ?? "";
     if (key === "cr_planType") {
-      // job vs training-only
+      // job vs training-only vs bootcamp
+      if (srcForm.course?.bootcampTraining) return "bootcamp";
       return srcForm.course?.trainingOnly ? "training-only" : "job";
     }
 
@@ -928,7 +933,9 @@ export default function AdmissionForm() {
 
     const tcTextToUse = form.course.trainingOnly
       ? TRAINING_ONLY_TNC
-      : TERMS_TEXT;
+      : form.course.bootcampTraining
+        ? BOOTCAMP_TERMS_TEXT
+        : TERMS_TEXT;
 
     setAdmissionDraft({
       payload: {
@@ -945,11 +952,11 @@ export default function AdmissionForm() {
           accepted: true,
           version: form.tcVersion,
           text: tcTextToUse,
-          type: form.course.trainingOnly ? "training-only" : "job-guarantee",
+          type: form.course.trainingOnly ? "training-only" : form.course.bootcampTraining ? "bootcamp" : "job-guarantee",
           dataConsentAccepted: form.dataConsentAccepted,   // ⬅️ optional but good
         },
         meta: {
-          planType: form.course.trainingOnly ? "training" : "job",
+          planType: form.course.trainingOnly ? "training" : form.course.bootcampTraining ? "bootcamp" : "job",
           counselorKey, // ✅ NEW
         },
 
@@ -1335,12 +1342,12 @@ export default function AdmissionForm() {
                   type="radio"
                   name="planType"
                   className="mt-1"
-                  checked={!form.course.trainingOnly}
+                  checked={!form.course.trainingOnly && !form.course.bootcampTraining}
                   disabled={!isFieldEditable("course", "cr_planType")}
                   onChange={() =>
                     setForm({
                       ...form,
-                      course: { ...form.course, trainingOnly: false },
+                      course: { ...form.course, trainingOnly: false, bootcampTraining: false },
                     })
                   }
                 />
@@ -1366,7 +1373,7 @@ export default function AdmissionForm() {
                   onChange={() =>
                     setForm({
                       ...form,
-                      course: { ...form.course, trainingOnly: true },
+                      course: { ...form.course, trainingOnly: true, bootcampTraining: false },
                     })
                   }
                 />
@@ -1374,9 +1381,35 @@ export default function AdmissionForm() {
                   <b>Training only</b>
                 </span>
               </label>
+
+              <label
+                className={
+                  "flex items-start gap-3 cursor-pointer select-none border rounded p-2 " +
+                  (isFieldHighlighted("course", "cr_planType")
+                    ? "border-red-500 bg-red-50"
+                    : "")
+                }
+              >
+                <input
+                  type="radio"
+                  name="planType"
+                  className="mt-1"
+                  checked={form.course.bootcampTraining}
+                  disabled={!isFieldEditable("course", "cr_planType")}
+                  onChange={() =>
+                    setForm({
+                      ...form,
+                      course: { ...form.course, trainingOnly: false, bootcampTraining: true },
+                    })
+                  }
+                />
+                <span className="min-w-0">
+                  <b>Bootcamp Training Program</b>
+                </span>
+              </label>
             </div>
 
-            <p className="text-xs opacity-70">Tip: Select exactly one option.</p>
+            <p className="text-xs opacity-70">Tip: Select one option.</p>
           </section>
 
           {/* ---------- EDUCATION ---------- */}
@@ -1577,7 +1610,7 @@ export default function AdmissionForm() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="min-w-0">
-                <label className="block text-sm mb-1">Passport Size photo*</label>
+                <label className="block text-sm mb-1">Passport Size photo  2 MB*  </label>
 
                 {/* iOS: two labels (stable) */}
                 {isIOS ? (
@@ -1630,7 +1663,7 @@ export default function AdmissionForm() {
                         (isFieldHighlighted("uploads", "up_photo") ? "border-red-500 bg-red-50" : "")
                       }
                     >
-                      Take photo
+                     Take photo 
                       <input
                         type="file"
                         accept="image/*"
@@ -1783,7 +1816,7 @@ export default function AdmissionForm() {
 
 
               <div className="min-w-0">
-                <label className="block text-sm mb-1">PAN (image/pdf)*</label>
+                <label className="block text-sm mb-1">PAN (image/pdf) Size 2 MB*</label>
                 <input
                   type="file"
                   accept="image/*,.pdf"
@@ -1809,7 +1842,7 @@ export default function AdmissionForm() {
               </div>
               <div className="min-w-0">
                 <label className="block text-sm mb-1">
-                  Aadhaar/Driving (image/pdf)*
+                  Aadhaar/Driving (image/pdf) Size 2 MB*
                 </label>
                 <input
                   type="file"
@@ -1900,7 +1933,7 @@ export default function AdmissionForm() {
 
           {/* ---------- SIGNATURES ---------- */}
           <section className="space-y-2">
-            <h2 className="text-lg sm:text-xl font-semibold">Signatures</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Signatures (Digital Signatures not Sign out Of Box)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="min-w-0">
                 <label className="block text-sm mb-1">
@@ -2016,12 +2049,18 @@ export default function AdmissionForm() {
             <h2 className="text-lg sm:text-xl font-semibold">
               {form.course.trainingOnly
                 ? "Training Terms & Conditions"
-                : "Job Guarantee Terms & Conditions"}
+                : form.course.bootcampTraining
+                  ? "Bootcamp Training Terms & Conditions"
+                  : "Job Guarantee Terms & Conditions"}
             </h2>
 
             {form.course.trainingOnly ? (
               <div className="border rounded p-3 bg-gray-50 whitespace-pre-line">
                 {TRAINING_ONLY_TNC}
+              </div>
+            ) : form.course.bootcampTraining ? (
+              <div className="border rounded p-3 h-[500px] overflow-y-auto bg-gray-50">
+                <BootcampTerms />
               </div>
             ) : (
               <div className="border rounded p-3 h-56 overflow-y-auto bg-gray-50">
@@ -2041,7 +2080,11 @@ export default function AdmissionForm() {
               />
               <span>
                 I have read and agree to the{" "}
-                {form.course.trainingOnly ? "Training-only" : "Job-Guarantee"}{" "}
+                {form.course.trainingOnly
+                  ? "Training-only"
+                  : form.course.bootcampTraining
+                    ? "Bootcamp Training"
+                    : "Job-Guarantee"}{" "}
                 Terms &amp; Conditions.
               </span>
             </label>

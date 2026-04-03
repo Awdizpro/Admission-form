@@ -60,6 +60,7 @@ const AdmissionSchema = new mongoose.Schema(
       // added for your Job Guarantee vs Training-only flow
       trainingOnly:       { type: Boolean, default: false },
       trainingOnlyCourse: { type: String, trim: true, default: "" },
+      bootcampTraining:   { type: Boolean, default: false },
     },
 
     /* ======= EDUCATION TABLE ======= */
@@ -108,9 +109,11 @@ const AdmissionSchema = new mongoose.Schema(
       text:     { type: String, default: "" }, // full T&C to print in PDF
       type: {
         type: String,
-        enum: ["job-guarantee", "training-only"],
+        enum: ["job-guarantee", "training-only", "bootcamp"],
         default: function () {
-          return this?.course?.trainingOnly ? "training-only" : "job-guarantee";
+          if (this?.course?.trainingOnly) return "training-only";
+          if (this?.course?.bootcampTraining) return "bootcamp";
+          return "job-guarantee";
         },
       },
     },
@@ -119,12 +122,14 @@ const AdmissionSchema = new mongoose.Schema(
     meta: {
       planType: {
         type: String,
-        enum: ["job", "training"],
+        enum: ["job", "training", "bootcamp"],
         default: function () {
-          return this?.course?.trainingOnly ? "training" : "job";         
-        },       
+          if (this?.course?.trainingOnly) return "training";
+          if (this?.course?.bootcampTraining) return "bootcamp";
+          return "job";
+        },
       },
-      counselorKey: { type: String, trim: true, default: "" }, // ✅ NEW
+      counselorKey: { type: String, trim: true, default: "" },
     },
 
     /* ======= PDF refs (Pending + Approved) ======= */
