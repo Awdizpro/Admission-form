@@ -26,7 +26,7 @@ const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
    limits: {
-    fileSize: 35 * 1024 * 1024,    // ✅ PDFs ke liye safe
+    fileSize: 50 * 1024 * 1024,    // ✅ 50MB limit
     fieldSize: 25 * 1024 * 1024,   // ✅ base64 signatures safe
     files: 3,
     parts: 80,
@@ -44,7 +44,7 @@ router.post("/init", (req, res, next) => {
   initUpload(req, res, (err) => {
     if (err) {
       if (err.code === "LIMIT_FILE_SIZE") {
-        return res.status(413).json({ message: "File too large. Upload under 35MB." });
+        return res.status(413).json({ message: "File too large. Upload under 50MB." });
       }
       if (err.code === "LIMIT_PART_COUNT") {
         return res.status(413).json({ message: "Too many form parts. Try again." });
@@ -111,7 +111,7 @@ router.post("/:id/apply-edit", (req, res, next) => {
   editUpload(req, res, (err) => {
     if (err) {
       if (err.code === "LIMIT_FILE_SIZE") {
-        return res.status(413).json({ message: "File too large. Upload under 35MB." });
+        return res.status(413).json({ message: "File too large. Upload under 50MB." });
       }
       return res.status(400).json({ message: err.message || "Upload failed" });
     }
