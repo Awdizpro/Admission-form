@@ -175,6 +175,7 @@ function drawEduTable(doc, area, rows) {
     { key: "percentage",    title: "% Marks",              w: Math.floor(area.w * 0.16) },
   ];
   const gap = 8;
+  const lineGap = 3;
 
   const hY = doc.y;
   doc.save().rect(area.x, hY - 2, area.w, 26).fill("#f2f2f2").restore();
@@ -186,16 +187,40 @@ function drawEduTable(doc, area, rows) {
 
   doc.font("Helvetica").fontSize(11);
   rows.forEach(r => {
-    ensureSpace(doc, 18);
-    const y0 = doc.y;
+    // Step 1: Calculate max height for this row (with text wrapping)
+    let maxHeight = 18;
+    for (const c of cols) {
+      const cellText = keep(r[c.key], "-");
+      const h = doc.heightOfString(cellText, { width: c.w - 2, lineGap });
+      maxHeight = Math.max(maxHeight, h);
+    }
+    maxHeight += 8; // extra padding
+    
+    // Step 2: Ensure space and set row start position
+    ensureSpace(doc, maxHeight);
+    const rowStartY = doc.y;
+    
+    // Step 3: Draw each cell at same Y position (all columns in one row)
     let cursor = area.x + pad;
-    cols.forEach(c => {
-      doc.text(keep(r[c.key], "-"), cursor, y0, { width: c.w });
+    for (const c of cols) {
+      doc.text(keep(r[c.key], "-"), cursor, rowStartY, { 
+        width: c.w - 2, 
+        lineGap,
+        align: c.key === "year" || c.key === "percentage" ? "center" : "left"
+      });
       cursor += c.w + gap;
-    });
-    const y1 = doc.y;
-    doc.save().strokeColor("#e5e5e5").moveTo(area.x, y1).lineTo(area.x + area.w, y1).stroke().restore();
-    doc.moveDown(0.4);
+    }
+    
+    // Step 4: Move doc.y to after the tallest cell (not after each cell)
+    doc.y = rowStartY + maxHeight - 4;
+    
+    // Step 5: Draw row separator line
+    doc.save().strokeColor("#e5e5e5")
+      .moveTo(area.x, doc.y)
+      .lineTo(area.x + area.w, doc.y)
+      .stroke()
+      .restore();
+    doc.moveDown(0.3);
   });
 }
 
