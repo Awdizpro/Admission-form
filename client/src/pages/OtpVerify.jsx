@@ -115,23 +115,6 @@ export default function OtpVerify() {
       );
     }
 
-    // ✅ iOS Fix: Check total estimated FormData size
-    let totalEstimatedSize = 0;
-    if (files?.photo) totalEstimatedSize += files.photo.size || 0;
-    if (files?.panFile) totalEstimatedSize += files.panFile.size || 0;
-    if (files?.aadhaarFile) totalEstimatedSize += files.aadhaarFile.size || 0;
-    if (files?.studentSign) totalEstimatedSize += files.studentSign.length || 0;
-    if (files?.parentSign) totalEstimatedSize += files.parentSign.length || 0;
-
-    // 🔥 iOS struggles with uploads > 10MB total
-    const maxTotalSize = isIOS ? 8 * 1024 * 1024 : 25 * 1024 * 1024; // 8MB for iOS, 25MB for others
-    if (totalEstimatedSize > maxTotalSize) {
-      return setErr(
-        `Total upload size (${Math.round(totalEstimatedSize / 1024 / 1024)}MB) too large for ${isIOS ? 'iOS' : 'mobile'}. ` +
-        `Please use smaller files or reduce image quality. Recommended: Photo < 2MB, Documents < 3MB each.`
-      );
-    }
-
     // ✅ iOS Fix: Compress signatures before sending (reduces FormData size for iOS)
     let studentSignToSend = files?.studentSign;
     let parentSignToSend = files?.parentSign;
@@ -259,7 +242,7 @@ By signing this document, you acknowledge that you have received and agreed to l
         }
       } else {
         if (statusCode === 413) {
-          setErr("Files too large. Maximum total size is 35MB.");
+          setErr("Files too large. Please use smaller files.");
         } else {
           setErr(errorMessage || "Failed to send OTP. Please try again.");
         }

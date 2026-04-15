@@ -3,7 +3,7 @@ import path from "path";
 
 const storage = multer.memoryStorage(); // phone friendly, avoids disk path issues
 
-const MAX_MB = 15;
+const MAX_MB = 50;
 const fileSize = MAX_MB * 1024 * 1024;
 
 // Allowed extensions (fallback when mimetype is weird)
