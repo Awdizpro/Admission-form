@@ -109,10 +109,11 @@ const AdmissionSchema = new mongoose.Schema(
       text:     { type: String, default: "" }, // full T&C to print in PDF
       type: {
         type: String,
-        enum: ["job-guarantee", "training-only", "bootcamp"],
+        enum: ["job-guarantee", "training-only", "bootcamp", "job-assistance"],
         default: function () {
           if (this?.course?.trainingOnly) return "training-only";
           if (this?.course?.bootcampTraining) return "bootcamp";
+          if (this?.course?.jobAssistance) return "job-assistance";
           return "job-guarantee";
         },
       },
@@ -122,10 +123,11 @@ const AdmissionSchema = new mongoose.Schema(
     meta: {
       planType: {
         type: String,
-        enum: ["job", "training", "bootcamp"],
+        enum: ["job", "training", "bootcamp", "job-assistance"],
         default: function () {
           if (this?.course?.trainingOnly) return "training";
           if (this?.course?.bootcampTraining) return "bootcamp";
+          if (this?.course?.jobAssistance) return "job-assistance";
           return "job";
         },
       },

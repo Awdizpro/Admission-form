@@ -65,9 +65,7 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 ===================================================== */
 const corsOptions = {
   origin: (origin, cb) => {
-    // ✅ Mobile/LAN + server-to-server requests may have no origin
     if (!origin) return cb(null, true);
-    // ✅ Reflect requesting origin (works for multiple domains / IPs)
     return cb(null, origin);
   },
   credentials: true,
@@ -77,6 +75,7 @@ const corsOptions = {
     "Authorization",
     "X-Requested-With",
     "Accept",
+    "Cache-Control",
   ],
 };
 

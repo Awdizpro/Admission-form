@@ -410,10 +410,11 @@ function prepareRowValues(data, courseName) {
     timeZone: "Asia/Kolkata",
   });
 
-  const planType = data?.meta?.planType === "training" ? "training" : "job";
+  const rawPlanType = data?.meta?.planType || "";
+  const planType = rawPlanType === "job-assistance" ? "job-assistance" : (rawPlanType === "bootcamp" ? "bootcamp" : (rawPlanType === "training" ? "training" : "job"));
   const tcType =
     data?.tc?.type ||
-    (planType === "training" ? "training-only" : "job-guarantee");
+    (planType === "job-assistance" ? "job-assistance" : (planType === "bootcamp" ? "bootcamp" : (planType === "training" ? "training-only" : "job-guarantee")));
 
   // const admissionId = data?.admissionId || "";
   const admissionId =

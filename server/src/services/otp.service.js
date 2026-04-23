@@ -1,4 +1,3 @@
-//server/src/services/otp.service.js
 import crypto from "crypto";
 
 const DIGITS = "0123456789";
@@ -9,12 +8,14 @@ export function generateOtp(len = 6) {
   return s;
 }
 
-// HMAC hash (bcrypt bhi use kar sakte ho; HMAC light & fast hai)
 export function hashOtp(otp) {
+  if (!otp) return "";
   const secret = process.env.OTP_HASH_SECRET || "dev-secret";
   return crypto.createHmac("sha256", secret).update(String(otp)).digest("hex");
 }
 
 export function verifyOtp(otp, otpHash) {
-  return hashOtp(otp) === otpHash;
+  if (!otp || !otpHash) return false;
+  const computed = hashOtp(otp);
+  return computed === otpHash;
 }

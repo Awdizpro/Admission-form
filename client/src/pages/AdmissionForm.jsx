@@ -7,9 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import SignaturePad from "../components/SignaturePad.jsx";
 import TermsAndConditions from "../components/TermsAndConditions.jsx";
 import BootcampTerms from "../components/BootcampTerms.jsx";
+import JobAssistanceTerms from "../components/JobAssistanceTerms.jsx";
 import { TERMS_TEXT } from "../components/termsText";
 import { api } from "../lib/api";
 import { BOOTCAMP_TERMS as BOOTCAMP_TERMS_TEXT } from "../components/bootcampTermsText";
+import { JOB_ASSISTANCE_TERMS } from "../components/jobAssistanceTermsText";
 
 
 
@@ -71,6 +73,7 @@ export default function AdmissionForm() {
       reference: "",
       trainingOnly: false,
       bootcampTraining: false,
+      jobAssistance: false,
     },
     education: [
       { qualification: "", school: "", year: "", percentage: "" },
@@ -147,14 +150,10 @@ export default function AdmissionForm() {
   const photoCameraRef = useRef(null); // ✅ camera-only input for Android
 
   async function normalizeImageFile(file) {
-    // only images
-    // 🔥 iPhone camera fix: force normalize unknown / HEIC images
     if (!file) return file;
 
-    // Check if it's already a valid JPEG/PNG that doesn't need processing
-    // 🔥 iOS needs smaller files - use 1MB threshold for iOS
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const maxSizeThreshold = isIOS ? 1 * 1024 * 1024 : 2 * 1024 * 1024; // 1MB for iOS, 2MB for others
+    const maxSizeThreshold = isIOS ? 1500 * 1024 : 2 * 1024 * 1024;
     
     const isAlreadyOptimized =
       (file.type === "image/jpeg" || file.type === "image/png") &&
@@ -171,25 +170,27 @@ export default function AdmissionForm() {
 
     if (!isImage) return file;
 
-    // iPhone HEIC / HEIF / large images fix
     let bitmap;
     try {
       bitmap = await createImageBitmap(file);
     } catch (err) {
-      console.warn("ImageBitmap failed, returning original file", err);
-      // 🔒 Fallback: return original file wrapped in new File to ensure proper type
-      return new File(
-        [file],
-        `photo-${Date.now()}.jpg`,
-        { type: "image/jpeg" }
-      );
+      console.warn("ImageBitmap failed, trying FileReader", err);
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result);
+          fr.onerror = reject;
+          fr.readAsDataURL(file);
+        });
+        bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+      } catch (err2) {
+        console.warn("Image normalize failed, returning original", err2);
+        return file;
+      }
     }
 
     const canvas = document.createElement("canvas");
-
-    // 🔥 iOS needs smaller dimensions to prevent memory issues during upload
-    // iPhone camera photos can be 3000+ pixels, we reduce more aggressively for iOS
-    const MAX = isIOS ? 1200 : 1600;
+    const MAX = isIOS ? 1000 : 1400;
     let { width, height } = bitmap;
 
     if (width > MAX || height > MAX) {
@@ -202,19 +203,16 @@ export default function AdmissionForm() {
     canvas.height = height;
 
     const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bitmap, 0, 0, width, height);
 
-    // 🔥 iOS needs lower quality to keep file size small (memory issues)
-    const quality = isIOS ? 0.7 : 0.85;
+    const quality = isIOS ? 0.65 : 0.8;
     const blob = await new Promise((res) =>
       canvas.toBlob(res, "image/jpeg", quality)
     );
 
-    return new File(
-      [blob],
-      `photo-${Date.now()}.jpg`,
-      { type: "image/jpeg" }
-    );
+    return new File([blob], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
   }
 
   const photoReadyRef = useRef(false);
@@ -687,8 +685,9 @@ export default function AdmissionForm() {
     if (key === "cr_name") return srcForm.course?.name ?? "";
     if (key === "cr_reference") return srcForm.course?.reference ?? "";
     if (key === "cr_planType") {
-      // job vs training-only vs bootcamp
+      // job vs training-only vs bootcamp vs job-assistance
       if (srcForm.course?.bootcampTraining) return "bootcamp";
+      if (srcForm.course?.jobAssistance) return "job-assistance";
       return srcForm.course?.trainingOnly ? "training-only" : "job";
     }
 
@@ -896,23 +895,20 @@ export default function AdmissionForm() {
       return;
     }
 
-    // 🔥 iOS Fix: Check file sizes before allowing submit
-    if (isIOS) {
-      const maxPhotoSize = 3 * 1024 * 1024; // 3MB
-      const maxDocSize = 3 * 1024 * 1024;   // 3MB
-      
-      if (photo.size > maxPhotoSize) {
-        setError(`Photo too large (${Math.round(photo.size / 1024 / 1024)}MB). iOS limit: 3MB. Please use 'Choose file' to select a smaller image.`);
-        return;
-      }
-      if (panFile && panFile.size > maxDocSize) {
-        setError(`PAN document too large (${Math.round(panFile.size / 1024 / 1024)}MB). iOS limit: 3MB per file.`);
-        return;
-      }
-      if (aadhaarFile && aadhaarFile.size > maxDocSize) {
-        setError(`Aadhaar document too large (${Math.round(aadhaarFile.size / 1024 / 1024)}MB). iOS limit: 3MB per file.`);
-        return;
-      }
+    // Universal file size limit (all devices)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB per file
+    
+    if (photo.size > maxFileSize) {
+      setError(`Photo too large (${Math.round(photo.size / 1024 / 1024)}MB). Max 10MB. Please compress or use a smaller image.`);
+      return;
+    }
+    if (panFile && panFile.size > maxFileSize) {
+      setError(`PAN document too large (${Math.round(panFile.size / 1024 / 1024)}MB). Max 10MB.`);
+      return;
+    }
+    if (aadhaarFile && aadhaarFile.size > maxFileSize) {
+      setError(`Aadhaar document too large (${Math.round(aadhaarFile.size / 1024 / 1024)}MB). Max 10MB.`);
+      return;
     }
 
     if (!panFile) {
@@ -931,11 +927,13 @@ export default function AdmissionForm() {
       return;
     }
 
-    const tcTextToUse = form.course.trainingOnly
-      ? TRAINING_ONLY_TNC
-      : form.course.bootcampTraining
-        ? BOOTCAMP_TERMS_TEXT
-        : TERMS_TEXT;
+    const tcTextToUse = form.course.jobAssistance
+      ? JOB_ASSISTANCE_TERMS
+      : form.course.trainingOnly
+        ? TRAINING_ONLY_TNC
+        : form.course.bootcampTraining
+          ? BOOTCAMP_TERMS_TEXT
+          : TERMS_TEXT;
 
     setAdmissionDraft({
       payload: {
@@ -952,11 +950,11 @@ export default function AdmissionForm() {
           accepted: true,
           version: form.tcVersion,
           text: tcTextToUse,
-          type: form.course.trainingOnly ? "training-only" : form.course.bootcampTraining ? "bootcamp" : "job-guarantee",
+          type: form.course.jobAssistance ? "job-assistance" : form.course.trainingOnly ? "training-only" : form.course.bootcampTraining ? "bootcamp" : "job-guarantee",
           dataConsentAccepted: form.dataConsentAccepted,   // ⬅️ optional but good
         },
         meta: {
-          planType: form.course.trainingOnly ? "training" : form.course.bootcampTraining ? "bootcamp" : "job",
+          planType: form.course.jobAssistance ? "job-assistance" : form.course.trainingOnly ? "training" : form.course.bootcampTraining ? "bootcamp" : "job",
           counselorKey, // ✅ NEW
         },
 
@@ -1342,12 +1340,12 @@ export default function AdmissionForm() {
                   type="radio"
                   name="planType"
                   className="mt-1"
-                  checked={!form.course.trainingOnly && !form.course.bootcampTraining}
+                  checked={!form.course.jobAssistance && !form.course.trainingOnly && !form.course.bootcampTraining}
                   disabled={!isFieldEditable("course", "cr_planType")}
                   onChange={() =>
                     setForm({
                       ...form,
-                      course: { ...form.course, trainingOnly: false, bootcampTraining: false },
+                      course: { ...form.course, trainingOnly: false, bootcampTraining: false, jobAssistance: false },
                     })
                   }
                 />
@@ -1373,7 +1371,7 @@ export default function AdmissionForm() {
                   onChange={() =>
                     setForm({
                       ...form,
-                      course: { ...form.course, trainingOnly: true, bootcampTraining: false },
+                      course: { ...form.course, trainingOnly: true, bootcampTraining: false, jobAssistance: false },
                     })
                   }
                 />
@@ -1399,12 +1397,38 @@ export default function AdmissionForm() {
                   onChange={() =>
                     setForm({
                       ...form,
-                      course: { ...form.course, trainingOnly: false, bootcampTraining: true },
+                      course: { ...form.course, trainingOnly: false, bootcampTraining: true, jobAssistance: false },
                     })
                   }
                 />
                 <span className="min-w-0">
                   <b>Bootcamp Training Program</b>
+                </span>
+              </label>
+
+              <label
+                className={
+                  "flex items-start gap-3 cursor-pointer select-none border rounded p-2 " +
+                  (isFieldHighlighted("course", "cr_planType")
+                    ? "border-red-500 bg-red-50"
+                    : "")
+                }
+              >
+                <input
+                  type="radio"
+                  name="planType"
+                  className="mt-1"
+                  checked={form.course.jobAssistance}
+                  disabled={!isFieldEditable("course", "cr_planType")}
+                  onChange={() =>
+                    setForm({
+                      ...form,
+                      course: { ...form.course, trainingOnly: false, bootcampTraining: false, jobAssistance: true },
+                    })
+                  }
+                />
+                <span className="min-w-0">
+                  <b>Job Assistance Program</b>
                 </span>
               </label>
             </div>
@@ -1816,10 +1840,10 @@ export default function AdmissionForm() {
 
 
               <div className="min-w-0">
-                <label className="block text-sm mb-1">PAN (image/pdf) Size 2 MB*</label>
+                <label className="block text-sm mb-1">PAN Document (Photo/PDF) Max 10MB*</label>
                 <input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*,.pdf,.jpg,.jpeg,.png"
                   onChange={async (e) => {
                     const file = e.target.files?.[0] || null;
                     if (!file) return;
@@ -1842,11 +1866,11 @@ export default function AdmissionForm() {
               </div>
               <div className="min-w-0">
                 <label className="block text-sm mb-1">
-                  Aadhaar/Driving (image/pdf) Size 2 MB*
+                  Aadhaar/Driving License (Photo/PDF) Max 10MB*
                 </label>
                 <input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*,.pdf,.jpg,.jpeg,.png"
                   onChange={async (e) => {
                     const file = e.target.files?.[0] || null;
                     if (!file) return;
@@ -2051,7 +2075,9 @@ export default function AdmissionForm() {
                 ? "Training Terms & Conditions"
                 : form.course.bootcampTraining
                   ? "Bootcamp Training Terms & Conditions"
-                  : "Job Guarantee Terms & Conditions"}
+                  : form.course.jobAssistance
+                    ? "Job Assistance Terms & Conditions"
+                    : "Job Guarantee Terms & Conditions"}
             </h2>
 
             {form.course.trainingOnly ? (
@@ -2061,6 +2087,10 @@ export default function AdmissionForm() {
             ) : form.course.bootcampTraining ? (
               <div className="border rounded p-3 h-[500px] overflow-y-auto bg-gray-50">
                 <BootcampTerms />
+              </div>
+            ) : form.course.jobAssistance ? (
+              <div className="border rounded p-3 h-[500px] overflow-y-auto bg-gray-50">
+                <JobAssistanceTerms />
               </div>
             ) : (
               <div className="border rounded p-3 h-56 overflow-y-auto bg-gray-50">
@@ -2080,11 +2110,13 @@ export default function AdmissionForm() {
               />
               <span>
                 I have read and agree to the{" "}
-                {form.course.trainingOnly
-                  ? "Training-only"
-                  : form.course.bootcampTraining
-                    ? "Bootcamp Training"
-                    : "Job-Guarantee"}{" "}
+                {form.course.jobAssistance
+                  ? "Job-Assistance"
+                  : form.course.trainingOnly
+                    ? "Training-only"
+                    : form.course.bootcampTraining
+                      ? "Bootcamp Training"
+                      : "Job-Guarantee"}{" "}
                 Terms &amp; Conditions.
               </span>
             </label>

@@ -4,7 +4,7 @@
 import sharp from "sharp";
 import { uploadBuffer } from "../services/storage.service.js";
 import Admission from "../models/Admission.js";
-import { generateAdmissionPDF } from "../services/pdf.service.js"; // returns { buffer, url, ... }
+import { generateAdmissionPDF, DEFAULT_BOOTCAMP_TNC, DEFAULT_TNC_TERMS, DEFAULT_TRAINING_ONLY_TNC, DEFAULT_JOB_ASSISTANCE_TNC } from "../services/pdf.service.js"; // returns { buffer, url, ... }
 import {
   sendAdmissionEmails,
   sendCounselorMail,
@@ -275,17 +275,12 @@ const tryPickDataUrl = (v) =>
       tryPickDataUrl(body?.signatures?.parent?.signDataUrl) ||
       null;
 
-    // Quick debug
-    const _studLen = (studentSignDataUrl || "").length;
+    // Parent/Guardian signature is required
     const _parLen = (parentSignDataUrl || "").length;
-    console.log("[SIG] student(len):", _studLen, " parent(len):", _parLen);
-
-    // STRICT: Parent/Guardian sign is mandatory (no fallback)
     if (!_parLen) {
       return res.status(400).json({
-        message:
-          "Parent/Guardian signature is required (data URL missing or too large).",
-        hint: "Ensure field name is 'parentSignDataUrl' and increase multer fieldSize to 10MB.",
+        message: "Parent/Guardian signature is required.",
+        hint: "Ensure parent signs the form.",
       });
     }
 
@@ -339,10 +334,10 @@ const tryPickDataUrl = (v) =>
         accepted: true,
         version: body.tcVersion || "",
         text: body.tcText || "",
-        type: body.course.trainingOnly ? "training-only" : "job-guarantee",
+        type: body.course.bootcampTraining ? "bootcamp" : (body.course.trainingOnly ? "training-only" : (body.course.jobAssistance ? "job-assistance" : "job-guarantee")),
       },
       meta: {
-        planType: body.course.trainingOnly ? "training" : "job",
+        planType: body.course.bootcampTraining ? "bootcamp" : (body.course.trainingOnly ? "training" : (body.course.jobAssistance ? "job-assistance" : "job")),
         counselorKey,
       },
     };
@@ -1317,9 +1312,13 @@ const additionalFeeMode = p?.fees?.additionalFeeMode || "";
             .join("")
         : `<tr><td colspan="5" style="padding:6px 8px;font-size:13px;color:#6b7280;">No education details filled.</td></tr>`;
 
-    const jobType = p?.course?.trainingOnly
-      ? "No Job Guarantee – Training only"
-      : "Job Guarantee Training";
+    const jobType = (p?.course?.jobAssistance || p?.meta?.planType === "job-assistance")
+      ? "Job Assistance Program"
+      : (p?.course?.bootcampTraining || p?.meta?.planType === "bootcamp")
+        ? "Bootcamp Training Program"
+        : (p?.course?.trainingOnly || p?.meta?.planType === "training")
+          ? "Training Only"
+          : "Job Guarantee Training";
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -3469,9 +3468,13 @@ const normalizeMode = (mode) => {
        </tr>`;
 
 
-    const jobType = p?.course?.trainingOnly
-  ? "No Job Guarantee – Training only"
-  : "Job Guarantee Training";
+    const jobType = (p?.course?.jobAssistance || p?.meta?.planType === "job-assistance")
+    ? "Job Assistance Program"
+    : (p?.course?.bootcampTraining || p?.meta?.planType === "bootcamp")
+      ? "Bootcamp Training Program"
+      : (p?.course?.trainingOnly || p?.meta?.planType === "training")
+        ? "Training Only"
+        : "Job Guarantee Training";
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -5154,6 +5157,8 @@ async function applyAdmissionEdit(req, res) {
     const { id } = req.params;
     let { updated } = req.body || {}; // updated = full form data
 
+    console.log("[EDIT] Received updated.course:", JSON.stringify(updated?.course));
+
     if (!id) {
       return res.status(400).json({ message: "Missing admission id" });
     }
@@ -5208,7 +5213,51 @@ async function applyAdmissionEdit(req, res) {
 
     if (allowedSections.includes("course") && updated.course) {
       doc.course = { ...(doc.course || {}), ...(updated.course || {}) };
+      console.log("[EDIT] After merge, doc.course:", JSON.stringify(doc.course));
+      
+      const isTrainingOnly = updated.course?.trainingOnly === true;
+      const isBootcamp = updated.course?.bootcampTraining === true;
+      const isJobAssistance = updated.course?.jobAssistance === true;
+      console.log("[EDIT] isJobAssistance:", isJobAssistance);
+      const prevType = doc.tc?.type || "";
+      
+      // Generate new T&C text if course type changed
+      let newTcText = updated.tc?.text || doc.tc?.text || "";
+      
+// Only regenerate T&C if course type changed - USE DEFAULT SERVER CONSTANTS (full terms)
+      // Jab student edit karega aur type change karega, to server ke DEFAULT terms use honge
+      if (isBootcamp && prevType !== "bootcamp") {
+        newTcText = ""; // Clear so PDF uses DEFAULT_BOOTCAMP_TNC
+      } else if (isTrainingOnly && prevType !== "training-only") {
+        newTcText = ""; // Clear so PDF uses DEFAULT_TRAINING_ONLY_TNC
+      } else if (isJobAssistance && prevType !== "job-assistance") {
+        newTcText = ""; // Clear so PDF uses DEFAULT_JOB_ASSISTANCE_TNC
+      } else if (!isTrainingOnly && !isBootcamp && !isJobAssistance && prevType && prevType !== "job-guarantee") {
+        newTcText = ""; // Clear so PDF uses DEFAULT_TNC_TERMS
+      }
+      
+      const tcType = isBootcamp ? "bootcamp" : (isTrainingOnly ? "training-only" : (isJobAssistance ? "job-assistance" : "job-guarantee"));
+      
+      // Clear tc.text so PDF generation uses DEFAULT constants (full terms)
+      doc.tc = {
+        ...(doc.tc || {}),
+        type: tcType,
+        text: "", // Clear - PDF will use DEFAULT_ constants
+        accepted: true,
+      };
+      
+      // Also update meta.planType
+      const planType = isBootcamp ? "bootcamp" : (isTrainingOnly ? "training" : (isJobAssistance ? "job-assistance" : "job"));
+      doc.meta = {
+        ...(doc.meta || {}),
+        planType,
+      };
     }
+
+    // ✅ PRESERVE fees data - counselor ki fees/installment data hamesha rakhna hai
+    // Fees ko kabhi overwrite nahi karna - ye data sirf counselor hi change kar sakta hai
+    const existingFees = doc.fees || {};
+    console.log("[EDIT] Existing fees before edit:", JSON.stringify(existingFees));
 
     if (allowedSections.includes("education") && Array.isArray(updated.education)) {
       doc.education = updated.education;
@@ -5300,6 +5349,11 @@ async function applyAdmissionEdit(req, res) {
 
     // ✅ Edit ke baad status ko fir se "pending" rakhenge (counselor re-review karega)
     doc.status = "pending";
+    
+    // ✅ PRESERVE fees data - fees ko hamesha existingFees se restore karna hai
+    doc.fees = existingFees;
+    console.log("[EDIT] Restoring fees after edit:", JSON.stringify(existingFees));
+    
     await doc.save(); // 👈 pehle Mongo me latest data save
 
     // ✅ EditRequest metadata complete karo (resolved)

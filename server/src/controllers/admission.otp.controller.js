@@ -98,41 +98,40 @@ export async function initAdmission(req, res) {
       return res.status(400).json({ message: "Invalid form payload" });
     }
 
-    // ✅ minimal validation (align with frontend OtpVerify.jsx)
-    if (
-      !body?.personal?.name ||
-      !body?.personal?.studentMobile ||
-      !body?.personal?.email ||
-      !body?.course?.name ||
-      !toBool(body?.termsAccepted)
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Please complete all required fields and accept T&C." });
-    }
+    // ✅ Validation
+    const missing = [];
+    if (!body?.personal?.name) missing.push("Name");
+    if (!body?.personal?.studentMobile) missing.push("Mobile");
+    if (!body?.personal?.email) missing.push("Email");
+    if (!body?.course?.name) missing.push("Course");
+    if (!toBool(body?.termsAccepted)) missing.push("Terms");
+    if (body?.dataConsentAccepted === false) missing.push("Data Consent");
 
-    // ✅ if you want Data Consent required:
-    if (body?.dataConsentAccepted === false) {
-      return res.status(400).json({ message: "Please accept Data Consent." });
+    if (missing.length) {
+      return res.status(400).json({ message: `Please fill: ${missing.join(", ")}` });
     }
 
     const [photoUrl, panUrl, aadhaarUrl] = await pickUploads(req);
 
-    // ✅ signatures optional/required: keep as-is (no strict failure here)
     let studentSignUrl, parentSignUrl;
 
-    if (req.body.studentSignDataUrl?.startsWith("data:image")) {
-      studentSignUrl = await dataUrlToPng(
-        req.body.studentSignDataUrl,
-        `student-sign-${Date.now()}`
-      );
+    const sigStudent = req.body.studentSignDataUrl;
+    const sigParent = req.body.parentSignDataUrl;
+    
+    if (typeof sigStudent === "string" && sigStudent.startsWith("data:image")) {
+      try {
+        studentSignUrl = await dataUrlToPng(sigStudent, `student-sign-${Date.now()}`);
+      } catch (e) {
+        console.error("Student signature upload failed:", e?.message);
+      }
     }
 
-    if (req.body.parentSignDataUrl?.startsWith("data:image")) {
-      parentSignUrl = await dataUrlToPng(
-        req.body.parentSignDataUrl,
-        `parent-sign-${Date.now()}`
-      );
+    if (typeof sigParent === "string" && sigParent.startsWith("data:image")) {
+      try {
+        parentSignUrl = await dataUrlToPng(sigParent, `parent-sign-${Date.now()}`);
+      } catch (e) {
+        console.error("Parent signature upload failed:", e?.message);
+      }
     }
 
     // ✅ counselorKey support (IMPORTANT: default should be counselor1/counselor2)
@@ -172,7 +171,7 @@ export async function initAdmission(req, res) {
         accepted: true,
         version: body.tcVersion || "2025-10-16",
         text: body.tcText || "",
-        type: body?.course?.trainingOnly ? "training-only" : "job-guarantee",
+        type: body?.course?.jobAssistance ? "job-assistance" : (body?.course?.bootcampTraining ? "bootcamp" : (body?.course?.trainingOnly ? "training-only" : "job-guarantee")),
         dataConsentAccepted: !!(
           body?.dataConsentAccepted || body?.tc?.dataConsentAccepted
         ),
@@ -182,7 +181,7 @@ export async function initAdmission(req, res) {
       meta: {
         ...(body.meta || {}),
         counselorKey,
-        planType: body?.course?.trainingOnly ? "training" : "job",
+        planType: body?.course?.jobAssistance ? "job-assistance" : (body?.course?.bootcampTraining ? "bootcamp" : (body?.course?.trainingOnly ? "training" : "job")),
       },
     };
 
@@ -291,7 +290,13 @@ export async function verifyAdmission(req, res) {
     if (!ok) {
       pending.attempts += 1;
       await pending.save();
-      return res.status(400).json({ message: "Invalid OTP" });
+      
+      if (pending.attempts >= 5) {
+        pending.status = "FAILED";
+        await pending.save();
+        return res.status(400).json({ message: "Too many failed attempts. Please start again." });
+      }
+      return res.status(400).json({ message: `Invalid OTP. ${5 - pending.attempts} attempts left.` });
     }
 
     /* --------- MOBILE STEP --------- */

@@ -97,16 +97,28 @@ export default function OtpVerify() {
     if (!payload) return setErr("Session expired. Please fill the form again.");
     if (!mobile) return setErr("Mobile number missing from form data.");
 
-    // ✅ Detect iOS
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // ✅ Validate student signature exists
+    if (!files?.studentSign || !files?.studentSign?.startsWith?.("data:image")) {
+      return setErr("Student signature is missing. Please go back and sign.");
+    }
 
-    // ✅ iOS Fix: Validate parent signature exists
+    // ✅ Validate parent signature exists
     if (!files?.parentSign || !files?.parentSign?.startsWith?.("data:image")) {
       return setErr("Parent signature is missing. Please go back and sign.");
     }
 
-    // ✅ iOS Fix: Stricter signature size limits for iOS (memory issues)
-    const maxSigSize = isIOS ? 200000 : 500000; // 200KB for iOS, 500KB for others
+    // ✅ iOS Fix: Stricter signature size limits for iOS
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const maxSigSize = isIOS ? 200000 : 500000;
+
+    if (files?.studentSign?.length > maxSigSize) {
+      return setErr(
+        isIOS 
+          ? "Student signature too large for iOS. Please sign smaller."
+          : "Student signature is too large. Please sign again with a smaller signature."
+      );
+    }
+
     if (files?.parentSign?.length > maxSigSize) {
       return setErr(
         isIOS 
@@ -228,21 +240,22 @@ By signing this document, you acknowledge that you have received and agreed to l
       if (isIOSError) {
         if (errorCode === 'ECONNABORTED' || errorCode === 'ERR_NETWORK' || !errorMessage) {
           setErr(
-            "iOS upload failed (likely memory/timeout). Quick fixes:\n" +
-            "1) Use WiFi (not mobile data)\n" +
-            "2) Sign smaller (shorter strokes)\n" +
-            "3) Close all other apps\n" +
-            "4) Use 'Choose file' instead of camera\n" +
-            "5) Try on a device with more RAM"
+            "iOS upload issue. Quick fixes:\n" +
+            "1) Use WiFi connection\n" +
+            "2) Sign with shorter strokes\n" +
+            "3) Close other apps\n" +
+            "4) Try again"
           );
         } else if (statusCode === 413) {
-          setErr("Files too large. Please use smaller photos/documents (< 3MB each).");
+          setErr("File too large. Use smaller files (< 10MB).");
+        } else if (statusCode === 400 && errorMessage?.includes("signature")) {
+          setErr("Signature issue. Please sign again with clear signature.");
         } else {
-          setErr(errorMessage || "iOS upload failed. Try WiFi or smaller files.");
+          setErr(errorMessage || "Upload failed. Please try again.");
         }
       } else {
         if (statusCode === 413) {
-          setErr("Files too large. Please use smaller files.");
+          setErr("File too large. Use smaller files (< 10MB).");
         } else {
           setErr(errorMessage || "Failed to send OTP. Please try again.");
         }

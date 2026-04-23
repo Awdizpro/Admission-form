@@ -68,9 +68,9 @@ const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 export const api = axios.create({
   baseURL: getBaseURL(),
   withCredentials: true,
-  timeout: 60000, // 60 seconds timeout (iOS needs more time for large uploads)
-  maxContentLength: 50 * 1024 * 1024, // 50MB max content length
-  maxBodyLength: 50 * 1024 * 1024, // 50MB max body length
+  timeout: 90000,
+  maxContentLength: 50 * 1024 * 1024,
+  maxBodyLength: 50 * 1024 * 1024,
 });
 
 // ✅ iOS Fix: Add response interceptor for better error handling

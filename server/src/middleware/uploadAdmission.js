@@ -1,33 +1,28 @@
 import multer from "multer";
 import path from "path";
 
-const storage = multer.memoryStorage(); // phone friendly, avoids disk path issues
+const storage = multer.memoryStorage();
 
 const MAX_MB = 50;
 const fileSize = MAX_MB * 1024 * 1024;
+const FIELD_SIZE = 25 * 1024 * 1024;
 
-// Allowed extensions (fallback when mimetype is weird)
-const allowedExt = new Set([".jpg", ".jpeg", ".png", ".webp", ".pdf"]);
+const imageExts = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".heic", ".heif", ".raw", ".cr2", ".nef", ".arw"]);
+const docExts = new Set([".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt"]);
+const allowedExts = new Set([...imageExts, ...docExts]);
 
 function safeFileFilter(req, file, cb) {
   const ext = path.extname(file.originalname || "").toLowerCase();
   const mime = (file.mimetype || "").toLowerCase();
 
-  const isImageMime = mime.startsWith("image/");
-  const isPdfMime = mime === "application/pdf";
-  const isOctetStream = mime === "application/octet-stream"; // common on phones
-
-  // ✅ Accept images
-  if (isImageMime) return cb(null, true);
-
-  // ✅ Accept PDF by mimetype
-  if (isPdfMime) return cb(null, true);
-
-  // ✅ Phone fallback: octet-stream but extension .pdf
-  if (isOctetStream && ext === ".pdf") return cb(null, true);
-
-  // ✅ Extension fallback (some browsers send empty mimetype)
-  if (allowedExt.has(ext)) return cb(null, true);
+  if (mime.startsWith("image/")) return cb(null, true);
+  if (mime === "application/pdf") return cb(null, true);
+  if (mime === "application/octet-stream" && (ext === ".pdf" || imageExts.has(ext))) return cb(null, true);
+  if (mime === "application/msword" || mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return cb(null, true);
+  if (mime === "application/vnd.ms-excel" || mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") return cb(null, true);
+  if (mime === "text/plain") return cb(null, true);
+  
+  if (allowedExts.has(ext)) return cb(null, true);
 
   return cb(
     new multer.MulterError(
@@ -39,7 +34,10 @@ function safeFileFilter(req, file, cb) {
 
 export const uploadAdmissionFiles = multer({
   storage,
-  limits: { fileSize },
+  limits: { 
+    fileSize,
+    fieldSize: FIELD_SIZE,
+  },
   fileFilter: safeFileFilter,
 }).fields([
   { name: "photo", maxCount: 1 },
