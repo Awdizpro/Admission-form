@@ -61,6 +61,7 @@ const AdmissionSchema = new mongoose.Schema(
       trainingOnly:       { type: Boolean, default: false },
       trainingOnlyCourse: { type: String, trim: true, default: "" },
       bootcampTraining:   { type: Boolean, default: false },
+      jobAssistance:      { type: Boolean, default: false },
     },
 
     /* ======= EDUCATION TABLE ======= */

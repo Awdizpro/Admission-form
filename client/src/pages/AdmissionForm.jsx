@@ -144,6 +144,21 @@ export default function AdmissionForm() {
 
 
 
+  const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+
+  function validateFileSize(file, fieldName) {
+    if (!file) return { valid: false, error: "" };
+    if (file.size > MAX_FILE_SIZE) {
+      const msg = `${fieldName}: Maximum file size is 2MB. Please select a smaller file.`;
+      alert(msg);
+      return {
+        valid: false,
+        error: msg,
+      };
+    }
+    return { valid: true, error: "" };
+  }
+
   // ================= Passport photo refs =================
   const [photoOption, setPhotoOption] = useState("");
   const photoPickerRef = useRef(null); // ✅ single input for iPhone / upload
@@ -417,11 +432,18 @@ export default function AdmissionForm() {
         const a = res.data.admission;
 
         // merge with defaults so undefined
+        console.log("[EDIT] Server course data:", JSON.stringify(a.course));
         setForm((prev) => {
+          console.log("[EDIT] Merge - server jobAssistance:", a.course?.jobAssistance);
           const merged = {
             ...prev,
-            personal: { ...prev.personal, ...(a.personal || {}) },
-            course: { ...prev.course, ...(a.course || {}) },
+            personal: { ...(a.personal || {}), ...prev.personal },
+            course: {
+              ...(a.course || {}),
+              trainingOnly: a.course?.trainingOnly ?? prev.course.trainingOnly,
+              bootcampTraining: a.course?.bootcampTraining ?? prev.course.bootcampTraining,
+              jobAssistance: a.course?.jobAssistance ?? prev.course.jobAssistance,
+            },
             education:
               Array.isArray(a.education) && a.education.length
                 ? a.education
@@ -686,9 +708,9 @@ export default function AdmissionForm() {
     if (key === "cr_reference") return srcForm.course?.reference ?? "";
     if (key === "cr_planType") {
       // job vs training-only vs bootcamp vs job-assistance
-      if (srcForm.course?.bootcampTraining) return "bootcamp";
-      if (srcForm.course?.jobAssistance) return "job-assistance";
-      return srcForm.course?.trainingOnly ? "training-only" : "job";
+      const val = srcForm.course?.bootcampTraining ? "bootcamp" : (srcForm.course?.jobAssistance ? "job-assistance" : (srcForm.course?.trainingOnly ? "training-only" : "job"));
+      console.log("[getValueForKey] cr_planType:", val, "jobAssistance:", srcForm.course?.jobAssistance);
+      return val;
     }
 
     // ---------- CENTER (center_) ----------
@@ -746,6 +768,7 @@ export default function AdmissionForm() {
             // ---- BAAKI SAB (personal / course / center / ids / education / signatures) ----
             const beforeVal = getValueForKey(originalForm, key);
             const nowVal = getValueForKey(form, key);
+            console.log("[VALIDATE] key:", key, "before:", beforeVal, "now:", nowVal);
 
             return String(beforeVal ?? "") === String(nowVal ?? "");
           });
@@ -896,18 +919,22 @@ export default function AdmissionForm() {
     }
 
     // Universal file size limit (all devices)
-    const maxFileSize = 10 * 1024 * 1024; // 10MB per file
+    const maxFileSize = 2 * 1024 * 1024; // 2MB per file
     
     if (photo.size > maxFileSize) {
-      setError(`Photo too large (${Math.round(photo.size / 1024 / 1024)}MB). Max 10MB. Please compress or use a smaller image.`);
+      setError(`Photo too large (${Math.round(photo.size / 1024 / 1024)}MB). Max 2MB. Please compress or use a smaller image.`);
       return;
     }
     if (panFile && panFile.size > maxFileSize) {
-      setError(`PAN document too large (${Math.round(panFile.size / 1024 / 1024)}MB). Max 10MB.`);
+      const msg = `PAN document too large (${Math.round(panFile.size / 1024 / 1024)}MB). Max 2MB.`;
+      alert(msg);
+      setError(msg);
       return;
     }
     if (aadhaarFile && aadhaarFile.size > maxFileSize) {
-      setError(`Aadhaar document too large (${Math.round(aadhaarFile.size / 1024 / 1024)}MB). Max 10MB.`);
+      const msg = `Aadhaar document too large (${Math.round(aadhaarFile.size / 1024 / 1024)}MB). Max 2MB.`;
+      alert(msg);
+      setError(msg);
       return;
     }
 
@@ -938,6 +965,12 @@ export default function AdmissionForm() {
     setAdmissionDraft({
       payload: {
         ...form,
+        course: {
+          ...form.course,
+          jobAssistance: form.course.jobAssistance,
+          bootcampTraining: form.course.bootcampTraining,
+          trainingOnly: form.course.trainingOnly,
+        },
         personal: {
           ...form.personal,
           name,
@@ -1658,6 +1691,13 @@ export default function AdmissionForm() {
                             const file = e.target.files?.[0] || null;
                             if (!file) return;
 
+                            const sizeCheck = validateFileSize(file, "Passport Photo");
+                            if (!sizeCheck.valid) {
+                              setError(sizeCheck.error);
+                              e.target.value = "";
+                              return;
+                            }
+
                             setImageProcessing(true);
                             const normalized = await normalizeImageFile(file);
                             setImageProcessing(false);
@@ -1840,13 +1880,20 @@ export default function AdmissionForm() {
 
 
               <div className="min-w-0">
-                <label className="block text-sm mb-1">PAN Document (Photo/PDF) Max 10MB*</label>
+                <label className="block text-sm mb-1">PAN Document (Photo/PDF) Max 2MB*</label>
                 <input
                   type="file"
                   accept="image/*,.pdf,.jpg,.jpeg,.png"
                   onChange={async (e) => {
                     const file = e.target.files?.[0] || null;
                     if (!file) return;
+
+                    const sizeCheck = validateFileSize(file, "PAN Document");
+                    if (!sizeCheck.valid) {
+                      setError(sizeCheck.error);
+                      e.target.value = "";
+                      return;
+                    }
 
                     setImageProcessing(true);
                     const normalized = await normalizeImageFile(file);
@@ -1866,7 +1913,7 @@ export default function AdmissionForm() {
               </div>
               <div className="min-w-0">
                 <label className="block text-sm mb-1">
-                  Aadhaar/Driving License (Photo/PDF) Max 10MB*
+                  Aadhaar/Driving License (Photo/PDF) Max 2MB*
                 </label>
                 <input
                   type="file"
@@ -1874,6 +1921,13 @@ export default function AdmissionForm() {
                   onChange={async (e) => {
                     const file = e.target.files?.[0] || null;
                     if (!file) return;
+
+                    const sizeCheck = validateFileSize(file, "Aadhaar/Driving");
+                    if (!sizeCheck.valid) {
+                      setError(sizeCheck.error);
+                      e.target.value = "";
+                      return;
+                    }
 
                     setImageProcessing(true);
                     const normalized = await normalizeImageFile(file);

@@ -215,7 +215,7 @@ export default function StudentsAgreement() {
                 Learning, and data visualization tools, students can be placed across various fresher-level analytical and
                 data-centric roles in IT and non-IT companies. These include, but are not limited to: Data Analyst, Business
                 Analyst, Data Science Intern, Junior Data Scientist, MIS Analyst, Reporting Analyst, BI Developer, Research
-                Analyst, SQL Analyst, Python Developer (Data Focused), Data Engineer - Intern, Associate Analyst, Insight Analyst,
+                Analyst, SQL Developer, SQL Analyst, Python Developer (Data Focused), Data Engineer - Intern, Associate Analyst, Insight Analyst,
                 Decision Science Analyst, Analytics Executive and ML Trainee and similar positions in IT Development.
               </td>
             </tr>

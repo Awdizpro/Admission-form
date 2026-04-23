@@ -268,7 +268,7 @@ export default function BootcampTerms() {
                 <strong>Data Analytics and Data Science course</strong>
               </td>
               <td className="border px-3 py-2">
-                As this course encompasses a broad curriculum including statistics, Excel, SQL, Python, Power BI, Tableau, Machine Learning, and data visualization tools, students can be placed across various fresher-level analytical and data-centric roles in IT and non-IT companies. These include, but are not limited to: Data Analyst, Business Analyst, Data Science Intern, Junior Data Scientist, MIS Analyst, Reporting Analyst, BI Developer, Research Analyst, SQL Analyst, Python Developer (Data Focused), Data Engineer - Intern, Associate Analyst, Insight Analyst, Decision Science Analyst, Analytics Executive, <strong>ML Trainee</strong> and similar positions in IT Development.
+                As this course encompasses a broad curriculum including statistics, Excel, SQL, Python, Power BI, Tableau, Machine Learning, and data visualization tools, students can be placed across various fresher-level analytical and data-centric roles in IT and non-IT companies. These include, but are not limited to: Data Analyst,  Business Analyst, Data Science Intern, Junior Data Scientist, MIS Analyst, Reporting Analyst, BI Developer, Research Analyst, SQL Developer, SQL Analyst, Python Developer (Data Focused), Data Engineer - Intern, Associate Analyst, Insight Analyst, Decision Science Analyst, Analytics Executive, <strong>ML Trainee</strong> and similar positions in IT Development.
               </td>
             </tr>
           </tbody>
